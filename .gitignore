@@ -16,3 +16,10 @@
 *.exe
 *.out
 *.app
+*.marks
+*.cmake
+Makefile
+CMakeFiles/
+/src/mget
+CMakeCache.txt
+

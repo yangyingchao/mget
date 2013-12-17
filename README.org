@@ -1,0 +1,9 @@
+* Introduction
+
+MulityGet to speed up downloading from http server.
+
+* Remember to change you MTU to larger value (for example 7200)
+
+#+BEGIN_SRC sh
+ifconfig eth0 mtu 7200
+#+END_SRC
