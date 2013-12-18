@@ -5,28 +5,23 @@
 
 typedef struct _data_chunk
 {
-    uint32 chunk_start;
-    uint32 chunk_end;
     uint32 cur_pos;
+    uint32 end_pos;
 } data_chunk;
-
-typedef struct _data_chunk_list
-{
-    data_chunk*              chunk;
-    struct _data_chunk_list* next;
-} data_chunk_list;
 
 typedef struct _metadata_head
 {
     uint32 total_size;
     uint8  nr_chunks;
-    uint8  reserved[3];
+    uint8  from_file;
+    uint8  reserved[2];
+    void*  mp;
 } metadata_head;
 
 typedef struct _metadata
 {
-    metadata_head   head;
-    data_chunk_list body;
+    metadata_head head;
+    data_chunk    body[0];
 } metadata;
 
 /**
@@ -34,20 +29,23 @@ typedef struct _metadata
  * @param fn - name of file to be read from.
  * @return pointer of metadata.
  */
-metadata* metadata_read_from_file(const char* fn);
-
-/**
- * @name metadata_save_to_file - save metadata to specified file.
- * @param fn - name of file to be written.
- * @return 0 if succeeded.
- */
-int metadata_save_to_file(const char* fn);
+metadata* metadata_create_from_file(const char* fn);
 
 /**
  * @name metadata_destroy - destroy specified metadata.
  * @param data -  metadata to be destroyed.
  * @return void
  */
-void metadata_destroy(metadata* data);
+void metadata_destroy(metadata** md);
+
+void metadata_display(metadata* md);
+
+#define K       (1 << 10)
+#define M       (1 << 20)
+#define G       (1 << 30) // Max to 4GB.
+
+
+data_chunk* chunk_split(uint32 start, uint32 size, int num);
+void chunk_destroy(data_chunk* dc);
 
 #endif /* _METADATA_H_ */
