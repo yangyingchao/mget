@@ -5,48 +5,57 @@
 #include <string.h>
 #include "fileutils.h"
 #include "metadata.h"
+#include "debug.h"
+
+#define handle_error(msg) \
+    do { perror(msg); exit(EXIT_FAILURE); } while (0)
 
 int main(int argc, char *argv[])
 {
+    PDEBUG ("Test begins, PID: %d\n", getpid());
+
+    uint32      start = 0;
+    uint32      size  = 533 * M;
+    const char* url   = "http://www.baidu.com";
+    metadata_wrapper mw;
+    data_chunk* cp    = NULL;
+
+    bool b_re = metadata_create_from_url(url, 433*M, 0, 9, &mw.md);
+    if (!b_re)
+    {
+        handle_error("Failed to create metadata from url\n");
+    }
+
+    for (int i = 0; i < 9; ++i)
+    {
+        cp = &mw.md->body[i];
+        PDEBUG ("chunk: %p, cur_pos: %08X, end: %08X (%.02fM)\n",
+                cp, cp->cur_pos, cp->end_pos, (float)cp->end_pos/(M));
+    }
+
+    metadata_display(mw.md);
+
     const char* tmp = "/tmp/test.txt";
     fhandle* fh = fhandle_create(tmp, FHM_CREATE);
-    printf ("Hello, this is mget (PID: %d)!\n", getpid());
+    PDEBUG ("after handle created.\n");
+    metadata_display(mw.md);
+    mw.fm = fhandle_mmap(fh, 0, MD_SIZE(mw.md));
+    mw.from_file = false;
 
-    uint32 start = 0;
-    uint32 size = 533 * M;
+    PDEBUG ("Destroying mw: %p, md: %p\n", &mw, mw.md);
 
-    data_chunk* dc = chunk_split(start, size, 9);
-    data_chunk* cp = dc;
-    for (uint8 i = 0; i < 9; ++i)
+    metadata_destroy(&mw);
+
+    printf("Now md: %p, recreating....\n", mw.md);
+    b_re = metadata_create_from_file(tmp, &mw);
+    if (b_re)
     {
-        cp = dc + i;
-        printf ("chunk: %p, cur_pos: %08X, end: %08X (%.02fM)\n",
-                cp, cp->cur_pos, cp->end_pos, (float)cp->end_pos/(M));
-
+        metadata_display(mw.md);
+        metadata_destroy(&mw);
     }
-
-    metadata* md = malloc(sizeof(metadata_head) + 9 * sizeof(data_chunk));
-    memset(md, 0, sizeof(metadata_head) + 9 * sizeof(data_chunk));
-
-    md->head.total_size = size;
-    md->head.nr_chunks = 9;
-    md->head.from_file = false;
-    md->head.mp = fhandle_mmap(fh, 0, sizeof(metadata_head) + 9 * sizeof(data_chunk));
-
-    printf("Copying data chunks to metadata...\n");
-    for (uint8 i = 0; i < 9; ++i)
+    else
     {
-        cp = &md->body[i];
-        *cp = *(dc +i);
-        cp->cur_pos += 0x1111;
+        PDEBUG ("Faield to create mw from file: %s\n", tmp);
     }
-
-    metadata_display(md);
-    metadata_destroy(&md);
-
-    printf("Now md: %p, recreating....\n", md);
-    md = metadata_create_from_file(tmp);
-    metadata_display(md);
-    metadata_destroy(&md);
     return 0;
 }

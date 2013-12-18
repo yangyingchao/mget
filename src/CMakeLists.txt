@@ -1,4 +1,7 @@
 ADD_DEFINITIONS("-std=gnu99")
-add_executable(mget main.c metadata.c fileutils.c)
-target_link_libraries(mget m)
+ADD_DEFINITIONS("-g")
+add_subdirectory(lib)
+include_directories(lib)
+add_executable(tmget main.c)
+target_link_libraries(tmget mget)
 

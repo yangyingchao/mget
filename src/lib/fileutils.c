@@ -31,6 +31,8 @@ fhandle* fhandle_create(const char* fn, FHM mode)
     }
 
 err:
+    PDEBUG ("err..\n");
+
     if (fh)
     {
         fhandle_destroy(&fh);

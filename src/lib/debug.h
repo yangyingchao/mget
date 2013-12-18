@@ -5,7 +5,6 @@
 
 #define PDEBUG(fmt, args...)                                            \
     do {                                                                \
-        char msg[256] = {'\0'};                                         \
         const char* file = __FILE__;                                    \
         const char* ptr = file;                                         \
         const char* sep = "/";                                          \
@@ -14,8 +13,9 @@
             file = ++ptr;                                               \
         }                                                               \
                                                                         \
-        sprintf(msg, "TDEBUG:  - %s(%d)-%s\t: ",file, __LINE__,__FUNCTION__); \
-        fprintf(stderr, strcat(msg, fmt ), ##args);                     \
+        fprintf(stderr, "TDEBUG:  - %s(%d)-%s\t: ",file, __LINE__,__FUNCTION__); \
+        fprintf(stderr, fmt, ##args);                                   \
         } while(0)
 
 #endif /* _DEBUG_H_ */
+
