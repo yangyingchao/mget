@@ -82,34 +82,21 @@ bool metadata_create_from_url(const char* url, uint64 size,
     metadata* pmd = (metadata*)malloc(m_size);
     if (pmd)
     {
-        PDEBUG ("pmd: %p, size: %lu, end: %p\n",
-                pmd, m_size, (char*)pmd+m_size);
-
         *md = pmd;
         memset(pmd, 0, m_size);
         pmd->total_size = size;
         pmd->nr_chunks = nc;
-
-        PDEBUG ("NC set to: %d\n", pmd->nr_chunks);
-
         pmd->url_length = url ? strlen(url):0;
 
         for (int i = 0; i < nc; ++i)
         {
             data_chunk* p = dc+i;
-            PDEBUG ("%p, cur_pos: %08llX, end_pos: %08llX\n",
-                    p, p->cur_pos, p->end_pos);
             pmd->body[i] = *p;
-            p = &pmd->body[i];
-            PDEBUG ("%p, cur_pos: %08llX, end_pos: %08llX\n",
-                    p, p->cur_pos, p->end_pos);
         }
         if (url)
         {
             sprintf(GET_URL(pmd), "%s", url);
-            PDEBUG ("url: %p, %s\n",GET_URL(pmd) , GET_URL(pmd));
             pmd->url = GET_URL(pmd);
-            PDEBUG ("pmd->url: %p, %s\n",pmd->url , pmd->url);
         }
     }
     return true;
@@ -124,8 +111,6 @@ void metadata_destroy(metadata_wrapper* mw)
 
     if (mw->from_file) // created from file, just close it.
     {
-        PDEBUG ("Closing file: %s\n", mw->fm->fh->fn);
-
         fhandle_munmap_close(&mw->fm);
         return;
     }
@@ -146,7 +131,6 @@ void metadata_destroy(metadata_wrapper* mw)
     for (uint8 i = 0; i < mw->md->nr_chunks; ++i)
     {
         data_chunk* p = &mw->md->body[i];
-        SHOW_CHUNK(p);
         nmd->body[i] = mw->md->body[i];
     }
 
@@ -194,8 +178,6 @@ bool chunk_split(uint64 start, uint64 size, int *num, data_chunk** dc)
     }
 
     uint64 cs = size / *num;
-    PDEBUG ("cs = %llX (%.02fM)\n", cs, (float)cs/M);
-
     if (cs < 1*M)
     {
         cs = 1*M;
@@ -221,9 +203,6 @@ bool chunk_split(uint64 start, uint64 size, int *num, data_chunk** dc)
             break;
         }
     }
-
-    PDEBUG ("size: %.02fM, chunk_size: %.02fM, number of Chunk: %d\n",
-            (float)size/M, (float)cs/M, *num);
 
     return true;
 }

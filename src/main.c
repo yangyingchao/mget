@@ -41,8 +41,6 @@ int main(int argc, char *argv[])
 
     const char* tmp = "/tmp/test.txt";
     fhandle* fh = fhandle_create(tmp, FHM_CREATE);
-    PDEBUG ("after handle created.\n");
-    metadata_display(mw.md);
     mw.fm = fhandle_mmap(fh, 0, MD_SIZE(mw.md));
     mw.from_file = false;
 
