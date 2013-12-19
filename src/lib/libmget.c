@@ -64,19 +64,17 @@ bool parse_url(const char* url, url_info** ui)
     if (length == 0)
         goto ret;
 
-    url_info* up = ZALLOC(url_info, (sizeof(url_info)));
-    char* host     = ZALLOC(char, length);
-    char* protocol = ZALLOC(char, length);
-    if (!up || !host || !protocol)
+    url_info* up       = ZALLOC(url_info, (sizeof(url_info)));
+    char*     protocol = NULL;
+    if (!up || !protocol)
         goto ret;
 
     *ui      = up;
     up->furl = strdup(url);
-    up->host = host;
 
     int tmpPort = -1, length1 = -1, length2 = -1;
-    int num     = sscanf(url, "%[^://]://%[^:/]%n:%d%n",
-                         protocol, host, &length1, &tmpPort, &length2);
+    int num     = sscanf(url, "%m[^://]://%m[^:/]%n:%d%n",
+                         &protocol, &up->host, &length1, &tmpPort, &length2);
     if (num <= 0)
     {
         goto free;
@@ -112,11 +110,8 @@ bool parse_url(const char* url, url_info** ui)
     goto ret;
 
 free:
-    FIF(host);
-
-ret:
     FIF(protocol);
-
+ret:
     return true;
 }
 
