@@ -118,9 +118,9 @@ void associate_wrapper(metadata_wrapper* mw)
     nmd->url_length = omd->url_length;
     nmd->url = GET_URL(nmd);
     if (omd->url)
-    {
         sprintf(nmd->url, "%s", omd->url);
-    }
+    else
+        nmd->url = NULL;
 
     for (uint8 i = 0; i < mw->md->nr_chunks; ++i)
     {

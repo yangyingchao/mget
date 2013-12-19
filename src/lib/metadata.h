@@ -16,6 +16,7 @@ typedef struct _data_chunk
     uint64 end_pos;
 } data_chunk;
 
+//TODO: Add magic characters and version number...
 typedef struct _metadata
 {
     uint64     total_size;

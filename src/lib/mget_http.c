@@ -116,9 +116,8 @@ void process_http_request(url_info* ui, const char* dp, int nc,
     metadata_display(mw.md);
     associate_wrapper(&mw);
 
-l1:
-
-    ;
+l1:;
+    PDEBUG ("Intializing multi-handler...\n");
     // Initialize curl_multi
     CURLM* mh = curl_multi_init();
 
