@@ -7,7 +7,7 @@
 #include "debug.h"
 
 #define MAX_CHUNKS       10
-
+#define MAX_CHUNK_SIZE   (512*K)
 
 // Byte/     0       |       1       |       2       |       3       |
 // ***/              |               |               |               |
@@ -102,6 +102,33 @@ bool metadata_create_from_url(const char* url, uint64 size,
     return true;
 }
 
+void associate_wrapper(metadata_wrapper* mw)
+{
+    if (!mw || mw->from_file)
+    {
+        return;
+    }
+
+    // Dump metadata to fm, close fm, and free md.
+    // TODO: Check size and remap if necessary.
+    metadata* nmd = (metadata*)mw->fm->addr;
+    metadata* omd = mw->md;
+    nmd->total_size = omd->total_size;
+    nmd->nr_chunks = omd->nr_chunks;
+    nmd->url_length = omd->url_length;
+    nmd->url = GET_URL(nmd);
+    if (omd->url)
+    {
+        sprintf(nmd->url, "%s", omd->url);
+    }
+
+    for (uint8 i = 0; i < mw->md->nr_chunks; ++i)
+    {
+        data_chunk* p = &mw->md->body[i];
+        nmd->body[i] = mw->md->body[i];
+    }
+}
+
 void metadata_destroy(metadata_wrapper* mw)
 {
     if (!mw)
@@ -178,9 +205,9 @@ bool chunk_split(uint64 start, uint64 size, int *num, data_chunk** dc)
     }
 
     uint64 cs = size / *num;
-    if (cs < 1*M)
+    if (cs <= MAX_CHUNK_SIZE)
     {
-        cs = 1*M;
+        cs = MAX_CHUNK_SIZE;
     }
     else
     {

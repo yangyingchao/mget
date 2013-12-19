@@ -132,3 +132,17 @@ char* get_basename(const char* fname)
     free(tmp);
     return bname;
 }
+
+bool file_existp(const char* fn)
+{
+    //TODO: check status....
+    return access(fn, F_OK) == 0 ? true: false;
+}
+
+void remove_file(const char* fn)
+{
+    if (fn)
+    {
+        unlink(fn);
+    }
+}

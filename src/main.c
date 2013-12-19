@@ -8,9 +8,16 @@
 #define handle_error(msg) \
     do { perror(msg); exit(EXIT_FAILURE); } while (0)
 
+void show_progress(metadata* md)
+{
+    printf ("called....\n");
+}
 int main(int argc, char *argv[])
 {
-    if (argc != 3)
+// TODO: Remove this ifdef!
+#if 0
+
+if (argc != 3)
     {
         printf("Usage: %s size, nc.\n", argv[0]);
         return 1;
@@ -62,8 +69,8 @@ int main(int argc, char *argv[])
 
 
     PDEBUG ("Test Staring request!\n");
-
-    url = "https://launchpadlibrarian.net/149149704/python-mode.el-6.1.2.tar.gz";
+#endif // End of #if 0
+    const char* url = "http://www.python.org/ftp/python/2.7.6/python-2.7.6.msi";
     start_request(url, "/tmp/", 9, NULL);
 
     return 0;

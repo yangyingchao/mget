@@ -3,51 +3,10 @@
 #include <stdio.h>
 #include <strings.h>
 #include "debug.h"
-
-typedef enum _url_protocol
-{
-    UP_HTTP = 0,
-    UP_HTTPS,
-    UP_FTP,
-    UP_INVALID
-} url_protocol;
+#include "mget_http.h"
 
 const char* ups[] = {
     "http", "https", "ftp", NULL};
-
-typedef struct _url_info
-{
-    url_protocol protocol;
-    uint32       port;
-    char*        host;
-    char*        uri;
-    char*        bname;
-    char*        furl; /* full url.*/
-} url_info;
-
-bool parse_url(const char* url, url_info** ui);
-void url_info_destroy(url_info** ui);
-void url_info_display(url_info* ui);
-
-bool start_request(const char* url, const char* dp, int nc,
-                   download_progress_callback* cb)
-{
-    if (!url || *url == '\0' || !dp || *dp == '\0')
-    {
-        return false; //@todo: add more checks...
-    }
-
-    url_info* ui = NULL;
-    if (!parse_url(url, &ui))
-    {
-        return false;
-    }
-
-    url_info_display(ui);
-
-    url_info_destroy(&ui);
-    return true;
-}
 
 #define DEFAULT_HTTP_PORT         80
 #define DEFAULT_HTTPS_PORT        443
@@ -56,6 +15,8 @@ bool start_request(const char* url, const char* dp, int nc,
 
 bool parse_url(const char* url, url_info** ui)
 {
+    PDEBUG ("url: %s, ui: %p\n", url, ui);
+
     bool bret = false;
     if (!url)
         goto ret;
@@ -64,17 +25,18 @@ bool parse_url(const char* url, url_info** ui)
     if (length == 0)
         goto ret;
 
-    url_info* up       = ZALLOC(url_info, (sizeof(url_info)));
-    char*     protocol = NULL;
-    if (!up || !protocol)
+    url_info* up = ZALLOC(url_info, (sizeof(url_info)));
+    if (!up)
         goto ret;
 
-    *ui      = up;
     up->furl = strdup(url);
 
+    char*     protocol = NULL;
     int tmpPort = -1, length1 = -1, length2 = -1;
     int num     = sscanf(url, "%m[^://]://%m[^:/]%n:%d%n",
                          &protocol, &up->host, &length1, &tmpPort, &length2);
+    PDEBUG ("num: %d\n", num);
+
     if (num <= 0)
     {
         goto free;
@@ -107,10 +69,14 @@ bool parse_url(const char* url, url_info** ui)
 
     up->uri   = strdup(url);
     up->bname = get_basename(url);
+    *ui       = up;
+
+    PDEBUG ("up: %p\n", up);
     goto ret;
 
 free:
     FIF(protocol);
+    PDEBUG ("up: %p\n", up);
 ret:
     return true;
 }
@@ -136,6 +102,47 @@ void url_info_display(url_info* ui)
         PDEBUG ("empty url_info...\n");
         return;
     }
-    PDEBUG ("Protocol: %02X (%s), port: %d, host: %s, uri: %s, filename: %s\n",
-            ui->protocol, ups[ui->protocol], ui->port, ui->host, ui->uri, ui->bname);
+    PDEBUG ("Protocol: %02X (%s), port: %d, host: %s, uri: %s,\nurl: %s,filename: %s\n",
+            ui->protocol, ups[ui->protocol], ui->port, ui->host, ui->uri,
+            ui->furl, ui->bname);
+}
+
+
+
+bool start_request(const char* url, const char* dp, int nc,
+                   download_progress_callback cb)
+{
+    if (!url || *url == '\0' || !dp || *dp == '\0')
+    {
+        PDEBUG ("Invalid args...\n");
+        return false; //@todo: add more checks...
+    }
+
+    url_info* ui = NULL;
+    if (!parse_url(url, &ui))
+    {
+        PDEBUG ("Failed to parse URL: %s\n", url);
+        return false;
+    }
+
+    PDEBUG ("ui: %p\n", ui);
+    url_info_display(ui);
+
+    switch (ui->protocol)
+    {
+        case UP_HTTP:
+        case UP_HTTPS:
+        {
+            process_http_request(ui, dp, nc, cb);
+            break;
+        }
+
+        default:
+        {
+            break;
+        }
+    }
+
+    url_info_destroy(&ui);
+    return true;
 }

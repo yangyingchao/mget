@@ -1,7 +1,7 @@
 ADD_DEFINITIONS("-std=gnu99")
 ADD_DEFINITIONS("-g")
-add_library(mget SHARED libmget.c metadata.c fileutils.c)
-target_link_libraries(mget m)
+add_library(mget SHARED libmget.c metadata.c fileutils.c mget_http.c)
+target_link_libraries(mget m curl)
 
 # - Try to find LibXml2
 # Once done this will define

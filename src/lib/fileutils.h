@@ -30,5 +30,6 @@ fh_map* fhandle_mmap(fhandle* fh, off_t offset, size_t length);
 void fhandle_munmap(fh_map** fm);
 void fhandle_munmap_close(fh_map** fm);
 char* get_basename(const char* fname);
-
+bool file_existp(const char* fn);
+void remove_file(const char* fn);
 #endif /* _FILEUTILS_H_ */

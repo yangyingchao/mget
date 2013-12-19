@@ -60,5 +60,6 @@ bool metadata_create_from_url(const char* url,
                               metadata** md);
 void metadata_destroy(metadata_wrapper* mw);
 void metadata_display(metadata* md);
+void associate_wrapper(metadata_wrapper* mw);
 #endif /* _METADATA_H_ */
 
