@@ -1,0 +1,34 @@
+#+TITLE: note
+#+AUTHOR: Yang, Ying-chao
+#+OPTIONS: ^:nil toc:1
+#+KEYWORDS: (nil)
+#+CATEGORIES: (nil)
+
+* Http Status Code
+
+** 302
+
+The requested resource resides temporarily under a different URI.
+Since the redirection might be altered on occasion, the client SHOULD
+continue to use the Request-URI for future requests.  This response
+is only cacheable if indicated by a Cache-Control or Expires header
+field.
+
+The temporary URI SHOULD be given by the Location field in the
+response. Unless the request method was HEAD, the entity of the
+response SHOULD contain a short hypertext note with a hyperlink to
+the new URI(s).
+
+*** Location
+
+The Location response-header field is used to redirect the recipient
+to a location other than the Request-URI for completion of the
+request or identification of a new resource. For 201 (Created)
+responses, the Location is that of the new resource which was created
+by the request. For 3xx responses, the location SHOULD indicate the
+server's preferred URI for automatic redirection to the resource. The
+field value consists of a single absolute URI.
+
+#+BEGIN_QUOTE
+Location       = "Location" ":" absoluteURI
+#+END_QUOTE

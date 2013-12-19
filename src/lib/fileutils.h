@@ -29,5 +29,6 @@ typedef struct _fh_map
 fh_map* fhandle_mmap(fhandle* fh, off_t offset, size_t length);
 void fhandle_munmap(fh_map** fm);
 void fhandle_munmap_close(fh_map** fm);
+char* get_basename(const char* fname);
 
 #endif /* _FILEUTILS_H_ */

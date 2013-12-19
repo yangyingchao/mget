@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <string.h>
 #include "debug.h"
+#include <libgen.h>
 #define FM_RWUSR       (S_IRUSR|S_IWUSR)
 
 
@@ -119,4 +120,15 @@ void fhandle_munmap_close(fh_map** fm)
         free(*fm);
         *fm = NULL;
     }
+}
+
+
+char* get_basename(const char* fname)
+{
+    if (!fname)
+        return NULL;
+    char* tmp = strdup(fname);
+    char* bname = strdup(basename(tmp));
+    free(tmp);
+    return bname;
 }

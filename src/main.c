@@ -2,8 +2,8 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include "metadata.h"
 #include "debug.h"
+#include "libmget.h"
 
 #define handle_error(msg) \
     do { perror(msg); exit(EXIT_FAILURE); } while (0)
@@ -59,5 +59,12 @@ int main(int argc, char *argv[])
     {
         PDEBUG ("Faield to create mw from file: %s\n", tmp);
     }
+
+
+    PDEBUG ("Test Staring request!\n");
+
+    url = "https://launchpadlibrarian.net/149149704/python-mode.el-6.1.2.tar.gz";
+    start_request(url, "/tmp/", 9, NULL);
+
     return 0;
 }
