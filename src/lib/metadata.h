@@ -7,36 +7,43 @@
 
 #define K       (1 << 10)
 #define M       (1 << 20)
-#define G       (1 << 30) // Max to 4GB.
+#define G       (1 << 30)
+#define T       (1 << 40)
 
 typedef struct _data_chunk
 {
-    uint32 cur_pos;
-    uint32 end_pos;
+    uint64 cur_pos;
+    uint64 end_pos;
 } data_chunk;
 
 typedef struct _metadata
 {
-    uint32     total_size;
+    uint64     total_size;
     uint8      nr_chunks;
-    uint8      flags;
+    uint8      reserved[5];
     uint16     url_length;
     char*      url;
     data_chunk body[0];
 } metadata;
 
-#define PA_4B(X)       (X % 4 ? 4 * ((X/4) + 1): X)
-#define MH_SIZE()      (sizeof(int)*2 + sizeof(char*))
-#define MD_SIZE(X)      (MH_SIZE()  + sizeof(data_chunk)*GET_NC(X)+PA_4B(GET_UL(X)))
+#define PA(X, N)       ((X % N) ? (N * ((X/N) + 1)):X)
+#define MH_SIZE()      (sizeof(uint64)*2 + sizeof(char*))
+#define MD_SIZE(X)      (MH_SIZE()  + sizeof(data_chunk)*X->nr_chunks+PA(X->url_length,4))
 
+#if 0
 #define NC_SHIFT 24
 #define UL_MASK  ((1 << NC_SHIFT)-1)
 #define NC_MASK  (~UL_MASK)
-#define GET_UL(X)          (*(((int*)X)+1) & UL_MASK)
-#define SET_NC(X, N)       *(((int*)X)+1) = (GET_UL(X) | (N << NC_SHIFT))
-#define GET_NC(X)          ((*(((int*)X)+1) >> NC_SHIFT) & 0xFF)
-#define SET_UL(X, N)       *(((int*)X)+1) = ((*(((int*)X)+1) & NC_MASK) | N)
-#define GET_URL(X)         (((char*)X)+MH_SIZE()+sizeof(data_chunk)*(GET_NC(X)))
+#define NC_PTR(X) (((char*)X)+sizeof(uint64))
+#define SET_NC(X, N)       (*NC_PTR(X) = N)
+#define GET_NC(X)          ((*((int*)NC_PTR(X)) >> NC_SHIFT) & 0xFF)
+
+#define UL_PTR(X)       ((uint16*)(((char*)X)+sizeof(uint64)+sizeof(uint8)*6))
+#define GET_UL(X)          (*UL_PTR(X))
+#define SET_UL(X, N)       (*UL_PTR(X) = N)
+#endif // End of #if 0
+
+#define GET_URL(X)         (((char*)X)+MH_SIZE()+sizeof(data_chunk)*(X->nr_chunks))
 
 typedef struct _metadata_wrapper
 {
@@ -47,8 +54,8 @@ typedef struct _metadata_wrapper
 
 bool metadata_create_from_file(const char* fn, metadata_wrapper* mw);
 bool metadata_create_from_url(const char* url,
-                              uint32 size,
-                              uint32 start_pos,
+                              uint64 size,
+                              uint64 start_pos,
                               int nc,
                               metadata** md);
 void metadata_destroy(metadata_wrapper* mw);
