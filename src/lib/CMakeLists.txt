@@ -6,7 +6,8 @@ set(VERSION_MINOR 0)
 set(VERSION_PATCH 0)
 
 configure_file(mget_config.h.in mget_config.h)
-add_library(mget SHARED libmget.c metadata.c fileutils.c mget_http.c timeutil.c)
+add_library(mget SHARED libmget.c metadata.c fileutils.c mget_http.c
+  timeutil.c  data_utlis.c)
 target_link_libraries(mget m curl)
 
 # - Try to find LibXml2

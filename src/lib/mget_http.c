@@ -55,6 +55,27 @@ size_t get_size_from_header(void *buffer,  size_t size, size_t nmemb,
     return size*nmemb;
 }
 
+size_t recv_header(void *buffer,  size_t size, size_t nmemb,
+                   void *userp)
+{
+    hash_table* ht = (hash_table*)userp;
+
+    if (ht)
+    {
+        char* k = NULL;
+        char* v = NULL;
+        if (sscanf((const char*)buffer, "%m[^:] : %m[^$] ", &k, &v))
+        {
+            if (!InsertEntry(ht, rstrip(k), rstrip(v)))
+            {
+                PDEBUG ("Failed to add kvp: %s, %s\n", k, v);
+                FIF(k); FIF(v);
+            }
+        }
+    }
+    return size*nmemb;
+}
+
 uint64 get_remote_file_size(url_info* ui)
 {
     static CURL* eh0 = NULL;
@@ -63,11 +84,13 @@ uint64 get_remote_file_size(url_info* ui)
         eh0 = curl_easy_init();
     }
 
+    hash_table* ht = hash_tableCreate(256, free);
+
     //@todo: handle 302!!
     uint64 size = 0;
     curl_easy_setopt(eh0, CURLOPT_URL, ui->furl);
-    curl_easy_setopt(eh0, CURLOPT_HEADERFUNCTION, get_size_from_header);
-    curl_easy_setopt(eh0, CURLOPT_HEADERDATA, &size);
+    curl_easy_setopt(eh0, CURLOPT_HEADERFUNCTION, recv_header);
+    curl_easy_setopt(eh0, CURLOPT_HEADERDATA, ht);
 
     struct curl_slist* slist = NULL;
     slist = curl_slist_append(slist, "Accept: */*");
@@ -80,11 +103,18 @@ uint64 get_remote_file_size(url_info* ui)
     curl_easy_getinfo(eh0, CURLINFO_RESPONSE_CODE, &stat);
     curl_slist_free_all(slist);
 
+    char* val = (char*)GetEntryFromhash_table(ht, "Content-Range");
+    if (val)
+    {
+        uint64 s = 0, e = 0;
+        int n = sscanf(val, "bytes %Lu-%Lu/%Lu", &s, &e, &size);
+    }
+
     PDEBUG ("remote file size: %llu (%.02fM)\n", size, (float)size/M);
     return size;
 }
 
-void process_http_request(url_info* ui, const char* dp, int nc,
+void process_http_request(url_info* ui, const char* dn, int nc,
                           void (*cb)(metadata* md))
 {
     PDEBUG ("enter\n");
@@ -96,7 +126,7 @@ void process_http_request(url_info* ui, const char* dp, int nc,
     curl_global_init(CURL_GLOBAL_DEFAULT);
 
     char fn [256] = {'\0'};
-    sprintf(fn, "%s/%s.tmd", dp, ui->bname);
+    sprintf(fn, "%s/%s.tmd", dn, ui->bname);
     metadata_wrapper mw;
     if (file_existp(fn) && metadata_create_from_file(fn, &mw))
     {
@@ -120,6 +150,17 @@ void process_http_request(url_info* ui, const char* dp, int nc,
 
 l1:;
     metadata_display(mw.md);
+    if (mw.md->hd.status == RS_SUCCEEDED)
+    {
+        goto ret;
+    }
+
+    mw.md->hd.status = RS_STARTED;
+    if (cb)
+    {
+        (*cb)(mw.md);
+    }
+
     PDEBUG ("Intializing multi-handler...\n");
     // Initialize curl_multi
     CURLM* mh = curl_multi_init();
@@ -130,7 +171,7 @@ l1:;
     }
 
     memset(fn, 0, 256);
-    sprintf(fn, "%s/%s", dp, ui->bname);
+    sprintf(fn, "%s/%s", dn, ui->bname);
     PDEBUG ("fn: %s, bname: %s\n", fn, ui->bname);
 
     fhandle* fh2 = fhandle_create(fn, FHM_CREATE);
@@ -147,11 +188,19 @@ l1:;
     struct curl_slist* flist = NULL; // used to record allocated resourcs...
 
     CURL**  ehs = ZALLOC(CURL*, mw.md->hd.nr_chunks);
+    bool need_request = false;
     for (int i = 0; i < mw.md->hd.nr_chunks; ++i)
     {
         CURL* eh = ehs[i]  = curl_easy_init();
 
         data_chunk* dp  = &mw.md->body[i];
+        if (dp->cur_pos >= dp->end_pos)
+        {
+            continue;
+        }
+
+        need_request = true;
+
         easy_param* ppm = params+i;
         ppm->md         = mw.md;
         ppm->idx        = i;
@@ -175,12 +224,17 @@ l1:;
         PDEBUG ("added eh: %p\n", eh);
     }
 
+    if (!need_request)
+    {
+        mw.md->hd.status = RS_SUCCEEDED;
+        goto ret;
+    }
+
     PDEBUG ("Performing...\n");
 
     int running_hanlders = 0;
     curl_multi_perform(mh, &running_hanlders);
     PDEBUG ("perform returns: %d\n",running_hanlders);
-
 
     while (running_hanlders) {
         struct timeval timeout;
@@ -216,9 +270,38 @@ l1:;
             break;
         }
     }
+    fhandle_munmap_close(&fm2);
+
+    data_chunk* dp = mw.md->body;
+    bool finished = true;
+    for (int i = 0; i < CHUNK_NUM(mw.md); ++i)
+    {
+        if (dp->cur_pos < dp->end_pos)
+        {
+            break;
+        }
+        dp++;
+    }
+    if (finished)
+    {
+        mw.md->hd.status = RS_SUCCEEDED;
+    }
+    else
+    {
+        mw.md->hd.status = RS_STOPPED;
+    }
+ret:
 
     metadata_display(mw.md);
+    if (cb)
+    {
+        (*cb)(mw.md);
+    }
+    if (mw.md->hd.status == RS_SUCCEEDED)
+    {
+        remove_file(mw.fm->fh->fn);
+    }
+
     metadata_destroy(&mw);
-    fhandle_munmap_close(&fm2);
     PDEBUG ("stopped.\n");
 }

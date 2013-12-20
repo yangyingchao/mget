@@ -5,6 +5,8 @@
 // extern "C" {
 // #endif
 
+#include "typedefs.h"
+
 typedef void (*free_func)   (void*);
 
 typedef struct _mget_slis
@@ -48,11 +50,13 @@ typedef struct _hash_table
 
 // Functions.
 void hash_tableDestroy(hash_table* table);
-hash_table* hash_tableCreate(uint32 size, HashFunction cFunctor, DestroyFunction dFunctor);
-int InsertEntry(hash_table* table, char* key, void* val);
+hash_table* hash_tableCreate(uint32 size, DestroyFunction dFunctor);
+bool InsertEntry(hash_table* table, char* key, void* val);
 void* GetEntryFromhash_table(hash_table* table, char* key);
 
 void dump_hash_table(hash_table* ht, void* buffer);
+
+char* rstrip(char* str);
 // #ifdef __cplusplus
 // }
 // #endif

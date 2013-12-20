@@ -8,6 +8,7 @@ typedef struct _fhandle
     char*  fn;                          /*!< File name*/
     int    fd;                          /*!< File descriptor. */
     size_t size;                        /*!< Size of this file. */
+    bool   auto_remove;
 } fhandle;
 
 typedef enum _FHM

@@ -145,6 +145,10 @@ void metadata_destroy(metadata_wrapper* mw)
 
     if (mw->from_file) // created from file, just close it.
     {
+        if (mw->md->hd.status == RS_SUCCEEDED)
+        {
+            mw->fm->fh->auto_remove = true;
+        }
         fhandle_munmap_close(&mw->fm);
         return;
     }

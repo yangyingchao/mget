@@ -53,6 +53,10 @@ void fhandle_destroy(fhandle** fh)
 
         if ((*fh)->fn)
         {
+            if ((*fh)->auto_remove)
+            {
+                remove_file((*fh)->fn);
+            }
             free((*fh)->fn);
         }
         free(*fh);

@@ -21,6 +21,7 @@ typedef enum _request_status
     RS_INIT = 0,
     RS_STARTED,
     RS_PAUSED,
+    RS_STOPPED,
     RS_SUCCEEDED,
     RS_FAILED,
 } request_status;
@@ -66,7 +67,7 @@ typedef struct _metadata
 #define PA(X, N)       ((X % N) ? (N * ((X/N) + 1)):X)
 #define MH_SIZE()      48
 #define MD_SIZE(X)     (MH_SIZE()+sizeof(void*)*4+sizeof(data_chunk)*(X->hd.nr_chunks)+PA(X->hd.eb_length,4))
-#define CHUN_NUM(X)       (X->hd.nr_chunks)
+#define CHUNK_NUM(X)       (X->hd.nr_chunks)
 #define CHUNK_SIZE(X)      (sizeof(data_chunk)*(X->hd.nr_chunks))
 #define GET_URL(X)         (((char*)X->raw_data)+CHUNK_SIZE(X))
 

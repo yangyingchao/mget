@@ -15,6 +15,12 @@ void show_progress(metadata* md)
     static uint32 ts = 0;
     static uint64 last_recv = 0;
 
+    if (md->hd.status == RS_SUCCEEDED)
+    {
+        printf("Download finished....\n");
+        return;
+    }
+
     if (idx++ < 78)
         putchar('.');
     else
