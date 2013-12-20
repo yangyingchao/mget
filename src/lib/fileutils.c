@@ -91,6 +91,9 @@ fh_map* fhandle_mmap(fhandle* fh, off_t offset, size_t length)
         }
     }
 
+    PDEBUG ("file %s mapped to addr: %p, length: %lX\n",
+            fh->fn, fm->addr, size);
+
     return fm;
 }
 

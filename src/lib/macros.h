@@ -4,7 +4,8 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define ZALLOC(T, X)       (T*)calloc(1, X)
+#define ZALLOC1(T) (T*)calloc(1, sizeof(T))
+#define ZALLOC(T, N)       (T*)calloc(N, sizeof(T))
 #define FIF(X)  if((X)) free((X))
 #define FIFZ(X) if(*X) {free(*(X)), *(X) = NULL;}
 

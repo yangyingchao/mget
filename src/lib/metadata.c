@@ -111,12 +111,12 @@ void associate_wrapper(metadata_wrapper* mw)
 
     // Dump metadata to fm, close fm, and free md.
     // TODO: Check size and remap if necessary.
-    metadata* nmd = (metadata*)mw->fm->addr;
-    metadata* omd = mw->md;
+    metadata* nmd   = (metadata*)mw->fm->addr;
+    metadata* omd   = mw->md;
     nmd->total_size = omd->total_size;
-    nmd->nr_chunks = omd->nr_chunks;
+    nmd->nr_chunks  = omd->nr_chunks;
     nmd->url_length = omd->url_length;
-    nmd->url = GET_URL(nmd);
+    nmd->url        = GET_URL(nmd);
     if (omd->url)
         sprintf(nmd->url, "%s", omd->url);
     else
@@ -125,8 +125,10 @@ void associate_wrapper(metadata_wrapper* mw)
     for (uint8 i = 0; i < mw->md->nr_chunks; ++i)
     {
         data_chunk* p = &mw->md->body[i];
-        nmd->body[i] = mw->md->body[i];
+        nmd->body[i]  = mw->md->body[i];
     }
+
+    mw->from_file  = true;
 }
 
 void metadata_destroy(metadata_wrapper* mw)
@@ -230,6 +232,8 @@ bool chunk_split(uint64 start, uint64 size, int *num, data_chunk** dc)
             break;
         }
     }
+    PDEBUG ("results: chunk_size: %.02fM, nc: %d\n",
+            (float)cs/M, *num);
 
     return true;
 }

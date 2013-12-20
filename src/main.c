@@ -4,14 +4,39 @@
 #include <string.h>
 #include "debug.h"
 #include "libmget.h"
+#include "timeutil.h"
 
 #define handle_error(msg) \
     do { perror(msg); exit(EXIT_FAILURE); } while (0)
 
 void show_progress(metadata* md)
 {
-    printf ("called....\n");
+    static int idx = 0;
+    static uint32 ts = 0;
+    static uint64 last_recv = 0;
+
+    if (idx++ < 78)
+        putchar('.');
+    else
+    {
+        data_chunk* dp = md->body;
+        uint64 total = md->total_size;
+        uint64 miss  = 0;
+        for (int i = 0; i < md->nr_chunks; ++i)
+        {
+            miss += dp->end_pos - dp->cur_pos;
+            dp++;
+        }
+        uint64 recv = total - miss;
+        printf("Progress: total: %llu, recv: %llu, %.02f percent, %.02fKB/s\n",
+               total, recv, (float)recv/total * 100,
+               (float)(recv-last_recv)/K/(get_time_s() -ts));
+        idx       = 0;
+        last_recv = recv;
+        ts = get_time_s();
+    }
 }
+
 int main(int argc, char *argv[])
 {
 // TODO: Remove this ifdef!
@@ -70,8 +95,8 @@ if (argc != 3)
 
     PDEBUG ("Test Staring request!\n");
 #endif // End of #if 0
-    const char* url = "http://www.python.org/ftp/python/2.7.6/python-2.7.6.msi";
-    start_request(url, "/tmp/", 9, NULL);
-
+    /* const char* url = "http://mirrors.163.com/gentoo/distfiles/xterm-297.tgz"; */
+    const char* url = "http://mirrors.163.com/gentoo/distfiles/curl-7.33.0.tar.bz2";
+    start_request(url, "/tmp/", 9, show_progress);
     return 0;
 }

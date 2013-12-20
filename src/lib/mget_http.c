@@ -11,6 +11,7 @@ typedef struct _easy_param
 {
     metadata* md;
     int       idx;
+    void*     base_addr;                // addr of real file.
 } easy_param;
 
 typedef void (*hcb) (metadata*);
@@ -26,23 +27,18 @@ size_t drop_content(void *buffer,  size_t size, size_t nmemb,
 size_t recv_data(void *buffer,  size_t size, size_t nmemb,
                   void *userp)
 {
-    static int i = 0;
     easy_param* ppm = (easy_param*) userp;
     data_chunk* dp = &ppm->md->body[ppm->idx];
-    PDEBUG ("dp: %p, cur_pos: %.02fM, end_pos: %.02fM\n",
-            dp, (float)(dp->cur_pos)/M, (float)(dp->end_pos)/M);
-    dp->cur_pos += size*nmemb;
-    if ((dp->end_pos - dp->cur_pos) / (4*K) % 2 == 0 || dp->cur_pos == dp->end_pos)
+    if (dp->cur_pos < dp->end_pos)
     {
-        PDEBUG ("dp: %p, cur_pos: %.02fM, end_pos: %.02fM\n",
-                dp, (float)(dp->cur_pos)/M, (float)(dp->end_pos)/M);
-        if (g_cb)
-        {
-            PDEBUG ("notify..\n");
-
-            (*g_cb)(ppm->md);
-        }
+        memcpy(ppm->base_addr + dp->cur_pos, buffer, size*nmemb);
+        dp->cur_pos += size*nmemb;
     }
+    if (g_cb)
+    {
+        (*g_cb)(ppm->md);
+    }
+
     return size*nmemb;
 }
 
@@ -59,23 +55,29 @@ size_t get_size_from_header(void *buffer,  size_t size, size_t nmemb,
     return size*nmemb;
 }
 
-uint64 get_remote_file_size(url_info* ui, CURL* eh)
+uint64 get_remote_file_size(url_info* ui)
 {
+    static CURL* eh0 = NULL;
+    if (!eh0)
+    {
+        eh0 = curl_easy_init();
+    }
+
     //@todo: handle 302!!
     uint64 size = 0;
-    curl_easy_setopt(eh, CURLOPT_URL, ui->furl);
-    curl_easy_setopt(eh, CURLOPT_HEADERFUNCTION, get_size_from_header);
-    curl_easy_setopt(eh, CURLOPT_HEADERDATA, &size);
+    curl_easy_setopt(eh0, CURLOPT_URL, ui->furl);
+    curl_easy_setopt(eh0, CURLOPT_HEADERFUNCTION, get_size_from_header);
+    curl_easy_setopt(eh0, CURLOPT_HEADERDATA, &size);
 
     struct curl_slist* slist = NULL;
     slist = curl_slist_append(slist, "Accept: */*");
     slist = curl_slist_append(slist, "Range: bytes=0-0");
-    curl_easy_setopt(eh, CURLOPT_HTTPHEADER, slist);
-    curl_easy_setopt(eh, CURLOPT_WRITEFUNCTION, drop_content);
+    curl_easy_setopt(eh0, CURLOPT_HTTPHEADER, slist);
+    curl_easy_setopt(eh0, CURLOPT_WRITEFUNCTION, drop_content);
 
-    curl_easy_perform(eh);
+    curl_easy_perform(eh0);
     long stat = 0;
-    curl_easy_getinfo(eh, CURLINFO_RESPONSE_CODE, &stat);
+    curl_easy_getinfo(eh0, CURLINFO_RESPONSE_CODE, &stat);
     curl_slist_free_all(slist);
 
     PDEBUG ("remote file size: %llu (%.02fM)\n", size, (float)size/M);
@@ -92,8 +94,7 @@ void process_http_request(url_info* ui, const char* dp, int nc,
     g_cb = cb;
 
     curl_global_init(CURL_GLOBAL_DEFAULT);
-    CURL* ehs[nc];
-    ehs[0] = curl_easy_init();
+
     char fn [256] = {'\0'};
     sprintf(fn, "%s/%s.tmd", dp, ui->bname);
     metadata_wrapper mw;
@@ -103,56 +104,81 @@ void process_http_request(url_info* ui, const char* dp, int nc,
     }
 
     remove_file(fn);
-    uint64 total_size = get_remote_file_size(ui, ehs[0]);
+    uint64 total_size = get_remote_file_size(ui);
     if (!metadata_create_from_url(ui->furl, total_size, 0, nc, &mw.md))
     {
         return;
     }
 
-    fhandle* fh = fhandle_create(fn, FHM_CREATE);
-    mw.fm = fhandle_mmap(fh, 0, MD_SIZE(mw.md));
+    fhandle* fh  = fhandle_create(fn, FHM_CREATE);
+    mw.fm        = fhandle_mmap(fh, 0, MD_SIZE(mw.md));
     mw.from_file = false;
 
-    metadata_display(mw.md);
     associate_wrapper(&mw);
 
 l1:;
+    metadata_display(mw.md);
     PDEBUG ("Intializing multi-handler...\n");
     // Initialize curl_multi
     CURLM* mh = curl_multi_init();
-
-    for (int i = 1; i < mw.md->nr_chunks; ++i)
+    if (!mh)
     {
-        ehs[i] = curl_easy_init();
+        PDEBUG ("Failed to create mh.\n");
+        exit(1);
+    }
+
+    memset(fn, 0, 256);
+    sprintf(fn, "%s/%s", dp, ui->bname);
+    PDEBUG ("fn: %s, bname: %s\n", fn, ui->bname);
+
+    fhandle* fh2 = fhandle_create(fn, FHM_CREATE);
+    fh_map*  fm2 = fhandle_mmap(fh2, 0, total_size);
+    if (!fh2 || !fm2)
+    {
+        PDEBUG ("Failed to create mapping!\n");
+        // TODO: cleanup...
+        return;
     }
 
     easy_param* params = ZALLOC(easy_param, mw.md->nr_chunks);
+
+    struct curl_slist* flist = NULL; // used to record allocated resourcs...
+
+    CURL**  ehs = ZALLOC(CURL*, mw.md->nr_chunks);
     for (int i = 0; i < mw.md->nr_chunks; ++i)
     {
-        CURL* eh = ehs[i];
+        CURL* eh = ehs[i]  = curl_easy_init();
+
         data_chunk* dp  = &mw.md->body[i];
         easy_param* ppm = params+i;
-        ppm->md = mw.md;
-        ppm->idx = i;
+        ppm->md         = mw.md;
+        ppm->idx        = i;
+        ppm->base_addr  = fm2->addr;
 
         curl_easy_setopt(eh, CURLOPT_URL, ui->furl);
         curl_easy_setopt(eh, CURLOPT_HEADERFUNCTION, drop_content);
         curl_easy_setopt(eh, CURLOPT_WRITEFUNCTION, recv_data);
         curl_easy_setopt(eh, CURLOPT_WRITEDATA, ppm);
 
-        struct curl_slist* l = curl_slist_append(NULL, "Accept: */*");
-        char rg[64] = {'\0'};
+        struct curl_slist* l = NULL;
+        char rg[64]          = {'\0'};
         sprintf(rg, "Range: bytes=%llu-%llu", dp->cur_pos, dp->end_pos);
+        PDEBUG ("IDX: %x, EH: %p, url: %s, %s\n", i, eh, ui->furl, strdup(rg));
+        l = curl_slist_append(NULL, "Accept: */*");
         l = curl_slist_append(l, rg);
         curl_easy_setopt(eh, CURLOPT_HTTPHEADER, l);
 
         // Add to multy;
         curl_multi_add_handle(mh, eh);
+        PDEBUG ("added eh: %p\n", eh);
     }
 
+    PDEBUG ("Performing...\n");
 
     int running_hanlders = 0;
     curl_multi_perform(mh, &running_hanlders);
+    PDEBUG ("perform returns: %d\n",running_hanlders);
+
 
     while (running_hanlders) {
         struct timeval timeout;
@@ -189,5 +215,8 @@ l1:;
         }
     }
 
+    metadata_display(mw.md);
+    metadata_destroy(&mw);
+    fhandle_munmap_close(&fm2);
     PDEBUG ("stopped.\n");
 }

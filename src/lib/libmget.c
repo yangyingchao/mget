@@ -25,7 +25,7 @@ bool parse_url(const char* url, url_info** ui)
     if (length == 0)
         goto ret;
 
-    url_info* up = ZALLOC(url_info, (sizeof(url_info)));
+    url_info* up = ZALLOC1(url_info);
     if (!up)
         goto ret;
 
