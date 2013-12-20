@@ -5,37 +5,11 @@
 #include <string.h>
 #include <assert.h>
 #include "debug.h"
+#include "timeutil.h"
+#include "mget_config.h"
 
 #define MAX_CHUNKS       10
 #define MIN_CHUNK_SIZE   (64*K)
-
-// Byte/     0       |       1       |       2       |       3       |
-// ***/              |               |               |               |
-// **|0 1 2 3 4 5 6 7|0 1 2 3 4 5 6 7|0 1 2 3 4 5 6 7|0 1 2 3 4 5 6 7|
-// **+---------------------------------------------------------------+
-// **|                        Total Size                             |
-// **+---------------+-----------------------------------------------+
-// **| Num of Chunks |          RESERVED                             |
-// **+---------------+-----------------------------------------------+
-// **|                     CHUNK1 START                              |
-// **+---------------------------------------------------------------+
-// **|                     ......                                    |
-// **+---------------------------------------------------------------+
-// **|                     .....                                     |
-// **+---------------------------------------------------------------+
-// **|                     CHUNK1 END                                |
-// **+---------------------------------------------------------------+
-// **|                     CHUNK2 START                              |
-// **+---------------------------------------------------------------+
-// **|                     ......                                    |
-// **+---------------------------------------------------------------+
-// **|                     .....                                     |
-// **+---------------------------------------------------------------+
-// **|                     CHUNK2 END                                |
-// **+---------------------------------------------------------------+
-// **|                     ...........                               |
-// **+---------------------------------------------------------------+
-
 
 #define SHOW_CHUNK(p)    PDEBUG ("%p, cur_pos: %08llX, end_pos: %08llX\n",p,p->cur_pos, p->end_pos)
 bool chunk_split(uint64 start, uint64 size, int *num, data_chunk** dc);
@@ -50,7 +24,18 @@ bool metadata_create_from_file(const char* fn, metadata_wrapper* mw)
         mw->fm = fm;
         mw->from_file = true;
         mw->md = (metadata*)fm->addr;
-        mw->md->url = GET_URL(mw->md);
+
+        //TODO: version checks....
+        mw->md->body  = (data_chunk*)mw->md->raw_data;
+
+        char* ptr     = GET_URL(mw->md);
+        mw->md->url   = ptr;
+
+        ptr          += strlen(mw->md->url) + 1;
+        mw->md->mime  = ptr;
+
+        ptr                += strlen(mw->md->mime) + 1;
+        mw->md->ht = NULL; //TODO: parse and initialize hash table.
         return true;
     }
 
@@ -66,38 +51,56 @@ bool metadata_create_from_file(const char* fn, metadata_wrapper* mw)
     return NULL;
 }
 
-bool metadata_create_from_url(const char* url, uint64 size,
-                              uint64 start_pos, int nc,
+bool metadata_create_from_url(const char* url,
+                              uint64      size,
+                              int         nc,
+                              mget_slis*  lst,
                               metadata** md)
 {
     data_chunk* dc = NULL;
-    if (!md || !chunk_split(start_pos, size, &nc, &dc) || !dc)
+    if (!md || !chunk_split(0, size, &nc, &dc) || !dc)
     {
         PDEBUG ("return err.\n");
         return false;
     }
 
-    size_t m_size = MH_SIZE() + (sizeof(data_chunk)*nc) + (url ? PA(strlen(url), 4) : 256);
+    uint16 ebl = PA(strlen(url), 4) + 512; // TODO: calculate real eb_length from lst.
+    size_t md_size = MH_SIZE() + (sizeof(data_chunk)*nc) + ebl;
 
-    metadata* pmd = (metadata*)malloc(m_size);
+    metadata* pmd = (metadata*)malloc(md_size);
     if (pmd)
     {
         *md = pmd;
-        memset(pmd, 0, m_size);
-        pmd->total_size = size;
-        pmd->nr_chunks = nc;
-        pmd->url_length = url ? strlen(url):0;
+        memset(pmd, 0, md_size);
+        mh* hd = &pmd->hd;
+        sprintf(((char*) &hd->iden), "TMD");
+        hd->version = GET_VERSION();
+        hd->package_size = size;
+        hd->last_time = get_time_s();
+        hd->acc_time = 0;
+        hd->status = RS_INIT;
+        hd->nr_chunks = nc;
+        hd->eb_length = ebl;
+
+        pmd->body = (data_chunk*)pmd->raw_data;
+        char* ptr = pmd->raw_data + CHUNK_SIZE(pmd);
+        pmd->url  = ptr;
+        if (url)
+        {
+            sprintf(pmd->url, "%s", url);
+        }
+
+        ptr += strlen(pmd->url) + 1;
+        pmd->mime = ptr;
+        ptr += strlen(pmd->mime) + 1;
+        pmd->ht = NULL; // TODO: Initialize hash table based on ptr.
 
         for (int i = 0; i < nc; ++i)
         {
             data_chunk* p = dc+i;
             pmd->body[i] = *p;
         }
-        if (url)
-        {
-            sprintf(GET_URL(pmd), "%s", url);
-            pmd->url = GET_URL(pmd);
-        }
+
     }
     return true;
 }
@@ -109,24 +112,26 @@ void associate_wrapper(metadata_wrapper* mw)
         return;
     }
 
-    // Dump metadata to fm, close fm, and free md.
+    // Dump metadata to fm
     // TODO: Check size and remap if necessary.
     metadata* nmd   = (metadata*)mw->fm->addr;
     metadata* omd   = mw->md;
-    nmd->total_size = omd->total_size;
-    nmd->nr_chunks  = omd->nr_chunks;
-    nmd->url_length = omd->url_length;
-    nmd->url        = GET_URL(nmd);
+    nmd->hd  = omd->hd;
+    nmd->url = GET_URL(nmd);
+    nmd->body = (data_chunk*)nmd->raw_data;
     if (omd->url)
         sprintf(nmd->url, "%s", omd->url);
     else
         nmd->url = NULL;
 
-    for (uint8 i = 0; i < mw->md->nr_chunks; ++i)
+    for (uint8 i = 0; i < mw->md->hd.nr_chunks; ++i)
     {
         data_chunk* p = &mw->md->body[i];
         nmd->body[i]  = mw->md->body[i];
     }
+
+    nmd->ht = omd->ht;
+    omd->ht = NULL;
 
     mw->from_file  = true;
 }
@@ -144,7 +149,11 @@ void metadata_destroy(metadata_wrapper* mw)
         return;
     }
 
-    // Dump metadata to fm, close fm, and free md.
+    assert(0);
+// TODO: Remove this ifdef!
+#if 0
+
+// Dump metadata to fm, close fm, and free md.
     // TODO: Check size and remap if necessary.
     metadata* nmd = (metadata*)mw->fm->addr;
     metadata* omd = mw->md;
@@ -166,6 +175,7 @@ void metadata_destroy(metadata_wrapper* mw)
     fhandle_munmap_close(&mw->fm);
     free(mw->md);
     mw->md = NULL;
+#endif // End of #if 0
 }
 
 void metadata_display(metadata* md)
@@ -177,15 +187,16 @@ void metadata_display(metadata* md)
         return;
     }
 
-    PDEBUG ("size: %08llX (%.2f)M, nc: %d, url_length: %08X, url: %p -- %s\n",
-            md->total_size, (float)md->total_size/(1*M), md->nr_chunks,
-            md->url_length, md->url, md->url, md->url);
+    PDEBUG ("size: %08llX (%.2f)M, nc: %d,url: %p -- %s\n",
+            md->hd.package_size, (float)md->hd.package_size/(1*M), md->hd.nr_chunks,
+            md->url, md->url, md->url);
 
-    for (uint8 i = 0; i < md->nr_chunks; ++i)
+    for (uint8 i = 0; i < md->hd.nr_chunks; ++i)
     {
         data_chunk* cp = &md->body[i];
-        PDEBUG ("Chunk: %p, cur_pos: %08llX, end_pos: %08llX(%.2fM)\n",
-                    cp, cp->cur_pos, cp->end_pos, (float)cp->end_pos/(M));
+        PDEBUG ("Chunk: %p, cur_pos: %08llX, end_pos: %08llX(%.2fM) -- %.02f%%\n",
+                cp, cp->cur_pos, cp->end_pos, (float)cp->end_pos/(M),
+                100 - ((float)cp->end_pos - cp->cur_pos)/cp->end_pos * 100);
 
     }
 }

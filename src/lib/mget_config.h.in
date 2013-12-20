@@ -1,0 +1,11 @@
+#ifndef _MGET_CONFIG_H_
+#define _MGET_CONFIG_H_
+
+#define VERSION_MAJOR       @VERSION_MAJOR@
+#define VERSION_MINOR       @VERSION_MINOR@
+#define VERSION_PATCH       @VERSION_PATCH@
+
+
+#define GET_VERSION()       ((VERSION_MAJOR << 24) | (VERSION_MINOR << 16) | (VERSION_PATCH<<8))
+
+#endif /* _MGET_CONFIG_H_ */

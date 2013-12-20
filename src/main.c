@@ -20,9 +20,9 @@ void show_progress(metadata* md)
     else
     {
         data_chunk* dp = md->body;
-        uint64 total = md->total_size;
+        uint64 total = md->hd.package_size;
         uint64 miss  = 0;
-        for (int i = 0; i < md->nr_chunks; ++i)
+        for (int i = 0; i < md->hd.nr_chunks; ++i)
         {
             miss += dp->end_pos - dp->cur_pos;
             dp++;
@@ -47,8 +47,20 @@ int main(int argc, char *argv[])
 
     if (argc == 2)
     {
-        PDEBUG ("Test Staring request from: %s with 10 connections!!\n",  argv[1]);
-        start_request(argv[1], ".", 10, show_progress);
+        if (file_existp(argv[1]))
+        {
+            PDEBUG ("showing tmd file: %s\n", argv[1]);
+
+            metadata_wrapper mw;
+            metadata_create_from_file(argv[1], &mw);
+            metadata_display(mw.md);
+            metadata_destroy(&mw);
+        }
+        else
+        {
+            PDEBUG ("Test Staring request from: %s with 10 connections!!\n",  argv[1]);
+            start_request(argv[1], ".", 10, show_progress);
+        }
     }
     else
     {
@@ -60,13 +72,13 @@ int main(int argc, char *argv[])
         metadata_wrapper mw;
         data_chunk* cp    = NULL;
 
-        bool b_re = metadata_create_from_url(url, size, 0, nc, &mw.md);
+        bool b_re = metadata_create_from_url(url, size, nc, NULL, &mw.md);
         if (!b_re)
         {
             handle_error("Failed to create metadata from url\n");
         }
 
-        for (int i = 0; i < mw.md->nr_chunks; ++i)
+        for (int i = 0; i < mw.md->hd.nr_chunks; ++i)
         {
             cp = &mw.md->body[i];
             PDEBUG ("chunk: %p, cur_pos: %08llX, end: %08llX (%.02fM)\n",
@@ -79,6 +91,9 @@ int main(int argc, char *argv[])
         fhandle* fh = fhandle_create(tmp, FHM_CREATE);
         mw.fm = fhandle_mmap(fh, 0, MD_SIZE(mw.md));
         mw.from_file = false;
+
+        PDEBUG ("Associating mw: %p\n", &mw);
+        associate_wrapper(&mw);
 
         PDEBUG ("Destroying mw: %p, md: %p\n", &mw, mw.md);
 

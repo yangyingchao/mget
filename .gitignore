@@ -31,3 +31,4 @@ GRTAGS
 GTAGS
 *.log
 core.*
+/src/lib/mget_config.h

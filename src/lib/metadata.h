@@ -3,7 +3,7 @@
 
 #include "typedefs.h"
 #include "fileutils.h"
-
+#include "data_utlis.h"
 
 #define K       (1 << 10)
 #define M       (1 << 20)
@@ -16,35 +16,59 @@ typedef struct _data_chunk
     uint64 end_pos;
 } data_chunk;
 
-//TODO: Add magic characters and version number...
+typedef enum _request_status
+{
+    RS_INIT = 0,
+    RS_STARTED,
+    RS_PAUSED,
+    RS_SUCCEEDED,
+    RS_FAILED,
+} request_status;
+
+typedef struct metadata_head
+{
+    uint32 iden;                        // TMD0
+    uint32 version;                     // Major, Minor, Patch, NULL
+    uint64 package_size;                // size of package;
+    uint64 last_time;                   // last time used.
+    uint32 acc_time;                    // accumulated time in this downloading.
+
+    uint8  status;                      // status.
+    uint8  nr_chunks;                   // number of chunks.
+    uint16 eb_length;                   // length of extra body: url_len+mime_len+others
+
+    uint8  reserved[16];                // reserved ...
+} mh;                                   // up to 48 bytes
+
+// Byte/     0       |       1       |       2       |       3       |
+// ***/              |               |               |               |
+// **|0 1 2 3 4 5 6 7|0 1 2 3 4 5 6 7|0 1 2 3 4 5 6 7|0 1 2 3 4 5 6 7|
+// **+-------------------------------+-------------------------------+
+// **|               DATA_CHUNK  START                               |
+// **+---------------------------------------------------------------+
+// **|               ..................           .                  |
+// **+---------------------------------------------------------------+
+// **|               DATA_CHUNK  END                                 |
+// **+-------------------------------+-------------------------------+
+// **|            URL    MIME   OTHERS   .....                       |
+// **+-------------------------------+-------------------------------+
+
 typedef struct _metadata
 {
-    uint64     total_size;
-    uint8      nr_chunks;
-    uint8      reserved[5];
-    uint16     url_length;
-    char*      url;
-    data_chunk body[0];
+    mh          hd;                     // header, up to 48 bytes.
+    data_chunk* body;                   // pointer to data_chunk
+    char*       url;                    // pointer to url
+    char*       mime;                   // pointer to mime type
+    hash_table* ht;                     // hash table of extra body.
+    char        raw_data[0];            // start to body of raw_data.
 } metadata;
 
 #define PA(X, N)       ((X % N) ? (N * ((X/N) + 1)):X)
-#define MH_SIZE()      (sizeof(uint64)*2 + sizeof(char*))
-#define MD_SIZE(X)      (MH_SIZE()  + sizeof(data_chunk)*X->nr_chunks+PA(X->url_length,4))
-
-#if 0
-#define NC_SHIFT 24
-#define UL_MASK  ((1 << NC_SHIFT)-1)
-#define NC_MASK  (~UL_MASK)
-#define NC_PTR(X) (((char*)X)+sizeof(uint64))
-#define SET_NC(X, N)       (*NC_PTR(X) = N)
-#define GET_NC(X)          ((*((int*)NC_PTR(X)) >> NC_SHIFT) & 0xFF)
-
-#define UL_PTR(X)       ((uint16*)(((char*)X)+sizeof(uint64)+sizeof(uint8)*6))
-#define GET_UL(X)          (*UL_PTR(X))
-#define SET_UL(X, N)       (*UL_PTR(X) = N)
-#endif // End of #if 0
-
-#define GET_URL(X)         (((char*)X)+MH_SIZE()+sizeof(data_chunk)*(X->nr_chunks))
+#define MH_SIZE()      48
+#define MD_SIZE(X)     (MH_SIZE()+sizeof(void*)*4+sizeof(data_chunk)*(X->hd.nr_chunks)+PA(X->hd.eb_length,4))
+#define CHUN_NUM(X)       (X->hd.nr_chunks)
+#define CHUNK_SIZE(X)      (sizeof(data_chunk)*(X->hd.nr_chunks))
+#define GET_URL(X)         (((char*)X->raw_data)+CHUNK_SIZE(X))
 
 typedef struct _metadata_wrapper
 {
@@ -55,12 +79,11 @@ typedef struct _metadata_wrapper
 
 bool metadata_create_from_file(const char* fn, metadata_wrapper* mw);
 bool metadata_create_from_url(const char* url,
-                              uint64 size,
-                              uint64 start_pos,
-                              int nc,
+                              uint64      size,
+                              int         nc,
+                              mget_slis*  lst,
                               metadata** md);
 void metadata_destroy(metadata_wrapper* mw);
 void metadata_display(metadata* md);
 void associate_wrapper(metadata_wrapper* mw);
 #endif /* _METADATA_H_ */
-

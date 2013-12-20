@@ -105,7 +105,9 @@ void process_http_request(url_info* ui, const char* dp, int nc,
 
     remove_file(fn);
     uint64 total_size = get_remote_file_size(ui);
-    if (!metadata_create_from_url(ui->furl, total_size, 0, nc, &mw.md))
+
+    mget_slis* lst = NULL; //TODO: fill this lst.
+    if (!metadata_create_from_url(ui->furl, total_size, nc, lst, &mw.md))
     {
         return;
     }
@@ -140,12 +142,12 @@ l1:;
         return;
     }
 
-    easy_param* params = ZALLOC(easy_param, mw.md->nr_chunks);
+    easy_param* params = ZALLOC(easy_param, mw.md->hd.nr_chunks);
 
     struct curl_slist* flist = NULL; // used to record allocated resourcs...
 
-    CURL**  ehs = ZALLOC(CURL*, mw.md->nr_chunks);
-    for (int i = 0; i < mw.md->nr_chunks; ++i)
+    CURL**  ehs = ZALLOC(CURL*, mw.md->hd.nr_chunks);
+    for (int i = 0; i < mw.md->hd.nr_chunks; ++i)
     {
         CURL* eh = ehs[i]  = curl_easy_init();
 

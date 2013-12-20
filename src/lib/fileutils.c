@@ -136,10 +136,39 @@ char* get_basename(const char* fname)
     return bname;
 }
 
-bool file_existp(const char* fn)
+bool file_existp(const char* path)
 {
-    //TODO: check status....
-    return access(fn, F_OK) == 0 ? true: false;
+    if (!path)
+        return false;
+
+    int ret;
+    ret = access(path, F_OK);
+    if (ret < 0) 
+        return false;
+    struct stat sb;
+    if ((ret = stat(path, &sb)) == 0) {
+        if (S_ISREG(sb.st_mode)) 
+            return true;
+    }
+    return false;
+}
+
+
+int dir_exist(const char *path)
+{
+    if (!path)
+        return -1;
+
+    int ret;
+    ret = access(path, F_OK);
+    if (ret < 0) 
+        return -1;
+    struct stat sb;
+    if ((ret = stat(path, &sb)) == 0) {
+        if (S_ISDIR(sb.st_mode)) 
+            return 0;
+    }
+    return -1;
 }
 
 void remove_file(const char* fn)

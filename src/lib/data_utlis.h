@@ -14,7 +14,45 @@ typedef struct _mget_slis
     struct _mget_slis* next;
 }mget_slis;
 
-mget_slis* mget_slis_append(mget_slis* l, void*data, free_func f);
+mget_slis* mget_slist_append(mget_slis* l, void*data, free_func f);
+void       mget_slist_free(mget_slis* lst);
+
+typedef struct _kv_pair
+{
+    char* k;
+    char* v;
+} kvp;
+
+
+// Hash Tables.
+
+typedef void (*DestroyFunction)(void* data);
+typedef uint32  (*HashFunction)(const char* key);
+
+typedef struct _TableEntry
+{
+    char* key;
+    void* val;
+} TableEntry;
+
+typedef struct _hash_table
+{
+    int         capacity;
+    TableEntry* entries;
+
+    void*           bufer;              // Serailized buffer.
+    HashFunction    hashFunctor;
+    DestroyFunction deFunctor;
+} hash_table;
+
+
+// Functions.
+void hash_tableDestroy(hash_table* table);
+hash_table* hash_tableCreate(uint32 size, HashFunction cFunctor, DestroyFunction dFunctor);
+int InsertEntry(hash_table* table, char* key, void* val);
+void* GetEntryFromhash_table(hash_table* table, char* key);
+
+void dump_hash_table(hash_table* ht, void* buffer);
 // #ifdef __cplusplus
 // }
 // #endif
