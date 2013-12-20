@@ -7,7 +7,7 @@
 #include "debug.h"
 
 #define MAX_CHUNKS       10
-#define MAX_CHUNK_SIZE   (512*K)
+#define MIN_CHUNK_SIZE   (64*K)
 
 // Byte/     0       |       1       |       2       |       3       |
 // ***/              |               |               |               |
@@ -207,13 +207,13 @@ bool chunk_split(uint64 start, uint64 size, int *num, data_chunk** dc)
     }
 
     uint64 cs = size / *num;
-    if (cs <= MAX_CHUNK_SIZE)
+    if (cs <= MIN_CHUNK_SIZE)
     {
-        cs = MAX_CHUNK_SIZE;
+        cs = MIN_CHUNK_SIZE;
     }
     else
     {
-        cs = ((uint64)1 << ((int)log2(cs / (1*M)) + 1)) * M;
+        cs = ((uint64)1 << ((int)log2(cs / MIN_CHUNK_SIZE) + 1)) * MIN_CHUNK_SIZE;
     }
 
     uint32 total_size = *num * sizeof(data_chunk);
@@ -237,6 +237,4 @@ bool chunk_split(uint64 start, uint64 size, int *num, data_chunk** dc)
 
     return true;
 }
-
-
 

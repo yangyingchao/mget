@@ -5,13 +5,26 @@
 #include "debug.h"
 #include "mget_http.h"
 
-const char* ups[] = {
-    "http", "https", "ftp", NULL};
-
 #define DEFAULT_HTTP_PORT         80
 #define DEFAULT_HTTPS_PORT        443
-#define HTTP_PROTOCOL_IDENTIFIER  "http"
-#define HTTPS_PROTOCOL_IDENTIFIER "https"
+#define DEFAULT_FTP_PORT          21
+#define PROTOCOL_IDENTIFIER_HTTP  "http"
+#define PROTOCOL_IDENTIFIER_HTTPS "https"
+#define PROTOCOL_IDENTIFIER_FTP   "ftp"
+
+void url_info_destroy(url_info** ui)
+{
+    if (ui && *ui)
+    {
+        url_info* up = *ui;
+        FIF(up->protocol);
+        FIF(up->host);
+        FIF(up->uri);
+        FIF(up->bname);
+        FIF(up->furl);
+        FIFZ(ui);
+    }
+}
 
 bool parse_url(const char* url, url_info** ui)
 {
@@ -31,68 +44,67 @@ bool parse_url(const char* url, url_info** ui)
 
     up->furl = strdup(url);
 
-    char*     protocol = NULL;
-    int tmpPort = -1, length1 = -1, length2 = -1;
+    int length1 = -1, length2 = -1;
     int num     = sscanf(url, "%m[^://]://%m[^:/]%n:%d%n",
-                         &protocol, &up->host, &length1, &tmpPort, &length2);
-    PDEBUG ("num: %d\n", num);
-
+                         &up->protocol, &up->host, &length1, &up->port, &length2);
     if (num <= 0)
     {
         goto free;
     }
 
-    up->protocol = UP_HTTP;
-    if (tmpPort == -1)
+    if (!up->port)
     {
-        up->port = DEFAULT_HTTP_PORT;
-        if (strlen(protocol) > 0)
-        {
-            if (strcasecmp(protocol, HTTP_PROTOCOL_IDENTIFIER) == 0)
-            {
-                up->port = DEFAULT_HTTP_PORT;
-            }
-            else if (strcasecmp(protocol, HTTPS_PROTOCOL_IDENTIFIER) == 0)
-            {
-                up->port = DEFAULT_HTTPS_PORT;
-                up->protocol = UP_HTTPS;
-            }
-        }
-
         url += length1;
     }
     else
     {
-        up->port  = tmpPort;
-        url      += length2;
+        url += length2;
     }
 
-    up->uri   = strdup(url);
-    up->bname = get_basename(url);
-    *ui       = up;
+    up->uri       = strdup(url);
+    up->bname     = get_basename(url);
+    up->eprotocol = UP_INVALID;
 
-    PDEBUG ("up: %p\n", up);
+    if (strlen(up->protocol) > 0)
+    {
+        if (strcasecmp(up->protocol, PROTOCOL_IDENTIFIER_HTTP) == 0)
+        {
+            up->eprotocol = UP_HTTP;
+            if (!up->port)
+            {
+                up->port = DEFAULT_HTTP_PORT;
+            }
+        }
+        else if (strcasecmp(up->protocol, PROTOCOL_IDENTIFIER_HTTPS) == 0)
+        {
+            up->eprotocol = UP_HTTPS;
+            if (!up->port)
+            {
+                up->port = DEFAULT_HTTPS_PORT;
+            }
+        }
+        else if (strcasecmp(up->protocol, PROTOCOL_IDENTIFIER_FTP) == 0)
+        {
+            up->eprotocol = UP_FTP;
+            if (!up->port)
+            {
+                up->port = DEFAULT_FTP_PORT;
+            }
+        }
+    }
+
+    *ui       = up;
     goto ret;
 
 free:
-    FIF(protocol);
-    PDEBUG ("up: %p\n", up);
+    if (up)
+    {
+        url_info_destroy(&up);
+    }
 ret:
     return true;
 }
 
-void url_info_destroy(url_info** ui)
-{
-    if (ui && *ui)
-    {
-        url_info* up = *ui;
-        FIF(up->host);
-        FIF(up->uri);
-        FIF(up->bname);
-        FIF(up->furl);
-        FIFZ(ui);
-    }
-}
 
 void url_info_display(url_info* ui)
 {
@@ -103,7 +115,7 @@ void url_info_display(url_info* ui)
         return;
     }
     PDEBUG ("Protocol: %02X (%s), port: %d, host: %s, uri: %s,\nurl: %s,filename: %s\n",
-            ui->protocol, ups[ui->protocol], ui->port, ui->host, ui->uri,
+            ui->eprotocol, ui->protocol, ui->port, ui->host, ui->uri,
             ui->furl, ui->bname);
 }
 
@@ -127,8 +139,12 @@ bool start_request(const char* url, const char* dp, int nc,
 
     PDEBUG ("ui: %p\n", ui);
     url_info_display(ui);
-
-    switch (ui->protocol)
+    if (!ui)
+    {
+        fprintf(stderr, "Failed to parse URL: %s\n", url);
+        return false;
+    }
+    switch (ui->eprotocol)
     {
         case UP_HTTP:
         case UP_HTTPS:

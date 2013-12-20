@@ -17,8 +17,9 @@ typedef enum _url_protocol
 
 typedef struct _url_info
 {
-    url_protocol protocol;
+    url_protocol eprotocol;
     uint32       port;
+    char*        protocol;
     char*        host;
     char*        uri;
     char*        bname;
