@@ -7,10 +7,13 @@
 
 typedef struct _data_chunk
 {
+    char*  base_addr;
     uint64 start_pos;
     uint64 end_pos;
     uint64 cur_pos;
 } data_chunk;
+
+#define is_chunk_finished(p)       (p->cur_pos >= p->end_pos)
 
 typedef enum _request_status
 {
@@ -74,6 +77,7 @@ typedef struct _metadata_wrapper
     bool from_file;
 } metadata_wrapper;
 
+bool chunk_split(uint64 start, uint64 size, int *num, data_chunk** dc);
 bool metadata_create_from_file(const char* fn, metadata_wrapper* mw);
 bool metadata_create_from_url(const char* url,
                               uint64      size,

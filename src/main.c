@@ -16,7 +16,6 @@ void sigterm_handler(int signum)
 {
     control_byte = true;
     fprintf(stderr, "Saving temporary data...\n");
-    sleep(3);
 }
 
 void show_progress(metadata* md)
@@ -33,7 +32,7 @@ void show_progress(metadata* md)
     }
 
     if (idx++ < 78)
-        putchar('.');
+        fprintf(stderr, ".");
     else
     {
         data_chunk* dp = md->body;
@@ -45,9 +44,9 @@ void show_progress(metadata* md)
             dp++;
         }
 
-        printf("Progress: total: %s, recv: %s, %.02f percent, %.02fKB/s\n",
-               stringify_size(total), stringify_size(recv), (float)recv/total * 100,
-               (float)(recv-last_recv)/K/(get_time_s() -ts));
+        fprintf(stderr, "Progress: total: %s, recv: %s, %.02f percent, %.02fKB/s\n",
+                stringify_size(total), stringify_size(recv), (float)recv/total * 100,
+                (float)(recv-last_recv)/K/(get_time_s() -ts));
         idx       = 0;
         last_recv = recv;
         ts = get_time_s();

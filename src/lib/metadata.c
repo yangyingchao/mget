@@ -12,7 +12,6 @@
 #define MIN_CHUNK_SIZE   (64*K)
 
 #define SHOW_CHUNK(p)    PDEBUG ("%p, cur_pos: %08llX, end_pos: %08llX\n",p,p->cur_pos, p->end_pos)
-bool chunk_split(uint64 start, uint64 size, int *num, data_chunk** dc);
 
 bool metadata_create_from_file(const char* fn, metadata_wrapper* mw)
 {
@@ -27,7 +26,6 @@ bool metadata_create_from_file(const char* fn, metadata_wrapper* mw)
 
         //TODO: version checks....
         mw->md->body  = (data_chunk*)mw->md->raw_data;
-
         char* ptr     = GET_URL(mw->md);
         mw->md->url   = ptr;
 

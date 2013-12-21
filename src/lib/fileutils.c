@@ -185,3 +185,8 @@ void remove_file(const char* fn)
         unlink(fn);
     }
 }
+
+void fhandle_msync(fh_map* fm)
+{
+    msync(fm->addr, fm->length, MS_SYNC);
+}
