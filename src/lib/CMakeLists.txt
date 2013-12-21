@@ -10,6 +10,13 @@ add_library(mget SHARED libmget.c metadata.c fileutils.c mget_http.c
   timeutil.c  data_utlis.c)
 target_link_libraries(mget m curl)
 
+install(
+  TARGETS mget
+  LIBRARY
+  DESTINATION "lib")
+
+#TODO: install header files....
+
 # - Try to find LibXml2
 # Once done this will define
 #  LIBXML2_FOUND - System has LibXml2

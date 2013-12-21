@@ -5,15 +5,11 @@
 #include "fileutils.h"
 #include "data_utlis.h"
 
-#define K       (1 << 10)
-#define M       (1 << 20)
-#define G       (1 << 30)
-#define T       (1 << 40)
-
 typedef struct _data_chunk
 {
-    uint64 cur_pos;
+    uint64 start_pos;
     uint64 end_pos;
+    uint64 cur_pos;
 } data_chunk;
 
 typedef enum _request_status
@@ -87,4 +83,5 @@ bool metadata_create_from_url(const char* url,
 void metadata_destroy(metadata_wrapper* mw);
 void metadata_display(metadata* md);
 void associate_wrapper(metadata_wrapper* mw);
+
 #endif /* _METADATA_H_ */

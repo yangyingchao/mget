@@ -57,6 +57,15 @@ void* GetEntryFromhash_table(hash_table* table, char* key);
 void dump_hash_table(hash_table* ht, void* buffer);
 
 char* rstrip(char* str);
+
+
+#define K       (1 << 10)
+#define M       (1 << 20)
+#define G       (1 << 30)
+#define T       (1 << 40)
+
+const char* stringify_size(uint64 sz);
+
 // #ifdef __cplusplus
 // }
 // #endif

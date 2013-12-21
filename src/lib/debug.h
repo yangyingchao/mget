@@ -13,7 +13,7 @@
             file = ++ptr;                                               \
         }                                                               \
                                                                         \
-        fprintf(stderr, "TDEBUG:  - %s(%d)-%s\t: ",file, __LINE__,__FUNCTION__); \
+        fprintf(stderr, "TDEBUG: - %s(%d)-%s: ",file, __LINE__,__FUNCTION__); \
         fprintf(stderr, fmt, ##args);                                   \
         } while(0)
 

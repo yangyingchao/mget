@@ -27,15 +27,15 @@ void show_progress(metadata* md)
     {
         data_chunk* dp = md->body;
         uint64 total = md->hd.package_size;
-        uint64 miss  = 0;
+        uint64 recv  = 0;
         for (int i = 0; i < md->hd.nr_chunks; ++i)
         {
-            miss += dp->end_pos - dp->cur_pos;
+            recv += dp->cur_pos - dp->start_pos;
             dp++;
         }
-        uint64 recv = total - miss;
-        printf("Progress: total: %llu, recv: %llu, %.02f percent, %.02fKB/s\n",
-               total, recv, (float)recv/total * 100,
+
+        printf("Progress: total: %s, recv: %s, %.02f percent, %.02fKB/s\n",
+               stringify_size(total), stringify_size(recv), (float)recv/total * 100,
                (float)(recv-last_recv)/K/(get_time_s() -ts));
         idx       = 0;
         last_recv = recv;

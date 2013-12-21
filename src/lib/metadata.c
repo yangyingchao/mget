@@ -195,12 +195,16 @@ void metadata_display(metadata* md)
             md->hd.package_size, (float)md->hd.package_size/(1*M), md->hd.nr_chunks,
             md->url, md->url, md->url);
 
+    uint64 recv = 0;
     for (uint8 i = 0; i < md->hd.nr_chunks; ++i)
     {
         data_chunk* cp = &md->body[i];
-        PDEBUG ("Chunk: %p, cur_pos: %08llX, end_pos: %08llX(%.2fM) -- %.02f%%\n",
-                cp, cp->cur_pos, cp->end_pos, (float)cp->end_pos/(M),
-                100 - ((float)cp->end_pos - cp->cur_pos)/cp->end_pos * 100);
+        uint64 chunk_recv = cp->cur_pos - cp->start_pos;
+        uint64 chunk_size = cp->end_pos - cp->start_pos;
+        recv += chunk_recv;
+        PDEBUG ("Chunk: %p(%s), start: %08llX, cur: %08llX, end: %08llX -- %.02f%%\n",
+                cp, stringify_size(chunk_size), cp->start_pos, cp->cur_pos,
+                cp->end_pos, (float)(chunk_recv)/chunk_size * 100);
 
     }
 }
@@ -237,9 +241,10 @@ bool chunk_split(uint64 start, uint64 size, int *num, data_chunk** dc)
     data_chunk* dp = *dc;
     for (int i = 0; i < *num; ++i)
     {
-        dp            = *dc+i;
-        dp->cur_pos   = i * cs;
-        dp->end_pos = dp->cur_pos + cs;
+        dp               = *dc+i;
+        dp->start_pos    = i * cs;
+        dp->cur_pos      = i *   cs;
+        dp->end_pos      = dp->cur_pos + cs;
         if (dp->end_pos >= size)
         {
             dp->end_pos = size;

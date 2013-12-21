@@ -161,3 +161,27 @@ char* rstrip(char* str)
     }
     return str;
 }
+
+
+const char* stringify_size(uint64 sz)
+{
+    static char str_size[64] = {'\0'};
+    memset(str_size, 0, 64);
+
+    if (sz < M)
+    {
+        sprintf(str_size, "%.02fKB", (double)sz/K);
+    }
+    else if (sz < G)
+    {
+        sprintf(str_size, "%.02fMB", (double)sz/M);
+    }
+    else
+    {
+        sprintf(str_size, "%.02fGB", (double)sz/G);
+    }
+
+    return str_size;
+}
+
+

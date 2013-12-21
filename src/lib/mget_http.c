@@ -145,6 +145,7 @@ void process_http_request(url_info* ui, const char* dn, int nc,
     fhandle* fh  = fhandle_create(fn, FHM_CREATE);
     mw.fm        = fhandle_mmap(fh, 0, MD_SIZE(mw.md));
     mw.from_file = false;
+    memset(mw.fm->addr, 0, MD_SIZE(mw.md));
 
     associate_wrapper(&mw);
 
