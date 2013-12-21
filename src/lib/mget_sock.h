@@ -5,7 +5,21 @@
 // extern "C" {
 // #endif
 
+typedef struct _msock msock;
 
+typedef void* (*sock_read_func)(msock*);
+typedef void* (*sock_write_func)(msock*);
+
+struct _msock
+{
+    int             sock;
+    sock_read_func  rf;
+    sock_write_func wf;
+};
+
+msock* socket_get(const char* host, sock_read_func rf, sock_write_func wf);
+void socket_put(msock* sock);
+int  socket_perform(msock* sock);
 
 
 // #ifdef __cplusplus

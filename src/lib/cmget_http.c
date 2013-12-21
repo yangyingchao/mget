@@ -27,7 +27,7 @@ size_t drop_content(void *buffer,  size_t size, size_t nmemb,
 }
 
 size_t recv_data(void *buffer,  size_t size, size_t nmemb,
-                  void *userp)
+                 void *userp)
 {
     easy_param* ppm = (easy_param*) userp;
     data_chunk* dp = &ppm->md->body[ppm->idx];
@@ -41,19 +41,6 @@ size_t recv_data(void *buffer,  size_t size, size_t nmemb,
         (*g_cb)(ppm->md);
     }
 
-    return size*nmemb;
-}
-
-size_t get_size_from_header(void *buffer,  size_t size, size_t nmemb,
-                            void *userp)
-{
-    const char* ptr = (const char*)buffer;
-    if ((strstr(ptr, "Content-Range")) != NULL)
-    {
-        uint64 s = 0, e = 0;
-        sscanf(ptr, "Content-Range: bytes %Lu-%Lu/%Lu", &s, &e,
-               (uint64*)userp);
-    }
     return size*nmemb;
 }
 
@@ -121,8 +108,8 @@ uint64 get_remote_file_size(url_info* ui)
     return size;
 }
 
-void process_http_request(url_info* ui, const char* dn, int nc,
-                          void (*cb)(metadata* md), bool* stop_flag)
+void process_http_request_c(url_info* ui, const char* dn, int nc,
+                            void (*cb)(metadata* md), bool* stop_flag)
 {
     PDEBUG ("enter\n");
 

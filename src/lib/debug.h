@@ -2,6 +2,7 @@
 #define _DEBUG_H_
 
 #include <stdio.h>
+#include <string.h>
 
 #define PDEBUG(fmt, args...)                                            \
     do {                                                                \

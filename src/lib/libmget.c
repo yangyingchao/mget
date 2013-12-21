@@ -119,7 +119,8 @@ void url_info_display(url_info* ui)
             ui->furl, ui->bname);
 }
 
-
+typedef void (*request_processor)(url_info* ui, const char* dn, int nc,
+                                  void (*cb)(metadata* md), bool* stop_flag);
 
 bool start_request(const char* url, const char* dp, int nc,
                    download_progress_callback cb, bool* stop_flag)
@@ -149,7 +150,7 @@ bool start_request(const char* url, const char* dp, int nc,
         case UP_HTTP:
         case UP_HTTPS:
         {
-            process_http_request(ui, dp, nc, cb, stop_flag);
+            process_http_request_c(ui, dp, nc, cb, stop_flag);
             break;
         }
 
