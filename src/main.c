@@ -5,9 +5,19 @@
 #include "debug.h"
 #include "libmget.h"
 #include "timeutil.h"
+#include <signal.h>
 
 #define handle_error(msg) \
     do { perror(msg); exit(EXIT_FAILURE); } while (0)
+
+bool control_byte = false;
+
+void sigterm_handler(int signum)
+{
+    control_byte = true;
+    fprintf(stderr, "Saving temporary data...\n");
+    sleep(3);
+}
 
 void show_progress(metadata* md)
 {
@@ -66,7 +76,16 @@ int main(int argc, char *argv[])
         else
         {
             PDEBUG ("Test Staring request from: %s with 10 connections!!\n",  argv[1]);
-            start_request(argv[1], ".", 10, show_progress);
+            struct sigaction act;
+            act.sa_handler   = sigterm_handler;
+            act.sa_sigaction = NULL;
+            sigemptyset(&act.sa_mask);
+            act.sa_flags = 0;
+            int ret = sigaction(SIGINT, &act, NULL);
+            PDEBUG ("ret = %d\n", ret);
+
+            signal(SIGINT, sigterm_handler);
+            start_request(argv[1], ".", 10, show_progress, &control_byte);
         }
     }
     else

@@ -122,7 +122,7 @@ void url_info_display(url_info* ui)
 
 
 bool start_request(const char* url, const char* dp, int nc,
-                   download_progress_callback cb)
+                   download_progress_callback cb, bool* stop_flag)
 {
     if (!url || *url == '\0' || !dp || *dp == '\0')
     {
@@ -149,7 +149,7 @@ bool start_request(const char* url, const char* dp, int nc,
         case UP_HTTP:
         case UP_HTTPS:
         {
-            process_http_request(ui, dp, nc, cb);
+            process_http_request(ui, dp, nc, cb, stop_flag);
             break;
         }
 

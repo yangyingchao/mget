@@ -10,6 +10,7 @@
 #include <string.h>
 #include "debug.h"
 #include <libgen.h>
+#include "data_utlis.h"
 #define FM_RWUSR       (S_IRUSR|S_IWUSR)
 
 
@@ -55,6 +56,8 @@ void fhandle_destroy(fhandle** fh)
         {
             if ((*fh)->auto_remove)
             {
+                PDEBUG ("Autoremove: %s\n", (*fh)->fn);
+
                 remove_file((*fh)->fn);
             }
             free((*fh)->fn);
@@ -95,8 +98,8 @@ fh_map* fhandle_mmap(fhandle* fh, off_t offset, size_t length)
         }
     }
 
-    PDEBUG ("file %s mapped to addr: %p, length: %lX\n",
-            fh->fn, fm->addr, size);
+    PDEBUG ("file %s mapped to addr: %p, length: %lX(%s)\n",
+            fh->fn, fm->addr, size, stringify_size(size));
 
     return fm;
 }

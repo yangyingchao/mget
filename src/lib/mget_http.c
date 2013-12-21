@@ -6,6 +6,7 @@
 #include "mget_http.h"
 #include "debug.h"
 #include "macros.h"
+#include "timeutil.h"
 
 typedef struct _easy_param
 {
@@ -115,7 +116,7 @@ uint64 get_remote_file_size(url_info* ui)
 }
 
 void process_http_request(url_info* ui, const char* dn, int nc,
-                          void (*cb)(metadata* md))
+                          void (*cb)(metadata* md), bool* stop_flag)
 {
     PDEBUG ("enter\n");
 
@@ -176,7 +177,7 @@ l1:;
     PDEBUG ("fn: %s, bname: %s\n", fn, ui->bname);
 
     fhandle* fh2 = fhandle_create(fn, FHM_CREATE);
-    fh_map*  fm2 = fhandle_mmap(fh2, 0, total_size);
+    fh_map*  fm2 = fhandle_mmap(fh2, 0, mw.md->hd.package_size);
     if (!fh2 || !fm2)
     {
         PDEBUG ("Failed to create mapping!\n");
@@ -215,14 +216,12 @@ l1:;
         struct curl_slist* l = NULL;
         char rg[64]          = {'\0'};
         sprintf(rg, "Range: bytes=%llu-%llu", dp->cur_pos, dp->end_pos);
-        PDEBUG ("IDX: %x, EH: %p, url: %s, %s\n", i, eh, ui->furl, strdup(rg));
         l = curl_slist_append(NULL, "Accept: */*");
         l = curl_slist_append(l, rg);
         curl_easy_setopt(eh, CURLOPT_HTTPHEADER, l);
 
         // Add to multy;
         curl_multi_add_handle(mh, eh);
-        PDEBUG ("added eh: %p\n", eh);
     }
 
     if (!need_request)
@@ -237,7 +236,7 @@ l1:;
     curl_multi_perform(mh, &running_hanlders);
     PDEBUG ("perform returns: %d\n",running_hanlders);
 
-    while (running_hanlders) {
+    while (running_hanlders && stop_flag && !*stop_flag) {
         struct timeval timeout;
         fd_set rfds;
         fd_set wfds;
@@ -279,10 +278,12 @@ l1:;
     {
         if (dp->cur_pos < dp->end_pos)
         {
+            finished = false;
             break;
         }
         dp++;
     }
+
     if (finished)
     {
         mw.md->hd.status = RS_SUCCEEDED;
@@ -294,7 +295,6 @@ l1:;
 
     mw.md->hd.acc_time += get_time_s() - mw.md->hd.last_time;
 ret:
-
     metadata_display(mw.md);
     if (cb)
     {
