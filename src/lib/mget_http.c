@@ -232,7 +232,7 @@ l1:;
     }
 
     PDEBUG ("Performing...\n");
-
+    mw.md->hd.last_time = get_time_s();
     int running_hanlders = 0;
     curl_multi_perform(mh, &running_hanlders);
     PDEBUG ("perform returns: %d\n",running_hanlders);
@@ -291,6 +291,8 @@ l1:;
     {
         mw.md->hd.status = RS_STOPPED;
     }
+
+    mw.md->hd.acc_time += get_time_s() - mw.md->hd.last_time;
 ret:
 
     metadata_display(mw.md);

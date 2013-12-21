@@ -10,6 +10,8 @@ extern "C" {
 uint32 get_time_ms();
 uint32 get_time_s();
 
+char* stringify_time(uint64 ts);
+
 #ifdef __cplusplus
 }
 #endif

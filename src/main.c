@@ -17,7 +17,8 @@ void show_progress(metadata* md)
 
     if (md->hd.status == RS_SUCCEEDED)
     {
-        printf("Download finished....\n");
+        printf("Download finished, total cost: %s....\n",
+               stringify_time(md->hd.acc_time));
         return;
     }
 
