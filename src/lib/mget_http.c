@@ -6,7 +6,7 @@
 uint64 get_remote_file_size_http(url_info* ui)
 {
     msock* sk = socket_get(ui->host, NULL, NULL);
-    bool ret = socket_perform(sk);
+    int ret = socket_perform(sk);
     if (!ret)
     {
         PDEBUG ("Failed ....\n");
