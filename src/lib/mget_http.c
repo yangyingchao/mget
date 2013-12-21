@@ -250,7 +250,7 @@ l1:;
         int nr = select(maxfd, &rfds, &wfds, &efds, &timeout);
         if (nr >= 0)
         {
-            if (running_hanlders < mw.md->hd.nr_chunks && reschedule)
+            if (false && running_hanlders < mw.md->hd.nr_chunks && reschedule)
             {
                 uint64 remained_size = 0;
                 int    max_eh        = -1;
@@ -357,10 +357,9 @@ l1:;
 
     mw.md->hd.acc_time += get_time_s() - mw.md->hd.last_time;
 
-    fhandle_msync(mw.fm);
 
 ret:
-
+    fhandle_msync(mw.fm);
     metadata_display(mw.md);
     if (cb)
     {
