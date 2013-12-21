@@ -1,5 +1,7 @@
 #include "timeutil.h"
+#include <stdio.h>
 #include <time.h>
+#include <string.h>
 #include <sys/time.h>
 
 uint32 get_time_ms()
@@ -29,7 +31,7 @@ char* stringify_time(uint64 ts)
 
     if (ts < MINUTE)
     {
-        sprintf(str_time, "%d seconds", ts);
+        sprintf(str_time, "%llu seconds", ts);
     }
     else if (ts < HOUR)
     {

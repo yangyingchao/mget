@@ -13,7 +13,7 @@ target_link_libraries(mget m curl)
 install(
   TARGETS mget
   LIBRARY
-  DESTINATION "lib")
+  DESTINATION "/usr/lib")
 
 #TODO: install header files....
 

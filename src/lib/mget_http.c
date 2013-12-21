@@ -2,6 +2,7 @@
 #include <curl/easy.h>
 #include <curl/multi.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "mget_http.h"
 #include "debug.h"
@@ -84,6 +85,7 @@ uint64 get_remote_file_size(url_info* ui)
     {
         eh0 = curl_easy_init();
     }
+    PDEBUG ("eh0: %p\n", eh0);
 
     hash_table* ht = hash_tableCreate(256, free);
 
@@ -98,11 +100,14 @@ uint64 get_remote_file_size(url_info* ui)
     slist = curl_slist_append(slist, "Range: bytes=0-0");
     curl_easy_setopt(eh0, CURLOPT_HTTPHEADER, slist);
     curl_easy_setopt(eh0, CURLOPT_WRITEFUNCTION, drop_content);
+    CURLcode ret = curl_easy_perform(eh0);
+    PDEBUG ("ret = %d\n",ret);
 
-    curl_easy_perform(eh0);
+
     long stat = 0;
     curl_easy_getinfo(eh0, CURLINFO_RESPONSE_CODE, &stat);
-    curl_slist_free_all(slist);
+
+    PDEBUG ("Status Code: %ld\n", stat);
 
     char* val = (char*)GetEntryFromhash_table(ht, "Content-Range");
     if (val)
@@ -112,6 +117,7 @@ uint64 get_remote_file_size(url_info* ui)
     }
 
     PDEBUG ("remote file size: %llu (%.02fM)\n", size, (float)size/M);
+    curl_slist_free_all(slist);
     return size;
 }
 
@@ -294,7 +300,10 @@ l1:;
     }
 
     mw.md->hd.acc_time += get_time_s() - mw.md->hd.last_time;
+
+    sync();
 ret:
+
     metadata_display(mw.md);
     if (cb)
     {
