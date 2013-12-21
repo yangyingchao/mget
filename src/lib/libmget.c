@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <strings.h>
 #include "debug.h"
-#include "mget_http.h"
+#include "cmget_http.h"
 
 #define DEFAULT_HTTP_PORT         80
 #define DEFAULT_HTTPS_PORT        443
