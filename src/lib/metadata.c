@@ -131,6 +131,7 @@ void associate_wrapper(metadata_wrapper* mw)
     nmd->ht = omd->ht;
     omd->ht = NULL;
 
+    mw->md = nmd;
     mw->from_file  = true;
 }
 

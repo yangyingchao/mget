@@ -7,7 +7,7 @@ set(VERSION_PATCH 0)
 
 configure_file(mget_config.h.in mget_config.h)
 add_library(mget SHARED libmget.c metadata.c fileutils.c
-  mget_http.c
+  mget_http.c mget_sock.c cmget_http.c
   timeutil.c  data_utlis.c)
 target_link_libraries(mget m curl)
 

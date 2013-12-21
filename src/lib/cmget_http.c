@@ -4,7 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "cmget_http.h"
+#include "mget_http.h"
 #include "debug.h"
 #include "macros.h"
 #include "timeutil.h"
@@ -36,6 +36,7 @@ size_t recv_data(void *buffer,  size_t size, size_t nmemb,
         memcpy(ppm->base_addr + dp->cur_pos, buffer, size*nmemb);
         dp->cur_pos += size*nmemb;
     }
+
     if (g_cb)
     {
         (*g_cb)(ppm->md);
@@ -76,17 +77,12 @@ uint64 get_remote_file_size(url_info* ui)
 
     hash_table* ht = hash_tableCreate(256, free);
 
-    //@todo: handle 302!!
-    uint64 size = 0;
     curl_easy_setopt(eh0, CURLOPT_URL, ui->furl);
     curl_easy_setopt(eh0, CURLOPT_HEADERFUNCTION, recv_header);
     curl_easy_setopt(eh0, CURLOPT_HEADERDATA, ht);
 
-    struct curl_slist* slist = NULL;
-    slist = curl_slist_append(slist, "Accept: */*");
-    slist = curl_slist_append(slist, "Range: bytes=0-0");
-    curl_easy_setopt(eh0, CURLOPT_HTTPHEADER, slist);
     curl_easy_setopt(eh0, CURLOPT_WRITEFUNCTION, drop_content);
+    curl_easy_setopt(eh0, CURLOPT_NOBODY, 1);
     CURLcode ret = curl_easy_perform(eh0);
     PDEBUG ("ret = %d\n",ret);
 
@@ -95,17 +91,23 @@ uint64 get_remote_file_size(url_info* ui)
     curl_easy_getinfo(eh0, CURLINFO_RESPONSE_CODE, &stat);
 
     PDEBUG ("Status Code: %ld\n", stat);
+    //@todo: handle 302!!
 
-    char* val = (char*)GetEntryFromhash_table(ht, "Content-Range");
-    if (val)
+    if (stat != 200)
     {
-        uint64 s = 0, e = 0;
-        int n = sscanf(val, "bytes %Lu-%Lu/%Lu", &s, &e, &size);
+        fprintf(stderr, "Not implemented!\n");
+        exit(1);
     }
 
-    PDEBUG ("remote file size: %llu (%.02fM)\n", size, (float)size/M);
-    curl_slist_free_all(slist);
-    return size;
+    char* val = (char*)GetEntryFromhash_table(ht, "Content-Length");
+    if (val)
+    {
+        uint64 size = atoll(val);
+        PDEBUG ("remote file size: %llu %s\n", size, stringify_size(size));
+        return size;
+    }
+
+    return 0;
 }
 
 void process_http_request_c(url_info* ui, const char* dn, int nc,
@@ -229,6 +231,7 @@ l1:;
     curl_multi_perform(mh, &running_hanlders);
     PDEBUG ("perform returns: %d\n",running_hanlders);
 
+    bool reschedule = true;
     while (running_hanlders && stop_flag && !*stop_flag) {
         struct timeval timeout;
         fd_set rfds;
@@ -247,11 +250,76 @@ l1:;
         int nr = select(maxfd, &rfds, &wfds, &efds, &timeout);
         if (nr >= 0)
         {
+            if (false && running_hanlders < mw.md->hd.nr_chunks && reschedule)
+            {
+                uint64 remained_size = 0;
+                int    max_eh        = -1;
+                int free_dps = 0;
+                int eh_mask[mw.md->hd.nr_chunks];
+                memset(eh_mask, 0, mw.md->hd.nr_chunks);
+                data_chunk* max_dp = NULL;
+                for (int i = 0; i < mw.md->hd.nr_chunks; ++i)
+                {
+                    data_chunk* dp = mw.md->body + i;
+                    if (is_chunk_finished(dp))
+                    {
+                        curl_multi_remove_handle(mh, ehs[i]);
+                        eh_mask[i] = 1;
+                        free_dps++;
+                    }
+                    else
+                    {
+                        uint64 r_size =  (dp->end_pos - dp->cur_pos);
+                        if (r_size > remained_size)
+                        {
+                            max_eh = i;
+                            remained_size = r_size;
+                            max_dp = dp;
+                        }
+                    }
+                }
+
+                if (remained_size > M && max_eh != -1)
+                {
+                    PDEBUG ("Rescheduling....\n");
+
+                    curl_multi_remove_handle(mh, ehs[max_eh]);
+                    eh_mask[max_eh] = 1;
+                    free_dps ++;
+
+                    data_chunk* ndc = NULL;
+                    if (chunk_split(max_dp->cur_pos,
+                                    max_dp->end_pos - max_dp->cur_pos,
+                                    &free_dps, &ndc))
+                    {
+                        int lastIdx = 0;
+                        for (int i = 0; i < free_dps; ++i)
+                        {
+                            for (int j=lastIdx; j < mw.md->hd.nr_chunks; ++j)
+                            {
+                                if (eh_mask[j])
+                                {
+                                    *(mw.md->body+j) = ndc[i];
+                                    curl_multi_add_handle(mh, ehs[j]);
+                                    lastIdx = j++;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    reschedule = false;
+                }
+            }
+
             FD_ZERO(&rfds);
             FD_ZERO(&wfds);
             FD_ZERO(&efds);
             curl_multi_fdset(mh, &rfds, &wfds, &efds, &maxfd);
             curl_multi_perform(mh, &running_hanlders);
+
             if (nr == 0)
             {
                 PDEBUG ("timeout, running handles: %d\n", running_hanlders);
@@ -263,6 +331,7 @@ l1:;
             break;
         }
     }
+    fhandle_msync(fm2);
     fhandle_munmap_close(&fm2);
 
     data_chunk* dp = mw.md->body;
@@ -288,9 +357,9 @@ l1:;
 
     mw.md->hd.acc_time += get_time_s() - mw.md->hd.last_time;
 
-    sync();
-ret:
 
+ret:
+    fhandle_msync(mw.fm);
     metadata_display(mw.md);
     if (cb)
     {
