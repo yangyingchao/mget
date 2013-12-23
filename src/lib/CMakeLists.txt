@@ -5,6 +5,14 @@ set(VERSION_MAJOR 0)
 set(VERSION_MINOR 0)
 set(VERSION_PATCH 0)
 
+option (DEBUG
+  "Enable debug..."
+  ON)
+
+if(DEBUG)
+ADD_DEFINITIONS("-DDEBUG")
+endif(DEBUG)
+
 configure_file(mget_config.h.in mget_config.h)
 add_library(mget SHARED libmget.c metadata.c fileutils.c
   mget_http.c mget_sock.c cmget_http.c

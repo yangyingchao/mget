@@ -7,6 +7,7 @@
 #include "debug.h"
 #include "timeutil.h"
 #include "mget_config.h"
+#include <stdio.h>
 
 #define MAX_CHUNKS       10
 #define MIN_CHUNK_SIZE   (64*K)
@@ -183,10 +184,10 @@ void metadata_destroy(metadata_wrapper* mw)
 
 void metadata_display(metadata* md)
 {
-    PDEBUG ("Showing metadata: %p\n", md);
+    fprintf(stderr, "Showing metadata: %p\n", md);
     if (!md)
     {
-        PDEBUG ("Empty metadata!%s\n", "");
+        fprintf(stderr, "Empty metadata!%s\n", "");
         return;
     }
 
@@ -201,11 +202,13 @@ void metadata_display(metadata* md)
         uint64 chunk_recv = cp->cur_pos - cp->start_pos;
         uint64 chunk_size = cp->end_pos - cp->start_pos;
         recv += chunk_recv;
-        PDEBUG ("Chunk: %p(%s), start: %08llX, cur: %08llX, end: %08llX -- %.02f%%\n",
+        fprintf(stderr,
+                "Chunk: %p(%s), start: %08llX, cur: %08llX, end: %08llX -- %.02f%%\n",
                 cp, stringify_size(chunk_size), cp->start_pos, cp->cur_pos,
                 cp->end_pos, (float)(chunk_recv)/chunk_size * 100);
 
     }
+    fprintf(stderr, "%s finished...\n", stringify_size(recv));
 }
 
 bool chunk_split(uint64 start, uint64 size, int *num, data_chunk** dc)
