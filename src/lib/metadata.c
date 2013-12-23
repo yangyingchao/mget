@@ -80,6 +80,7 @@ bool metadata_create_from_url(const char* url,
         hd->status = RS_INIT;
         hd->nr_chunks = nc;
         hd->eb_length = ebl;
+        hd->acon = nc;
 
         pmd->body = (data_chunk*)pmd->raw_data;
         char* ptr = pmd->raw_data + CHUNK_SIZE(pmd);

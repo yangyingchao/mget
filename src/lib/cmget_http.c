@@ -227,12 +227,12 @@ l1:;
 
     PDEBUG ("Performing...\n");
     mw.md->hd.last_time = get_time_s();
-    int running_hanlders = 0;
-    curl_multi_perform(mh, &running_hanlders);
-    PDEBUG ("perform returns: %d\n",running_hanlders);
+    int* running_hanlders = &mw.md->hd.acon;
+    curl_multi_perform(mh, running_hanlders);
+    PDEBUG ("perform returns: %d\n", *running_hanlders);
 
     bool reschedule = true;
-    while (running_hanlders && stop_flag && !*stop_flag) {
+    while (*running_hanlders && stop_flag && !*stop_flag) {
         struct timeval timeout;
         fd_set rfds;
         fd_set wfds;
@@ -250,7 +250,7 @@ l1:;
         int nr = select(maxfd, &rfds, &wfds, &efds, &timeout);
         if (nr >= 0)
         {
-            if (false && running_hanlders < mw.md->hd.nr_chunks && reschedule)
+            if (false && *running_hanlders < mw.md->hd.nr_chunks && reschedule)
             {
                 uint64 remained_size = 0;
                 int    max_eh        = -1;
@@ -318,12 +318,19 @@ l1:;
             FD_ZERO(&wfds);
             FD_ZERO(&efds);
             curl_multi_fdset(mh, &rfds, &wfds, &efds, &maxfd);
-            curl_multi_perform(mh, &running_hanlders);
+            curl_multi_perform(mh, running_hanlders);
 
+            static int cnt = 0;
             if (nr == 0)
             {
-                PDEBUG ("timeout, running handles: %d\n", running_hanlders);
+                if (++cnt > 10)
+                {
+                    PDEBUG ("timeout, running handles: %d\n", *running_hanlders);
+                    cnt = 0;
+                }
             }
+            else
+                cnt = 0;
         }
         else
         {

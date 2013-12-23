@@ -30,7 +30,7 @@ typedef struct _mget_slist_head
             instance = (type *)malloc(sizeof(type));                    \
             if (instance == NULL) {                                     \
                 fprintf(stderr, "ERROR: failed to alloc memory.\n");    \
-                return -1;                                              \
+                return NULL;                                              \
             }                                                           \
             memset(instance, 0, sizeof(type));                          \
         }                                                               \
@@ -45,13 +45,12 @@ typedef struct _mget_slist_head
         {                                                   \
             if (ptr->next == NULL)                          \
             {                                               \
-                ptr->next = (type*) malloc(sizeof(type));   \
-                memset(ptr->next, 0, sizeof(type));         \
+                ptr->next = (mget_slist_head*)ZALLOC1(type);    \
                 break;                                      \
             }                                               \
             else                                            \
             {                                               \
-                ptr = ptr->next;                            \
+                ptr = (type*)ptr->next;                     \
             }                                               \
         }                                                   \
     } while (0)                                             \

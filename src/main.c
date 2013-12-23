@@ -31,8 +31,7 @@ void show_progress(metadata* md)
         return;
     }
 
-    int nr = md->hd.nr_chunks;
-    int threshhold = nr > 2 ? 78 : 1;
+    int threshhold = 78 * md->hd.acon / md->hd.nr_chunks;
 
     if (idx++ < threshhold)
     {

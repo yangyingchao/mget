@@ -8,6 +8,7 @@
 #include "mget_sock.h"
 #include "libmget.h"
 #include "mget_sock.h"
+#include <unistd.h>
 
 static uint64 sz = 0; // total size
 static uint64 rz = 0; // received size;
@@ -83,7 +84,7 @@ int main(int argc, char *argv[])
 {
 
     FILE* fp = fopen("/tmp/testa.txt", "w");
-    const char* url = "http://www.python.org/ftp/python/2.7.6/python-2.7.6.msi";
+    const char* url = "http://127.0.0.1:9999";
 
     url_info* ui;
     if (!parse_url(url, &ui))
@@ -96,6 +97,12 @@ int main(int argc, char *argv[])
     msock* sk = socket_get(ui, NULL, NULL);
     printf("Socket: %p: %d\n",sk, sk? sk->sock : -1);
     // Prepare to select.
+    write(sk->sock, "AAAAAAAAAAAAAAAA", 10);
+    char buf[1024];
+    memset(buf, 0, 1024);
+    ssize_t r = read(sk->sock, buf, 1024);
+    printf ("r: %lu, msg: %s\n", r, buf);
+
     fclose(fp);
     return 0;
 }

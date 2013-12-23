@@ -8,15 +8,8 @@
 #include "data_utlis.h"
 #include "debug.h"
 #include <unistd.h>
-
-typedef struct _msock_list
-{
-    mget_slist_head* next;
-
-    msock* sock;
-    bool   busy;
-    uint32 atime;
-} msock_list;
+#include <sys/epoll.h>
+#include <fcntl.h>
 
 typedef struct addrinfo address;
 
@@ -38,6 +31,16 @@ typedef struct _msock_p
 } msock_p;
 
 #define SK2SKP(X)       (msock_p*)(X)
+
+typedef struct _sock_list
+{
+    mget_slist_head* next;
+    union  {
+        msock* sk;
+        int cnt;
+    } un;
+} sock_list;
+
 
 void addr_entry_destroy(void* entry)
 {
@@ -78,28 +81,27 @@ msock* socket_get(url_info* ui, sock_read_func rf, sock_write_func wf)
     addr = ZALLOC1(addr_entry);
     address hints;
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family   = AF_UNSPEC;
+    hints.ai_family   = AF_INET;//AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags    = 0;
     hints.ai_protocol = 0;
     int ret = getaddrinfo(ui->host, ui->sport, &hints, &addr->infos);
     if (ret)
         goto err;
-    int sfd = -1;
     address* rp = NULL;
     for (rp = addr->infos; rp != NULL; rp = rp->ai_next)
     {
-        sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-        if (sfd == -1)
+        sk->sk.sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+        if (sk->sk.sock == -1)
         {
             continue;
         }
-        if (connect(sfd, rp->ai_addr, rp->ai_addrlen) != -1)
+        if (connect(sk->sk.sock, rp->ai_addr, rp->ai_addrlen) != -1)
         {
             sk->connected = true;
             break;
         }
-        close(sfd);
+        close(sk->sk.sock);
     }
 
     if (rp != NULL)
@@ -125,9 +127,58 @@ ret:
 
 void socket_put(msock* sock)
 {
+    FIF(SK2SKP(sock));
 }
 
-int socket_perform(msock* sock)
+int socket_perform(sock_group* sock)
 {
+    int cnt = sock->un.cnt;
+    if (!cnt)
+        return -1;
+
+    int epl = epoll_create(cnt);
+    if (epl == -1)
+    {
+        perror("epool_create");
+        exit(EXIT_FAILURE);
+    }
+
+    //TODO: Add sockets to Epoll
+    sock_list* p = sock;
+    while (p && p->un.sk) {
+        msock_p* sk = (msock_p*)p->un.sk;
+        if (sk->sk.sock != 0){
+            fcntl(sk->sk.sock, F_SETFD, O_NONBLOCK);
+        }
+        p = (sock_group*)p->next;
+    }
     return 0;
+}
+
+
+sock_group* sock_group_create()
+{
+    sock_group* group = NULL;
+    INIT_LIST(group, sock_group);
+    group->un.cnt = 0;
+    return group;
+}
+
+void sock_group_destroy(sock_group* group)
+{
+    sock_list* g = group;
+    while (g) {
+        sock_list* ng = (sock_list*)g->next;
+        FIF(SK2SKP(g->un.sk));
+        FIF(g);
+        g=ng;
+    }
+}
+
+void sock_add_to_group(sock_group* group, msock* sock)
+{
+    sock_group* tail = group;
+    SEEK_LIST_TAIL(group, tail, sock_group);
+    tail->un.sk = sock;
+    group->un.cnt ++;
 }

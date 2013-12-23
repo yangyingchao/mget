@@ -37,7 +37,8 @@ typedef struct metadata_head
     uint8  nr_chunks;                   // number of chunks.
     uint16 eb_length;                   // length of extra body: url_len+mime_len+others
 
-    uint8  reserved[16];                // reserved ...
+    int  acon;                        // active connections.
+    uint8  reserved[12];                // reserved ...
 } mh;                                   // up to 48 bytes
 
 // Byte/     0       |       1       |       2       |       3       |
