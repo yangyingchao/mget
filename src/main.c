@@ -32,7 +32,13 @@ void show_progress(metadata* md)
     }
 
     if (idx++ < 78)
+    {
+        if (!ts)
+        {
+            ts = get_time_ms();
+        }
         fprintf(stderr, ".");
+    }
     else
     {
         data_chunk* dp = md->body;
@@ -44,12 +50,16 @@ void show_progress(metadata* md)
             dp++;
         }
 
+        char* s1 = strdup(stringify_size(total));
+        char* s2 = strdup(stringify_size(recv));
         fprintf(stderr, "Progress: total: %s, recv: %s, %.02f percent, %.02fKB/s\n",
-                stringify_size(total), stringify_size(recv), (float)recv/total * 100,
-                (float)(recv-last_recv)/K/(get_time_s() -ts));
+                s1, s2, (float)recv/total * 100,
+                (double)(recv-last_recv)*1000/K/(get_time_ms() -ts));
         idx       = 0;
         last_recv = recv;
-        ts = get_time_s();
+        ts = get_time_ms();
+        free(s1);
+        free(s2);
     }
 }
 

@@ -64,6 +64,7 @@ char* rstrip(char* str);
 #define G       (1 << 30)
 #define T       (1 << 40)
 
+// user should copy this tring after it returns!
 const char* stringify_size(uint64 sz);
 
 // #ifdef __cplusplus
