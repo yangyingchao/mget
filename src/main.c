@@ -66,19 +66,63 @@ void show_progress(metadata* md)
     }
 }
 
+void usage(int argc, char *argv[])
+{
+    printf("Usage:\n\tTo download url and store to directory:"
+           "\t%s -d directory url..\n", argv[0]);
+    printf("or:\n\tTo show metadata of file:\n\t"
+           "%s -s file..\n", argv[0]);
+}
 int main(int argc, char *argv[])
 {
     if (argc == 1)
     {
-        printf("Usage: %s size, nc.\n", argv[0]);
+        usage(argc, argv);
         return 1;
     }
 
-    if (argc == 2)
+
+    char* dst       = NULL;
+    bool  view_only = false;
+    int   opt       = 0;
+    while ((opt = getopt(argc, argv, "d:s")) != -1) {
+        switch (opt)
+        {
+            case 'd':
+            {
+                dst = strdup(optarg);
+                printf ("dst: %s\n", dst);
+                break;
+            }
+            case 's':
+            {
+                view_only = true;
+                break;
+            }
+            default:
+            {
+                break;
+            }
+        }
+    }
+
+    char* target = optind <= argc ? argv[optind] : NULL;
+    if (!target)
+    {
+        usage(argc, argv);
+        exit(1);
+    }
+
+    if (!dst)
+    {
+        dst = ".";
+    }
+
+    if (view_only)
     {
         if (file_existp(argv[1]))
         {
-            PDEBUG ("showing tmd file: %s\n", argv[1]);
+            printf ("showing tmd file: %s\n", target);
 
             metadata_wrapper mw;
             metadata_create_from_file(argv[1], &mw);
@@ -87,67 +131,24 @@ int main(int argc, char *argv[])
         }
         else
         {
-            PDEBUG ("Test Staring request from: %s with 10 connections!!\n",  argv[1]);
-            struct sigaction act;
-            act.sa_handler   = sigterm_handler;
-            act.sa_sigaction = NULL;
-            sigemptyset(&act.sa_mask);
-            act.sa_flags = 0;
-            int ret = sigaction(SIGINT, &act, NULL);
-            PDEBUG ("ret = %d\n", ret);
-
-            signal(SIGINT, sigterm_handler);
-            start_request(argv[1], ".", 10, show_progress, &control_byte);
+            printf("File: %s not exists!\n", target);
         }
     }
     else
     {
-        uint32      start = 0;
-        uint64      size  = (uint64)(atof(argv[1]) * M);
-        int nc = atoi(argv[2]);
-        PDEBUG ("Test begins, size: %llX (%.02fM)\n", size, (float)size/M);
-        const char* url   = "http://www.baidu.com";
-        metadata_wrapper mw;
-        data_chunk* cp    = NULL;
+        printf ("downloading file: %s, saving to %s\n", target, dst);
 
-        bool b_re = metadata_create_from_url(url, size, nc, NULL, &mw.md);
-        if (!b_re)
-        {
-            handle_error("Failed to create metadata from url\n");
-        }
+        struct sigaction act;
+        act.sa_handler   = sigterm_handler;
+        act.sa_sigaction = NULL;
+        sigemptyset(&act.sa_mask);
+        act.sa_flags = 0;
+        int ret = sigaction(SIGINT, &act, NULL);
+        PDEBUG ("ret = %d\n", ret);
 
-        for (int i = 0; i < mw.md->hd.nr_chunks; ++i)
-        {
-            cp = &mw.md->body[i];
-            PDEBUG ("chunk: %p, cur_pos: %08llX, end: %08llX (%.02fM)\n",
-                    cp, cp->cur_pos, cp->end_pos, (float)cp->end_pos/(M));
-        }
-
-        metadata_display(mw.md);
-
-        const char* tmp = "/tmp/test.txt";
-        fhandle* fh = fhandle_create(tmp, FHM_CREATE);
-        mw.fm = fhandle_mmap(fh, 0, MD_SIZE(mw.md));
-        mw.from_file = false;
-
-        PDEBUG ("Associating mw: %p\n", &mw);
-        associate_wrapper(&mw);
-
-        PDEBUG ("Destroying mw: %p, md: %p\n", &mw, mw.md);
-
-        metadata_destroy(&mw);
-
-        printf("Now md: %p, recreating....\n", mw.md);
-        b_re = metadata_create_from_file(tmp, &mw);
-        if (b_re)
-        {
-            metadata_display(mw.md);
-            metadata_destroy(&mw);
-        }
-        else
-        {
-            PDEBUG ("Faield to create mw from file: %s\n", tmp);
-        }
+        signal(SIGINT, sigterm_handler);
+        start_request(target, dst, 10, show_progress, &control_byte);
     }
+
     return 0;
 }
