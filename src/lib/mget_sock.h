@@ -5,6 +5,8 @@
 // extern "C" {
 // #endif
 
+#include "netutils.h"
+
 typedef struct _msock msock;
 
 typedef void* (*sock_read_func)(msock*);
@@ -17,7 +19,7 @@ struct _msock
     sock_write_func wf;
 };
 
-msock* socket_get(const char* host, sock_read_func rf, sock_write_func wf);
+msock* socket_get(url_info* ui, sock_read_func rf, sock_write_func wf);
 void socket_put(msock* sock);
 int  socket_perform(msock* sock);
 

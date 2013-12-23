@@ -56,4 +56,4 @@ install(
 # mark_as_advanced(LIBXML2_INCLUDE_DIR LIBXML2_LIBRARY )
 
 add_executable(ctest ctest.c)
-target_link_libraries(ctest curl)
+target_link_libraries(ctest curl mget)

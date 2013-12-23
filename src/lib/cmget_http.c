@@ -56,7 +56,7 @@ size_t recv_header(void *buffer,  size_t size, size_t nmemb,
         char* v = NULL;
         if (sscanf((const char*)buffer, "%m[^:] : %m[^$] ", &k, &v))
         {
-            if (!InsertEntry(ht, rstrip(k), rstrip(v)))
+            if (!hash_table_insert(ht, rstrip(k), rstrip(v)))
             {
                 PDEBUG ("Failed to add kvp: %s, %s\n", k, v);
                 FIF(k); FIF(v);
@@ -75,7 +75,7 @@ uint64 get_remote_file_size(url_info* ui)
     }
     PDEBUG ("eh0: %p\n", eh0);
 
-    hash_table* ht = hash_tableCreate(256, free);
+    hash_table* ht = hash_table_create(256, free);
 
     curl_easy_setopt(eh0, CURLOPT_URL, ui->furl);
     curl_easy_setopt(eh0, CURLOPT_HEADERFUNCTION, recv_header);
@@ -99,7 +99,7 @@ uint64 get_remote_file_size(url_info* ui)
         exit(1);
     }
 
-    char* val = (char*)GetEntryFromhash_table(ht, "Content-Length");
+    char* val = (char*)hash_table_entry_get(ht, "Content-Length");
     if (val)
     {
         uint64 size = atoll(val);

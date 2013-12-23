@@ -5,6 +5,9 @@
 #include "typedefs.h"
 #include "debug.h"
 #include "metadata.h"
+#include "mget_sock.h"
+#include "libmget.h"
+#include "mget_sock.h"
 
 static uint64 sz = 0; // total size
 static uint64 rz = 0; // received size;
@@ -78,14 +81,20 @@ uint64 get_remote_file_size(const char* url, CURL* eh)
 
 int main(int argc, char *argv[])
 {
-    curl_global_init(CURL_GLOBAL_DEFAULT);
 
     FILE* fp = fopen("/tmp/testa.txt", "w");
     const char* url = "http://www.python.org/ftp/python/2.7.6/python-2.7.6.msi";
 
-    sz = get_remote_file_size(url, NULL);
-    PDEBUG ("TOTAL_SIZE: %lluBytes, (%.02f)M\n", sz, (float)sz/(1<<20));
+    url_info* ui;
+    if (!parse_url(url, &ui))
+    {
+        fprintf(stderr, "Failed to parse url: %s\n", url);
+    }
 
+    url_info_display(ui);
+
+    msock* sk = socket_get(ui, NULL, NULL);
+    printf("Socket: %p: %d\n",sk, sk? sk->sock : -1);
     // Prepare to select.
     fclose(fp);
     return 0;

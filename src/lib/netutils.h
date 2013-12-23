@@ -21,9 +21,10 @@ typedef struct _url_info
     uint32       port;
     char*        protocol;
     char*        host;
+    char*        sport;
     char*        uri;
     char*        bname;
-    char*        furl; /* full url.*/
+    char*        furl;                  /* full url.*/
 } url_info;
 
 #ifdef __cplusplus

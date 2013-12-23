@@ -6,6 +6,7 @@
 // #endif
 
 #include "typedefs.h"
+#include "macros.h"
 
 typedef void (*free_func)   (void*);
 
@@ -18,6 +19,43 @@ typedef struct _mget_slis
 
 mget_slis* mget_slist_append(mget_slis* l, void*data, free_func f);
 void       mget_slist_free(mget_slis* lst);
+
+typedef struct _mget_slist_head
+{
+    struct mget_slist_head* next;
+} mget_slist_head;
+
+#define INIT_LIST(instance, type) do {                                  \
+        if (instance == NULL) {                                         \
+            instance = (type *)malloc(sizeof(type));                    \
+            if (instance == NULL) {                                     \
+                fprintf(stderr, "ERROR: failed to alloc memory.\n");    \
+                return -1;                                              \
+            }                                                           \
+            memset(instance, 0, sizeof(type));                          \
+        }                                                               \
+    } while (0);
+
+// Seek to list tail and create new empty.
+#define SEEK_LIST_TAIL(lst, ptr, type)                      \
+    do                                                      \
+    {                                                       \
+        ptr = lst;                                          \
+        while (ptr)                                         \
+        {                                                   \
+            if (ptr->next == NULL)                          \
+            {                                               \
+                ptr->next = (type*) malloc(sizeof(type));   \
+                memset(ptr->next, 0, sizeof(type));         \
+                break;                                      \
+            }                                               \
+            else                                            \
+            {                                               \
+                ptr = ptr->next;                            \
+            }                                               \
+        }                                                   \
+    } while (0)                                             \
+
 
 typedef struct _kv_pair
 {
@@ -49,14 +87,16 @@ typedef struct _hash_table
 
 
 // Functions.
-void hash_tableDestroy(hash_table* table);
-hash_table* hash_tableCreate(uint32 size, DestroyFunction dFunctor);
-bool InsertEntry(hash_table* table, char* key, void* val);
-void* GetEntryFromhash_table(hash_table* table, char* key);
+void hash_table_destroy(hash_table* table);
+hash_table* hash_table_create(uint32 size, DestroyFunction dFunctor);
+bool hash_table_insert(hash_table* table, char* key, void* val);
+void* hash_table_entry_get(hash_table* table, const char* key);
 
 void dump_hash_table(hash_table* ht, void* buffer);
 
 char* rstrip(char* str);
+
+#define GET_HASH_ENTRY(T, H, K)       ((T*)hash_table_entry_get(H, K))
 
 
 #define K       (1 << 10)

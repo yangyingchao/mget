@@ -93,6 +93,9 @@ bool parse_url(const char* url, url_info** ui)
         }
     }
 
+    char tmp[64] = {'\0'};
+    sprintf(tmp, "%d", up->port);
+    up->sport = strdup(tmp);
     *ui       = up;
     goto ret;
 

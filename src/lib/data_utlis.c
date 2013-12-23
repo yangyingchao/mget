@@ -12,7 +12,7 @@ mget_slis* mget_slis_append(mget_slis* l, void*data, free_func f)
 
 // Hash table operations.
 
-static const int   HASH_SIZE    = 4096;
+static const int   HASH_SIZE    = 256;
 
 uint32 StringHashFunction(const char* str)
 {
@@ -34,7 +34,7 @@ uint32 StringHashFunction(const char* str)
     return hash % HASH_SIZE;
 }
 
-void hash_tableDestroy(hash_table* table)
+void hash_table_destroy(hash_table* table)
 {
     if (table)
     {
@@ -59,7 +59,7 @@ void hash_tableDestroy(hash_table* table)
     }
 }
 
-hash_table* hash_tableCreate(uint32 hashSize, DestroyFunction dFunctor)
+hash_table* hash_table_create(uint32 hashSize, DestroyFunction dFunctor)
 {
     hash_table* table = malloc(sizeof(hash_table));
     if (table)
@@ -71,7 +71,7 @@ hash_table* hash_tableCreate(uint32 hashSize, DestroyFunction dFunctor)
         }
 
         table->capacity    = hashSize;
-        table->entries     = malloc(sizeof(TableEntry) * hashSize);
+        table->entries     = ZALLOC(TableEntry, hashSize);
         table->hashFunctor = StringHashFunction; // use default one.
         table->deFunctor   = dFunctor;
 
@@ -81,27 +81,23 @@ hash_table* hash_tableCreate(uint32 hashSize, DestroyFunction dFunctor)
         }
         else
         {
-            hash_tableDestroy(table);
+            hash_table_destroy(table);
             table = NULL;
         }
     }
     return table;
 }
 
-bool InsertEntry(hash_table* table, char* key, void* val)
+bool hash_table_insert(hash_table* table, char* key, void* val)
 {
     if (!table || !key || !val )
     {
         return false;
     }
 
-    PDEBUG ("KEY: %s, val: %p - %s\n", key, val, (char*)val);
-
-    uint32 index = table->hashFunctor(key);
-
     // Insert entry into the first open slot starting from index.
     uint32 i;
-    for (i = index; i < table->capacity; ++i)
+    for (i = table->hashFunctor(key); i < table->capacity; ++i)
     {
         TableEntry* entry = &table->entries[i];
         if (entry->key == NULL)
@@ -118,7 +114,7 @@ bool InsertEntry(hash_table* table, char* key, void* val)
 
   @return void*
 */
-void* GetEntryFromhash_table(hash_table* table, char* key)
+void* hash_table_entry_get(hash_table* table, const char* key)
 {
     TableEntry* entry = NULL;
     uint32 index = table->hashFunctor(key);
