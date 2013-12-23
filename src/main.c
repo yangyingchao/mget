@@ -31,7 +31,10 @@ void show_progress(metadata* md)
         return;
     }
 
-    if (idx++ < 78)
+    int nr = md->hd.nr_chunks;
+    int threshhold = nr > 2 ? 78 : 1;
+
+    if (idx++ < threshhold)
     {
         if (!ts)
         {
@@ -50,15 +53,15 @@ void show_progress(metadata* md)
             dp++;
         }
 
-        char* s1 = strdup(stringify_size(total));
-        char* s2 = strdup(stringify_size(recv));
-        fprintf(stderr, "Progress: total: %s, recv: %s, %.02f percent, %.02fKB/s\n",
-                s1, s2, (float)recv/total * 100,
-                (double)(recv-last_recv)*1000/K/(get_time_ms() -ts));
+        uint64 diff_size = recv-last_recv;
+        char* s2 = strdup(stringify_size(diff_size));
+        uint32 c_time = get_time_ms();
+        fprintf(stderr, "Progress: received %s in %.02f seconds, %.02f percent, %.02fKB/s\n",
+                s2, (double)(c_time-ts)/1000, (double)recv/total * 100,
+                (double)(diff_size)*1000/K/(c_time -ts));
         idx       = 0;
         last_recv = recv;
-        ts = get_time_ms();
-        free(s1);
+        ts = c_time;
         free(s2);
     }
 }
