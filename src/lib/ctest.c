@@ -10,102 +10,65 @@
 #include "mget_sock.h"
 #include <unistd.h>
 #include "mget_http.h"
+#include "data_utlis.h"
+#include "timeutil.h"
+#include <signal.h>
 
 static uint64 sz = 0; // total size
 static uint64 rz = 0; // received size;
 
-extern int dissect_header(const char* buffer, size_t length, size_t* dsize, hash_table** ht);
-
-typedef struct _crs_param
+void show_progress(metadata* md)
 {
-    void*       addr;                   //base addr;
-    data_chunk* dp;
-    bool        header_finished;
-    hash_table* ht;
-} crs_param;
+    static int idx = 0;
+    static uint32 ts = 0;
+    static uint64 last_recv = 0;
 
-int ctest_read_sock(int sock, void* priv)
-{
-    if (!priv)
+    if (md->hd.status == RS_SUCCEEDED)
     {
-        return -1;
+        printf("Download finished, total cost: %s....\n",
+               stringify_time(md->hd.acc_time));
+        return;
     }
 
-    crs_param* param = (crs_param*) priv;
-    data_chunk* dp = (data_chunk*)param->dp;
-    void* addr = param->addr + dp->cur_pos;
+    int threshhold = 78;
 
-    if (!param->header_finished)
+    if (idx++ < threshhold)
     {
-        char buf[4096] = {'\0'};
-        memset(buf, 0, 4096);
-        size_t rd = read(sock, buf, 4095);
-        if (rd)
+        if (!ts)
         {
-            size_t length = strlen(buf);
-            char* ptr = strstr(buf, "\r\n\r\n");
-            if (ptr != NULL)
-            {
-                length = ptr - buf;
-                param->header_finished = true;
-            }
-
-            size_t d;
-            int r = dissect_header(buf, length, &d, &param->ht);
-            if (r != 206)
-            {
-                fprintf(stderr, "status code is %d!\n", r);
-                exit(1);
-            }
-
-            if (param->header_finished)
-            {
-                size_t sz = strlen(buf)-length;
-                memcpy(addr, buf+length, sz);
-                dp->cur_pos += sz;
-            }
+            ts = get_time_ms();
         }
+        fprintf(stderr, ".");
     }
-
-
-    size_t rd = read(sock, param->addr+dp->cur_pos, dp->end_pos - dp->cur_pos);
-    if (rd != -1)
+    else
     {
-        dp->end_pos += rd;
-    }
+        data_chunk* dp = md->body;
+        uint64 total = md->hd.package_size;
+        uint64 recv  = 0;
+        for (int i = 0; i < md->hd.nr_chunks; ++i)
+        {
+            recv += dp->cur_pos - dp->start_pos;
+            dp++;
+        }
 
-    PDEBUG ("Sock: %d, gets %lu bytes...\n", sock, rd);
-    return rd;
+        uint64 diff_size = recv-last_recv;
+        char* s2 = strdup(stringify_size(diff_size));
+        uint32 c_time = get_time_ms();
+        fprintf(stderr, "Progress: received %s in %.02f seconds, %.02f percent, %.02fKB/s\n",
+                s2, (double)(c_time-ts)/1000, (double)recv/total * 100,
+                (double)(diff_size)*1000/K/(c_time -ts));
+        idx       = 0;
+        last_recv = recv;
+        ts = c_time;
+        free(s2);
+    }
 }
 
-typedef struct _ctest_param
+bool control_byte = false;
+void sigterm_handler(int signum)
 {
-    url_info* ui;
-    data_chunk* dp;
-} ctest_param;
-
-
-int ctest_write_sock(int sock, void* priv)
-{
-    if (!priv)
-    {
-        return -1;
-    }
-
-    ctest_param* cp = (ctest_param*)priv;
-    data_chunk*  dp = cp->dp;
-    url_info*    ui = cp->ui;
-
-    char buffer[4096];
-    memset(buffer, 0, 2096);
-
-    sprintf(buffer,
-            "%s %s HTTP/1.1\r\nHost: %s\r\nAccept: *\r\nRange: bytes=%llu-%llu\r\n\r\n",
-            "GET", ui->uri, ui->host, dp->start_pos, dp->end_pos);
-
-    size_t written = write(sock, buffer, strlen(buffer));
-    PDEBUG ("Sock: %d, gets %lu bytes...\n", sock, written);
-    return written;
+    control_byte = true;
+    fprintf(stderr, "Saving temporary data...\n");
 }
 
 int main(int argc, char *argv[])
@@ -131,8 +94,17 @@ int main(int argc, char *argv[])
     /* ssize_t r = read(sk->sock, buf, 1024); */
     /* printf ("r: %lu, msg: %s\n", r, buf); */
 
-    bool stop = false;
-    process_http_request(ui, "/tmp", 9, NULL, &stop);
+    struct sigaction act;
+    act.sa_handler   = sigterm_handler;
+    act.sa_sigaction = NULL;
+    sigemptyset(&act.sa_mask);
+    act.sa_flags = 0;
+    int ret = sigaction(SIGINT, &act, NULL);
+    PDEBUG ("ret = %d\n", ret);
+
+    signal(SIGINT, sigterm_handler);
+
+    process_http_request(ui, ".", 9, show_progress, &control_byte);
     fclose(fp);
     return 0;
 }

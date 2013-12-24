@@ -18,7 +18,8 @@ static char* generate_request_header(const char* method, url_info* uri,
     return strdup(buffer);
 }
 
-int dissect_header(const char* buffer, size_t length, size_t* dsize, hash_table** ht)
+int dissect_header(const char* buffer, size_t length,
+                   size_t* dsize, hash_table** ht)
 {
     if (!ht || !buffer)
     {
@@ -120,6 +121,97 @@ uint64 get_remote_file_size_http(url_info* ui)
     return t;
 }
 
+typedef struct _sock_operation_param
+{
+    void*       addr;                   //base addr;
+    data_chunk* dp;
+    url_info*   ui;
+    bool        header_finished;
+    hash_table* ht;
+    void (*cb)(metadata* md);
+    metadata* md;
+} so_param;
+
+int http_read_sock(int sock, void* priv)
+{
+    if (!priv)
+    {
+        return -1;
+    }
+
+    so_param*   param = (so_param*) priv;
+    data_chunk* dp    = (data_chunk*)param->dp;
+    void*       addr  = param->addr + dp->cur_pos;
+
+    if (!param->header_finished)
+    {
+        char buf[4096] = {'\0'};
+        memset(buf, 0, 4096);
+        size_t rd = read(sock, buf, 4095);
+        if (rd)
+        {
+            size_t length = strlen(buf);
+            char* ptr = strstr(buf, "\r\n\r\n");
+            if (ptr != NULL)
+            {
+                length = ptr - buf;
+                param->header_finished = true;
+            }
+
+            size_t d = 0;
+            int r = dissect_header(buf, length, &d, &param->ht);
+            if (r != 206)
+            {
+                fprintf(stderr, "status code is %d!\n", r);
+                exit(1);
+            }
+
+            if (param->header_finished)
+            {
+                size_t sz = strlen(buf)-length;
+                memcpy(addr, buf+length+4, sz);
+                dp->cur_pos += sz;
+            }
+        }
+    }
+
+    size_t rd = read(sock, param->addr+dp->cur_pos,
+                     dp->end_pos - dp->cur_pos);
+    if (rd > 0)
+    {
+        dp->cur_pos += rd;
+        if (param->cb)
+        {
+            (*(param->cb))(param->md);
+        }
+    }
+
+    return rd;
+}
+
+int http_write_sock(int sock, void* priv)
+{
+    PDEBUG ("enter\n");
+    if (!priv)
+    {
+        return -1;
+    }
+
+    so_param*   cp = (so_param*)priv;
+    data_chunk* dp = cp->dp;
+    url_info*   ui = cp->ui;
+
+    PDEBUG ("A\n");
+
+    char* hd = generate_request_header("GET", ui, dp->start_pos,
+                                       dp->end_pos);
+    PDEBUG ("hd: \n%s\n", hd);
+    size_t written = write(sock, hd, strlen(hd));
+    PDEBUG ("Sock: %d, gets %lu bytes...\n", sock, written);
+    free(hd);
+    return written;
+}
+
 void process_http_request(url_info* ui, const char* dn, int nc,
                           void (*cb)(metadata* md), bool* stop_flag)
 {
@@ -152,7 +244,7 @@ void process_http_request(url_info* ui, const char* dn, int nc,
 
     associate_wrapper(&mw);
 
-l1:;
+l1:
     metadata_display(mw.md);
     if (mw.md->hd.status == RS_SUCCEEDED)
     {
@@ -178,7 +270,12 @@ l1:;
         return;
     }
 
-    /* easy_param* params = ZALLOC(easy_param, mw.md->hd.nr_chunks); */
+    sock_group* sg = sock_group_create();
+    if (!sg)
+    {
+        fprintf(stderr, "Failed to craete sock group.\n");
+        return;
+    }
 
     bool need_request = false;
     for (int i = 0; i < mw.md->hd.nr_chunks; ++i)
@@ -191,7 +288,22 @@ l1:;
 
         need_request = true;
 
-        // ....
+        msock* sk = socket_get(ui);
+        if (sk)
+        {
+            so_param* param = ZALLOC1(so_param);
+            param->addr = fm2->addr;
+            param->dp = mw.md->body + i;
+            param->ui = ui;
+            param->md = mw.md;
+            param->cb = cb;
+
+            sk->rf = http_read_sock;
+            sk->wf = http_write_sock;
+            sk->priv = param;
+
+            sock_add_to_group(sg, sk);
+        }
     }
 
     if (!need_request)
@@ -201,10 +313,10 @@ l1:;
     }
 
     PDEBUG ("Performing...\n");
+    int ret = socket_perform(sg);
 
-    while (stop_flag && !*stop_flag) {
-        //...
-    }
+    PDEBUG ("ret = %d\n", ret);
+
     fhandle_munmap_close(&fm2);
 
     data_chunk* dp = mw.md->body;

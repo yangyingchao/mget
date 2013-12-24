@@ -83,6 +83,11 @@ msock* socket_get(url_info* ui)
         sk->addr = addr->addr;
         sk->sk.sock = socket(sk->addr->ai_family, sk->addr->ai_socktype,
                              sk->addr->ai_protocol);
+        if (connect(sk->sk.sock, sk->addr->ai_addr, sk->addr->ai_addrlen) == -1)
+        {
+            perror("Failed to connect");
+        }
+
         goto ret;
     }
 
@@ -140,7 +145,11 @@ void socket_put(msock* sock)
 
 int socket_perform(sock_group* sock)
 {
+    PDEBUG ("enter, sg: %p\n", sock);
+
     int cnt = sock->un.cnt;
+    PDEBUG ("total socket: %d\n", cnt);
+
     if (!cnt)
         return -1;
 
@@ -154,8 +163,11 @@ int socket_perform(sock_group* sock)
     struct epoll_event* events = ZALLOC(struct epoll_event, cnt);
 
     //TODO: Add sockets to Epoll
-    sock_list* p = sock;
+    sock_list* p = (sock_list*)sock->next;
+    PDEBUG ("p: %p, next: %p\n", p, p->next);
+
     while (p && p->un.sk) {
+        PDEBUG ("p: %p, next: %p\n", p, p->next);
         msock_p* sk = (msock_p*)p->un.sk;
         if ((sk->sk.sock != 0) && sk->sk.rf && sk->sk.wf) {
             fcntl(sk->sk.sock, F_SETFD, O_NONBLOCK);
@@ -168,33 +180,43 @@ int socket_perform(sock_group* sock)
             }
         }
         p = (sock_group*)p->next;
+        PDEBUG ("p: %p\n", p);
     }
 
     int nfds = 0;
     while (1) {
         nfds = epoll_wait(epl, events, cnt, 1000); // set timeout to 1 second.
+
         if (nfds == -1) {
             perror("epoll_pwait");
             exit(EXIT_FAILURE);
+        }
+        else if (nfds == 0)
+        {
+            fprintf (stderr, "time out ....\n");
         }
 
         for (int i = 0; i < nfds; ++i) {
             msock_p* psk = (msock_p*)events[i].data.ptr;
             assert(psk);
 
-            int r = 0, w = 0;
+            int ret = 0;
+            bool need_mod = false;
             if (events[i].events & EPOLLOUT) // Ready to send..
             {
-                r = psk->sk.wf(psk->sk.sock, psk->sk.priv);
+                ret = psk->sk.wf(psk->sk.sock, psk->sk.priv);
+                need_mod = true;
             }
 
-            if ((events[i].events & EPOLLIN) && (r != -1)) // Ready to send..
+            else if (events[i].events & EPOLLIN ) // Ready to send..
             {
-                w = psk->sk.rf(psk->sk.sock, psk->sk.priv);
+                ret = psk->sk.rf(psk->sk.sock, psk->sk.priv);
             }
 
-            if (r == -1 || w == -1)
+            if (ret <= 0)
             {
+                PDEBUG ("remove socket...\n");
+
                 struct epoll_event ev;
                 ev.events = EPOLLIN | EPOLLOUT;
                 ev.data.ptr = psk;
@@ -204,6 +226,20 @@ int socket_perform(sock_group* sock)
                     exit(EXIT_FAILURE);
                 }
                 cnt --;
+                PDEBUG ("remaining sockets: %d\n", cnt);
+
+                if (cnt == 0)
+                {
+                    break;
+                }
+
+            }
+            else if (need_mod)
+            {
+                struct epoll_event ev;
+                ev.events = EPOLLIN;
+                ev.data.ptr = psk;
+                epoll_ctl(epl, EPOLL_CTL_MOD, psk->sk.sock, &ev);
             }
         }
     }
@@ -233,8 +269,13 @@ void sock_group_destroy(sock_group* group)
 
 void sock_add_to_group(sock_group* group, msock* sock)
 {
+    PDEBUG ("cur_cnt: %d\n", group->un.cnt);
+
+    group->un.cnt ++;
+    PDEBUG ("cur_cnt: %d\n", group->un.cnt);
     sock_group* tail = group;
     SEEK_LIST_TAIL(group, tail, sock_group);
     tail->un.sk = sock;
-    group->un.cnt ++;
+    PDEBUG ("Socket: %p added to group: %p, current count: %d\n",
+            sock, group, group->un.cnt);
 }

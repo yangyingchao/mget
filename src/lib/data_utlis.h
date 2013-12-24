@@ -46,6 +46,7 @@ typedef struct _mget_slist_head
             if (ptr->next == NULL)                          \
             {                                               \
                 ptr->next = (mget_slist_head*)ZALLOC1(type);    \
+                ptr = (type*)ptr->next;                         \
                 break;                                      \
             }                                               \
             else                                            \
