@@ -9,6 +9,7 @@
 #include "libmget.h"
 #include "mget_sock.h"
 #include <unistd.h>
+#include "mget_http.h"
 
 static uint64 sz = 0; // total size
 static uint64 rz = 0; // received size;
@@ -84,7 +85,7 @@ int main(int argc, char *argv[])
 {
 
     FILE* fp = fopen("/tmp/testa.txt", "w");
-    const char* url = "http://127.0.0.1:9999";
+    const char* url = "http://mirrors.sohu.com/gentoo/distfiles/curl-7.33.0.tar.bz2";
 
     url_info* ui;
     if (!parse_url(url, &ui))
@@ -94,15 +95,17 @@ int main(int argc, char *argv[])
 
     url_info_display(ui);
 
-    msock* sk = socket_get(ui, NULL, NULL);
-    printf("Socket: %p: %d\n",sk, sk? sk->sock : -1);
-    // Prepare to select.
-    write(sk->sock, "AAAAAAAAAAAAAAAA", 10);
-    char buf[1024];
-    memset(buf, 0, 1024);
-    ssize_t r = read(sk->sock, buf, 1024);
-    printf ("r: %lu, msg: %s\n", r, buf);
+    /* msock* sk = socket_get(ui, NULL, NULL); */
+    /* printf("Socket: %p: %d\n",sk, sk? sk->sock : -1); */
+    /* // Prepare to select. */
+    /* write(sk->sock, "AAAAAAAAAAAAAAAA", 10); */
+    /* char buf[1024]; */
+    /* memset(buf, 0, 1024); */
+    /* ssize_t r = read(sk->sock, buf, 1024); */
+    /* printf ("r: %lu, msg: %s\n", r, buf); */
 
+    bool stop = false;
+    process_http_request(ui, "/tmp", 9, NULL, &stop);
     fclose(fp);
     return 0;
 }

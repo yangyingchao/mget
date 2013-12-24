@@ -13,10 +13,18 @@
 
 typedef struct addrinfo address;
 
+
+typedef enum _sock_feature
+{
+    sf_keep_alive = 1,
+} sock_feature;
+
+
 typedef struct _addr_entry
 {
     address* addr;  // don't release ti.
     address* infos; // should be freed.
+    uint32   feature;
 } addr_entry;
 
 typedef struct _msock_p
