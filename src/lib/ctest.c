@@ -14,71 +14,98 @@
 static uint64 sz = 0; // total size
 static uint64 rz = 0; // received size;
 
-size_t write_data(void *buffer,  size_t size, size_t nmemb,
-                  void *userp)
+extern int dissect_header(const char* buffer, size_t length, size_t* dsize, hash_table** ht);
+
+typedef struct _crs_param
 {
-    static int i = 0;
-    /* static size_t received = 0; */
-    /* received += size*nmemb; */
-    rz += size*nmemb;
-    if (i++ % 10 == 0 || rz == sz)
+    void*       addr;                   //base addr;
+    data_chunk* dp;
+    bool        header_finished;
+    hash_table* ht;
+} crs_param;
+
+int ctest_read_sock(int sock, void* priv)
+{
+    if (!priv)
     {
-        printf("IDX: %08X, addr: %p, zize: %lu, nmemb: %lu, total: %llu\n",
-               i, buffer, size, nmemb, rz);
-
-    }
-    /* size_t got = fwrite(buffer, size, nmemb, userp); */
-    /* rz += (uint64)got; */
-    return size*nmemb;
-}
-
-size_t drop_content(void *buffer,  size_t size, size_t nmemb,
-                    void *userp)
-{
-    return size*nmemb;
-}
-
-size_t write_header(void *buffer,  size_t size, size_t nmemb,
-                    void *userp)
-{
-    if (nmemb <= 2)
-    {
-        return nmemb;
+        return -1;
     }
 
-    const char* ptr = (const char*)buffer;
-    if ((strstr(ptr, "Content-Range")) != NULL)
+    crs_param* param = (crs_param*) priv;
+    data_chunk* dp = (data_chunk*)param->dp;
+    void* addr = param->addr + dp->cur_pos;
+
+    if (!param->header_finished)
     {
-        printf("Get range: %s\n", ptr);
-        uint64 s = 0, e = 0;
-        int num = sscanf(ptr, "Content-Range: bytes %Lu-%Lu/%Lu",
-                         &s, &e, (uint64*)userp);
-        printf ("num = %d, s: %llu, e:  %llu, t: %llu\n", num, s, e,sz);
+        char buf[4096] = {'\0'};
+        memset(buf, 0, 4096);
+        size_t rd = read(sock, buf, 4095);
+        if (rd)
+        {
+            size_t length = strlen(buf);
+            char* ptr = strstr(buf, "\r\n\r\n");
+            if (ptr != NULL)
+            {
+                length = ptr - buf;
+                param->header_finished = true;
+            }
+
+            size_t d;
+            int r = dissect_header(buf, length, &d, &param->ht);
+            if (r != 206)
+            {
+                fprintf(stderr, "status code is %d!\n", r);
+                exit(1);
+            }
+
+            if (param->header_finished)
+            {
+                size_t sz = strlen(buf)-length;
+                memcpy(addr, buf+length, sz);
+                dp->cur_pos += sz;
+            }
+        }
     }
-    return size*nmemb;
+
+
+    size_t rd = read(sock, param->addr+dp->cur_pos, dp->end_pos - dp->cur_pos);
+    if (rd != -1)
+    {
+        dp->end_pos += rd;
+    }
+
+    PDEBUG ("Sock: %d, gets %lu bytes...\n", sock, rd);
+    return rd;
 }
 
-
-uint64 get_remote_file_size(const char* url, CURL* eh)
+typedef struct _ctest_param
 {
-    uint64 size = 0;
-    curl_easy_setopt(eh, CURLOPT_URL, url);
-    curl_easy_setopt(eh, CURLOPT_HEADERFUNCTION, write_header);
-    curl_easy_setopt(eh, CURLOPT_HEADERDATA, &size);
+    url_info* ui;
+    data_chunk* dp;
+} ctest_param;
 
-    struct curl_slist* slist = NULL;
-    slist = curl_slist_append(slist, "Accept: */*");
-    slist = curl_slist_append(slist, "Range: bytes=0-0");
-    curl_easy_setopt(eh, CURLOPT_HTTPHEADER, slist);
-    curl_easy_setopt(eh, CURLOPT_WRITEFUNCTION, drop_content);
 
-    PDEBUG ("Get file size ....\n");
+int ctest_write_sock(int sock, void* priv)
+{
+    if (!priv)
+    {
+        return -1;
+    }
 
-    curl_easy_perform(eh);
-    long stat = 0;
-    curl_easy_getinfo(eh, CURLINFO_RESPONSE_CODE, &stat);
-    curl_slist_free_all(slist);
-    return size;
+    ctest_param* cp = (ctest_param*)priv;
+    data_chunk*  dp = cp->dp;
+    url_info*    ui = cp->ui;
+
+    char buffer[4096];
+    memset(buffer, 0, 2096);
+
+    sprintf(buffer,
+            "%s %s HTTP/1.1\r\nHost: %s\r\nAccept: *\r\nRange: bytes=%llu-%llu\r\n\r\n",
+            "GET", ui->uri, ui->host, dp->start_pos, dp->end_pos);
+
+    size_t written = write(sock, buffer, strlen(buffer));
+    PDEBUG ("Sock: %d, gets %lu bytes...\n", sock, written);
+    return written;
 }
 
 int main(int argc, char *argv[])

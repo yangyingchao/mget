@@ -69,7 +69,7 @@ int dissect_header(const char* buffer, size_t length, size_t* dsize, hash_table*
 
 uint64 get_remote_file_size_http(url_info* ui)
 {
-    msock* sk = socket_get(ui, NULL, NULL);
+    msock* sk = socket_get(ui);
     if (!sk)
     {
         fprintf(stderr, "Failed to get socket!\n");

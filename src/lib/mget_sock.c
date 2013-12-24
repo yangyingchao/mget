@@ -63,7 +63,7 @@ void addr_entry_destroy(void* entry)
 
 static hash_table* g_addr_cache = NULL;
 
-msock* socket_get(url_info* ui, sock_read_func rf, sock_write_func wf)
+msock* socket_get(url_info* ui)
 {
     if (!g_addr_cache)
     {
@@ -151,15 +151,63 @@ int socket_perform(sock_group* sock)
         exit(EXIT_FAILURE);
     }
 
+    struct epoll_event* events = ZALLOC(struct epoll_event, cnt);
+
     //TODO: Add sockets to Epoll
     sock_list* p = sock;
     while (p && p->un.sk) {
         msock_p* sk = (msock_p*)p->un.sk;
-        if (sk->sk.sock != 0){
+        if ((sk->sk.sock != 0) && sk->sk.rf && sk->sk.wf) {
             fcntl(sk->sk.sock, F_SETFD, O_NONBLOCK);
+            struct epoll_event ev;
+            ev.events = EPOLLIN | EPOLLOUT;
+            ev.data.ptr = sk;
+            if (epoll_ctl(epl, EPOLL_CTL_ADD, sk->sk.sock, &ev) == -1) {
+                perror("epoll_ctl: listen_sock");
+                exit(EXIT_FAILURE);
+            }
         }
         p = (sock_group*)p->next;
     }
+
+    int nfds = 0;
+    while (1) {
+        nfds = epoll_wait(epl, events, cnt, 1000); // set timeout to 1 second.
+        if (nfds == -1) {
+            perror("epoll_pwait");
+            exit(EXIT_FAILURE);
+        }
+
+        for (int i = 0; i < nfds; ++i) {
+            msock_p* psk = (msock_p*)events[i].data.ptr;
+            assert(psk);
+
+            int r = 0, w = 0;
+            if (events[i].events & EPOLLOUT) // Ready to send..
+            {
+                r = psk->sk.wf(psk->sk.sock, psk->sk.priv);
+            }
+
+            if ((events[i].events & EPOLLIN) && (r != -1)) // Ready to send..
+            {
+                w = psk->sk.rf(psk->sk.sock, psk->sk.priv);
+            }
+
+            if (r == -1 || w == -1)
+            {
+                struct epoll_event ev;
+                ev.events = EPOLLIN | EPOLLOUT;
+                ev.data.ptr = psk;
+                if (epoll_ctl(epl, EPOLL_CTL_DEL, psk->sk.sock,
+                              &ev) == -1) {
+                    perror("epoll_ctl: conn_sock");
+                    exit(EXIT_FAILURE);
+                }
+                cnt --;
+            }
+        }
+    }
+
     return 0;
 }
 
