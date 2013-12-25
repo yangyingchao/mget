@@ -4,6 +4,7 @@
 #include "typedefs.h"
 #include "fileutils.h"
 #include "data_utlis.h"
+#include "mget_config.h"
 
 typedef struct _data_chunk
 {

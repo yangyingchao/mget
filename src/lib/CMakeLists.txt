@@ -9,9 +9,17 @@ option (DEBUG
   "Enable debug..."
   ON)
 
+option (MSOCK
+  "Try use raw sock instead of libcurl.."
+  ON)
+
 if(DEBUG)
 ADD_DEFINITIONS("-DDEBUG")
 endif(DEBUG)
+
+if(MSOCK)
+  set(TRY_MSOCK 1)
+endif(MSOCK)
 
 configure_file(mget_config.h.in mget_config.h)
 add_library(mget SHARED libmget.c metadata.c fileutils.c

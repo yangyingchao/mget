@@ -133,7 +133,7 @@ void* hash_table_entry_get(hash_table* table, const char* key)
     }
     if (entry)
     {
-        PDEBUG("Key: %s - %s, val: %p\n", key, entry->key, entry->val);
+        /* PDEBUG("Key: %s - %s, val: %p\n", key, entry->key, entry->val); */
         return entry->val;
     }
     return NULL;

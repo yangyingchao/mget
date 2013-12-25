@@ -119,12 +119,12 @@ int main(int argc, char *argv[])
 
     if (view_only)
     {
-        if (file_existp(argv[1]))
+        if (file_existp(target))
         {
             printf ("showing tmd file: %s\n", target);
 
             metadata_wrapper mw;
-            metadata_create_from_file(argv[1], &mw);
+            metadata_create_from_file(target, &mw);
             metadata_display(mw.md);
             metadata_destroy(&mw);
         }

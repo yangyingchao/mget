@@ -21,9 +21,9 @@ struct _msock
     void*           priv;
 };
 
-typedef struct _sock_list sock_group;
+typedef struct _sock_group sock_group;
 
-sock_group* sock_group_create();
+sock_group* sock_group_create(bool* flag);
 void sock_group_destroy(sock_group*);
 void sock_add_to_group(sock_group*, msock*);
 int  socket_perform(sock_group* sock);

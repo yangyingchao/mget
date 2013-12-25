@@ -8,4 +8,6 @@
 
 #define GET_VERSION()       ((VERSION_MAJOR << 24) | (VERSION_MINOR << 16) | (VERSION_PATCH<<8))
 
+#cmakedefine TRY_MSOCK
+
 #endif /* _MGET_CONFIG_H_ */

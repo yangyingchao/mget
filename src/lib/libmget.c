@@ -4,7 +4,9 @@
 #include <strings.h>
 #include "debug.h"
 #include "cmget_http.h"
-
+#ifdef TRY_MSOCK
+#include "mget_http.h"
+#endif
 #define DEFAULT_HTTP_PORT         80
 #define DEFAULT_HTTPS_PORT        443
 #define DEFAULT_FTP_PORT          21
@@ -151,6 +153,17 @@ bool start_request(const char* url, const char* dp, int nc,
     switch (ui->eprotocol)
     {
         case UP_HTTP:
+        {
+            // If TRY_MSOCK defined, try use raw socket
+            // if it is not defined or raw socket failed, use libcurl.
+#ifdef TRY_MSOCK
+            int ret = process_http_request(ui, ".", 9, cb, stop_flag);
+            if (ret == 0)
+            {
+                break;
+            }
+#endif
+        }
         case UP_HTTPS:
         {
             process_http_request_c(ui, dp, nc, cb, stop_flag);

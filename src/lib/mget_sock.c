@@ -43,12 +43,15 @@ typedef struct _msock_p
 typedef struct _sock_list
 {
     mget_slist_head* next;
-    union  {
-        msock* sk;
-        int cnt;
-    } un;
+    msock*           sk;
 } sock_list;
 
+struct _sock_group
+{
+    int        cnt;                     // count of sockets.
+    bool*      cflag;                   // control flag.
+    sock_list* lst;                     // list of sockets.
+};
 
 void addr_entry_destroy(void* entry)
 {
@@ -143,11 +146,11 @@ void socket_put(msock* sock)
     FIF(SK2SKP(sock));
 }
 
-int socket_perform(sock_group* sock)
+int socket_perform(sock_group* group)
 {
-    PDEBUG ("enter, sg: %p\n", sock);
+    PDEBUG ("enter, sg: %p\n", group);
 
-    int cnt = sock->un.cnt;
+    int cnt = group->cnt;
     PDEBUG ("total socket: %d\n", cnt);
 
     if (!cnt)
@@ -163,12 +166,12 @@ int socket_perform(sock_group* sock)
     struct epoll_event* events = ZALLOC(struct epoll_event, cnt);
 
     //TODO: Add sockets to Epoll
-    sock_list* p = (sock_list*)sock->next;
+    sock_list* p = group->lst;
     PDEBUG ("p: %p, next: %p\n", p, p->next);
 
-    while (p && p->un.sk) {
+    while (p && p->sk) {
         PDEBUG ("p: %p, next: %p\n", p, p->next);
-        msock_p* sk = (msock_p*)p->un.sk;
+        msock_p* sk = (msock_p*)p->sk;
         if ((sk->sk.sock != 0) && sk->sk.rf && sk->sk.wf) {
             fcntl(sk->sk.sock, F_SETFD, O_NONBLOCK);
             struct epoll_event ev;
@@ -179,21 +182,24 @@ int socket_perform(sock_group* sock)
                 exit(EXIT_FAILURE);
             }
         }
-        p = (sock_group*)p->next;
-        PDEBUG ("p: %p\n", p);
+        p = (sock_list*)p->next;
     }
 
     int nfds = 0;
-    while (1) {
+
+    PDEBUG ("%p: %d\n", group->cflag, *group->cflag);
+    while (!(*(group->cflag))) {
         nfds = epoll_wait(epl, events, cnt, 1000); // set timeout to 1 second.
 
         if (nfds == -1) {
             perror("epoll_pwait");
-            exit(EXIT_FAILURE);
+            break;
         }
-        else if (nfds == 0)
+
+        if (nfds == 0)
         {
             fprintf (stderr, "time out ....\n");
+            continue;
         }
 
         for (int i = 0; i < nfds; ++i) {
@@ -228,11 +234,6 @@ int socket_perform(sock_group* sock)
                 cnt --;
                 PDEBUG ("remaining sockets: %d\n", cnt);
 
-                if (cnt == 0)
-                {
-                    break;
-                }
-
             }
             else if (need_mod)
             {
@@ -242,40 +243,56 @@ int socket_perform(sock_group* sock)
                 epoll_ctl(epl, EPOLL_CTL_MOD, psk->sk.sock, &ev);
             }
         }
+
+        if (cnt == 0)
+        {
+            break;
+        }
+
+        if (*(group->cflag))
+        {
+            fprintf(stderr, "Stop because control_flag set to 1!!!\n");
+            break;
+        }
     }
 
     return 0;
 }
 
 
-sock_group* sock_group_create()
+sock_group* sock_group_create(bool* flag)
 {
-    sock_group* group = NULL;
-    INIT_LIST(group, sock_group);
-    group->un.cnt = 0;
+    sock_group* group = ZALLOC1(sock_group);
+    group->cflag = flag;
+
+    INIT_LIST(group->lst, sock_list);
+
     return group;
 }
 
 void sock_group_destroy(sock_group* group)
 {
-    sock_list* g = group;
+    sock_list* g = group->lst;
     while (g) {
         sock_list* ng = (sock_list*)g->next;
-        FIF(SK2SKP(g->un.sk));
+        FIF(SK2SKP(g->sk));
         FIF(g);
         g=ng;
     }
+
+    FIF(group);
 }
 
 void sock_add_to_group(sock_group* group, msock* sock)
 {
-    PDEBUG ("cur_cnt: %d\n", group->un.cnt);
-
-    group->un.cnt ++;
-    PDEBUG ("cur_cnt: %d\n", group->un.cnt);
-    sock_group* tail = group;
-    SEEK_LIST_TAIL(group, tail, sock_group);
-    tail->un.sk = sock;
+    group->cnt ++;
+    sock_list* tail = group->lst;
+    if (tail->sk)
+    {
+        SEEK_LIST_TAIL(group->lst, tail, sock_list);
+    }
+    assert(tail->sk == NULL);
+    tail->sk = sock;
     PDEBUG ("Socket: %p added to group: %p, current count: %d\n",
-            sock, group, group->un.cnt);
+            sock, group, group->cnt);
 }

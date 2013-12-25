@@ -6,7 +6,6 @@
 #include <assert.h>
 #include "debug.h"
 #include "timeutil.h"
-#include "mget_config.h"
 #include <stdio.h>
 
 #define MAX_CHUNKS       10
@@ -192,7 +191,7 @@ void metadata_display(metadata* md)
         return;
     }
 
-    PDEBUG ("size: %08llX (%.2f)M, nc: %d,url: %p -- %s\n",
+    fprintf(stderr, "size: %08llX (%.2f)M, nc: %d,url: %p -- %s\n",
             md->hd.package_size, (float)md->hd.package_size/(1*M), md->hd.nr_chunks,
             md->url, md->url, md->url);
 
@@ -202,12 +201,15 @@ void metadata_display(metadata* md)
         data_chunk* cp = &md->body[i];
         uint64 chunk_recv = cp->cur_pos - cp->start_pos;
         uint64 chunk_size = cp->end_pos - cp->start_pos;
+        char* cs = strdup(stringify_size(chunk_size));
+        char* es = strdup(stringify_size(cp->end_pos));
         recv += chunk_recv;
         fprintf(stderr,
-                "Chunk: %p(%s), start: %08llX, cur: %08llX, end: %08llX -- %.02f%%\n",
-                cp, stringify_size(chunk_size), cp->start_pos, cp->cur_pos,
-                cp->end_pos, (float)(chunk_recv)/chunk_size * 100);
-
+                "Chunk: %p -- (%s), start: %08llX, cur: %08llX, end: %08llX (%s) -- %.02f%%\n",
+                cp, cs, cp->start_pos, cp->cur_pos,
+                cp->end_pos, es, (float)(chunk_recv)/chunk_size * 100);
+        free(cs);
+        free(es);
     }
     fprintf(stderr, "%s finished...\n", stringify_size(recv));
 }

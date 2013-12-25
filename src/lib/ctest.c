@@ -65,10 +65,12 @@ void show_progress(metadata* md)
 }
 
 bool control_byte = false;
+
 void sigterm_handler(int signum)
 {
     control_byte = true;
-    fprintf(stderr, "Saving temporary data...\n");
+    fprintf(stderr, "Flag: %p, %d, Saving temporary data...\n",
+            &control_byte, control_byte);
 }
 
 int main(int argc, char *argv[])
@@ -103,6 +105,8 @@ int main(int argc, char *argv[])
     PDEBUG ("ret = %d\n", ret);
 
     signal(SIGINT, sigterm_handler);
+
+    PDEBUG ("cb: %p\n", &control_byte);
 
     process_http_request(ui, ".", 9, show_progress, &control_byte);
     fclose(fp);

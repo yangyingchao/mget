@@ -15,11 +15,11 @@ static char* generate_request_header(const char* method, url_info* uri,
     sprintf(buffer,
             "%s %s HTTP/1.1\r\nHost: %s\r\nAccept: *\r\nRange: bytes=%llu-%llu\r\n\r\n",
             method, uri->uri, uri->host, start_pos, end_pos);
+
     return strdup(buffer);
 }
 
-int dissect_header(const char* buffer, size_t length,
-                   size_t* dsize, hash_table** ht)
+int dissect_header(const char* buffer, size_t length, hash_table** ht)
 {
     if (!ht || !buffer)
     {
@@ -37,17 +37,13 @@ int dissect_header(const char* buffer, size_t length,
     int   n     = 0;
     size_t ldsize = 0;
 
-    if (!*dsize) // dsize is zero, means no header is parsed yet.
-    {
-        num = sscanf(ptr, "HTTP/1.1 %m[^\r\n]\r\n%n", &value, &n);
-        char* key = strdup("Status");
-        hash_table_insert(pht, key, value);
-        ldsize += n;
-        ptr    += n;
+    num = sscanf(ptr, "HTTP/1.1 %m[^\r\n]\r\n%n", &value, &n);
+    char* key = strdup("Status");
+    hash_table_insert(pht, key, value);
+    ptr    += n;
 
-        num = sscanf(value, "%d", &stat);
-        assert(num);
-    }
+    num = sscanf(value, "%d", &stat);
+    assert(num);
 
     while (ptr < buffer + length) {
         char* k = NULL;
@@ -58,11 +54,6 @@ int dissect_header(const char* buffer, size_t length,
             ldsize += n;
             ptr += n;
         }
-    }
-
-    if (dsize)
-    {
-        *dsize = ldsize;
     }
 
     return stat;
@@ -88,7 +79,7 @@ uint64 get_remote_file_size_http(url_info* ui)
 
     hash_table* ht    = NULL;
     size_t      dsize = 0;
-    int         stat  = dissect_header(buffer, rd, &dsize, &ht);
+    int         stat  = dissect_header(buffer, rd, &ht);
 
     PDEBUG ("stat: %d, description: %s\n",
             stat, (char*)hash_table_entry_get(ht, "Status"));
@@ -127,9 +118,10 @@ typedef struct _sock_operation_param
     data_chunk* dp;
     url_info*   ui;
     bool        header_finished;
+    char*       hd;
     hash_table* ht;
     void (*cb)(metadata* md);
-    metadata* md;
+    metadata*   md;
 } so_param;
 
 int http_read_sock(int sock, void* priv)
@@ -148,29 +140,33 @@ int http_read_sock(int sock, void* priv)
         char buf[4096] = {'\0'};
         memset(buf, 0, 4096);
         size_t rd = read(sock, buf, 4095);
+        size_t length = strlen(buf);
         if (rd)
         {
-            size_t length = strlen(buf);
             char* ptr = strstr(buf, "\r\n\r\n");
-            if (ptr != NULL)
+            if (ptr == NULL)
             {
-                length = ptr - buf;
-                param->header_finished = true;
+                // Header not complete, store and return positive value.
+                param->hd = strdup(ptr);
+                return length;
             }
 
-            size_t d = 0;
-            int r = dissect_header(buf, length, &d, &param->ht);
+            size_t ds = ptr - buf + 4;
+            int r = dissect_header(buf, ds, &param->ht);
             if (r != 206)
             {
                 fprintf(stderr, "status code is %d!\n", r);
                 exit(1);
             }
 
-            if (param->header_finished)
+            ptr+= 4; // adjust to the tail of "\r\n\r\n"
+
+            param->header_finished = true;
+
+            if (length > ds)
             {
-                size_t sz = strlen(buf)-length;
-                memcpy(addr, buf+length+4, sz);
-                dp->cur_pos += sz;
+                memcpy(addr, ptr, length - ds);
+                dp->cur_pos += (length - ds);
             }
         }
     }
@@ -186,6 +182,16 @@ int http_read_sock(int sock, void* priv)
         }
     }
 
+    if (dp->cur_pos >= dp->end_pos)
+    {
+        rd = 0; // Mark as completed.
+    }
+
+    if (rd < 1*K)
+    {
+        PDEBUG ("rd: %lu\n", rd);
+    }
+
     return rd;
 }
 
@@ -198,21 +204,15 @@ int http_write_sock(int sock, void* priv)
     }
 
     so_param*   cp = (so_param*)priv;
-    data_chunk* dp = cp->dp;
-    url_info*   ui = cp->ui;
-
-    PDEBUG ("A\n");
-
-    char* hd = generate_request_header("GET", ui, dp->start_pos,
-                                       dp->end_pos);
+    char*       hd = generate_request_header("GET", cp->ui, cp->dp->start_pos,
+                                             cp->dp->end_pos);
     PDEBUG ("hd: \n%s\n", hd);
     size_t written = write(sock, hd, strlen(hd));
-    PDEBUG ("Sock: %d, gets %lu bytes...\n", sock, written);
     free(hd);
     return written;
 }
 
-void process_http_request(url_info* ui, const char* dn, int nc,
+int process_http_request(url_info* ui, const char* dn, int nc,
                           void (*cb)(metadata* md), bool* stop_flag)
 {
     PDEBUG ("enter\n");
@@ -228,13 +228,19 @@ void process_http_request(url_info* ui, const char* dn, int nc,
 
     remove_file(fn);
     uint64 total_size = get_remote_file_size_http(ui);
+    if (!total_size)
+    {
+        fprintf(stderr, "Can't get remote file size: %s\n", ui->furl);
+        return -1;
+    }
+
     PDEBUG ("total_size: %llu\n", total_size);
 
 
     mget_slis* lst = NULL; //TODO: fill this lst.
     if (!metadata_create_from_url(ui->furl, total_size, nc, lst, &mw.md))
     {
-        return;
+        return -1;
     }
 
     fhandle* fh  = fhandle_create(fn, FHM_CREATE);
@@ -246,6 +252,7 @@ void process_http_request(url_info* ui, const char* dn, int nc,
 
 l1:
     metadata_display(mw.md);
+    fhandle_msync(mw.fm);
     if (mw.md->hd.status == RS_SUCCEEDED)
     {
         goto ret;
@@ -267,14 +274,14 @@ l1:
     {
         PDEBUG ("Failed to create mapping!\n");
         // TODO: cleanup...
-        return;
+        return -1;
     }
 
-    sock_group* sg = sock_group_create();
+    sock_group* sg = sock_group_create(stop_flag);
     if (!sg)
     {
         fprintf(stderr, "Failed to craete sock group.\n");
-        return;
+        return -1;
     }
 
     bool need_request = false;
@@ -356,4 +363,5 @@ ret:
 
     metadata_destroy(&mw);
     PDEBUG ("stopped.\n");
+    return 0;
 }
