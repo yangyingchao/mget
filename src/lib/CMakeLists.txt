@@ -5,7 +5,7 @@ set(VERSION_MAJOR 0)
 set(VERSION_MINOR 0)
 set(VERSION_PATCH 0)
 
-option (DEBUG
+option (DLOG
   "Enable debug..."
   ON)
 
@@ -13,9 +13,9 @@ option (MSOCK
   "Try use raw sock instead of libcurl.."
   ON)
 
-if(DEBUG)
+if(DLOG)
 ADD_DEFINITIONS("-DDEBUG")
-endif(DEBUG)
+endif(DLOG)
 
 if(MSOCK)
   set(TRY_MSOCK 1)

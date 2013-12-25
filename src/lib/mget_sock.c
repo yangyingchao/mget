@@ -173,7 +173,7 @@ int socket_perform(sock_group* group)
         PDEBUG ("p: %p, next: %p\n", p, p->next);
         msock_p* sk = (msock_p*)p->sk;
         if ((sk->sk.sock != 0) && sk->sk.rf && sk->sk.wf) {
-            fcntl(sk->sk.sock, F_SETFD, O_NONBLOCK);
+            /* fcntl(sk->sk.sock, F_SETFD, O_NONBLOCK); */
             struct epoll_event ev;
             ev.events = EPOLLIN | EPOLLOUT;
             ev.data.ptr = sk;
@@ -222,7 +222,6 @@ int socket_perform(sock_group* group)
             if (ret <= 0)
             {
                 PDEBUG ("remove socket...\n");
-
                 struct epoll_event ev;
                 ev.events = EPOLLIN | EPOLLOUT;
                 ev.data.ptr = psk;
@@ -231,6 +230,7 @@ int socket_perform(sock_group* group)
                     perror("epoll_ctl: conn_sock");
                     exit(EXIT_FAILURE);
                 }
+                /* close(psk->sk.sock); */
                 cnt --;
                 PDEBUG ("remaining sockets: %d\n", cnt);
 

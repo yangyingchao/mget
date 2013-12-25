@@ -163,6 +163,11 @@ int http_read_sock(int sock, void* priv)
 
             param->header_finished = true;
 
+            char* mm = ZALLOC(char, ds+1);
+            strncpy(mm, buf, ds);
+            PDEBUG ("Header Length: %lu, content:\n%s\n", ds, mm);
+            free(mm);
+
             if (length > ds)
             {
                 memcpy(addr, ptr, length - ds);
@@ -173,6 +178,12 @@ int http_read_sock(int sock, void* priv)
 
     size_t rd = read(sock, param->addr+dp->cur_pos,
                      dp->end_pos - dp->cur_pos);
+    if (rd == -1)
+    {
+        fprintf(stderr, "read returns -1\n");
+        assert(0);
+    }
+
     if (rd > 0)
     {
         dp->cur_pos += rd;
@@ -184,12 +195,13 @@ int http_read_sock(int sock, void* priv)
 
     if (dp->cur_pos >= dp->end_pos)
     {
+        PDEBUG ("Finished chunk: %p\n", dp);
         rd = 0; // Mark as completed.
     }
-
-    if (rd < 1*K)
+    else if (!rd)
     {
-        PDEBUG ("rd: %lu\n", rd);
+        PDEBUG ("retuned zero: dp: %p : %llX -- %llX\n",
+                dp, dp->cur_pos, dp->end_pos);
     }
 
     return rd;
@@ -204,7 +216,8 @@ int http_write_sock(int sock, void* priv)
     }
 
     so_param*   cp = (so_param*)priv;
-    char*       hd = generate_request_header("GET", cp->ui, cp->dp->start_pos,
+
+    char*       hd = generate_request_header("GET", cp->ui, cp->dp->cur_pos,
                                              cp->dp->end_pos);
     PDEBUG ("hd: \n%s\n", hd);
     size_t written = write(sock, hd, strlen(hd));

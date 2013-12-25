@@ -7,6 +7,8 @@
 #include "timeutil.h"
 #include <signal.h>
 
+#define MAX_NC       10
+
 #define handle_error(msg) \
     do { perror(msg); exit(EXIT_FAILURE); } while (0)
 
@@ -84,7 +86,8 @@ int main(int argc, char *argv[])
     char* dst       = NULL;
     bool  view_only = false;
     int   opt       = 0;
-    while ((opt = getopt(argc, argv, "d:s")) != -1) {
+    int   nc        = 5;                // default number of connections.
+    while ((opt = getopt(argc, argv, "j:d:s")) != -1) {
         switch (opt)
         {
             case 'd':
@@ -96,6 +99,20 @@ int main(int argc, char *argv[])
             case 's':
             {
                 view_only = true;
+                break;
+            }
+            case 'j':
+            {
+                nc = atoi(optarg);
+                if (nc > MAX_NC)
+                {
+                    printf ("Max connections: "
+                            "specified: %d, allowed: %d, "
+                            "set it to max...\n",
+                            nc, MAX_NC);
+                    nc = MAX_NC;
+                }
+
                 break;
             }
             default:
@@ -146,7 +163,7 @@ int main(int argc, char *argv[])
         PDEBUG ("ret = %d\n", ret);
 
         signal(SIGINT, sigterm_handler);
-        start_request(target, dst, 10, show_progress, &control_byte);
+        start_request(target, dst, 5, show_progress, &control_byte);
     }
 
     return 0;

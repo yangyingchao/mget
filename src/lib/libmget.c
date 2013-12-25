@@ -157,7 +157,7 @@ bool start_request(const char* url, const char* dp, int nc,
             // If TRY_MSOCK defined, try use raw socket
             // if it is not defined or raw socket failed, use libcurl.
 #ifdef TRY_MSOCK
-            int ret = process_http_request(ui, ".", 9, cb, stop_flag);
+            int ret = process_http_request(ui, ".", nc, cb, stop_flag);
             if (ret == 0)
             {
                 break;

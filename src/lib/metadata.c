@@ -8,7 +8,6 @@
 #include "timeutil.h"
 #include <stdio.h>
 
-#define MAX_CHUNKS       10
 #define MIN_CHUNK_SIZE   (64*K)
 
 #define SHOW_CHUNK(p)    PDEBUG ("%p, cur_pos: %08llX, end_pos: %08llX\n",p,p->cur_pos, p->end_pos)
