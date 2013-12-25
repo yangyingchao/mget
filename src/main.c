@@ -163,7 +163,7 @@ int main(int argc, char *argv[])
         PDEBUG ("ret = %d\n", ret);
 
         signal(SIGINT, sigterm_handler);
-        start_request(target, dst, 5, show_progress, &control_byte);
+        start_request(target, dst, nc, show_progress, &control_byte);
     }
 
     return 0;

@@ -3,6 +3,7 @@
 #include "debug.h"
 #include "timeutil.h"
 #include <unistd.h>
+#include <errno.h>
 
 static char* generate_request_header(const char* method, url_info* uri,
                                      uint64 start_pos, uint64 end_pos)
@@ -140,7 +141,6 @@ int http_read_sock(int sock, void* priv)
         char buf[4096] = {'\0'};
         memset(buf, 0, 4096);
         size_t rd = read(sock, buf, 4095);
-        size_t length = strlen(buf);
         if (rd)
         {
             char* ptr = strstr(buf, "\r\n\r\n");
@@ -148,7 +148,7 @@ int http_read_sock(int sock, void* priv)
             {
                 // Header not complete, store and return positive value.
                 param->hd = strdup(ptr);
-                return length;
+                return 1;
             }
 
             size_t ds = ptr - buf + 4;
@@ -168,16 +168,20 @@ int http_read_sock(int sock, void* priv)
             PDEBUG ("Header Length: %lu, content:\n%s\n", ds, mm);
             free(mm);
 
-            if (length > ds)
+            size_t length = rd - ds;
+            if (length)
             {
-                memcpy(addr, ptr, length - ds);
-                dp->cur_pos += (length - ds);
+                memcpy(addr, ptr, length);
+                dp->cur_pos += length;
             }
         }
     }
 
-    size_t rd = read(sock, param->addr+dp->cur_pos,
-                     dp->end_pos - dp->cur_pos);
+    int rd;
+    do
+        rd = read (sock, param->addr+dp->cur_pos,
+                   dp->end_pos - dp->cur_pos);
+    while (rd == -1 && errno == EINTR);
     if (rd == -1)
     {
         fprintf(stderr, "read returns -1\n");

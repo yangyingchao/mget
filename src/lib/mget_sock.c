@@ -214,7 +214,7 @@ int socket_perform(sock_group* group)
                 need_mod = true;
             }
 
-            else if (events[i].events & EPOLLIN ) // Ready to send..
+            else if (events[i].events & EPOLLIN ) // Ready to read..
             {
                 ret = psk->sk.rf(psk->sk.sock, psk->sk.priv);
             }

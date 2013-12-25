@@ -224,10 +224,6 @@ bool chunk_split(uint64 start, uint64 size, int *num, data_chunk** dc)
     {
         *num = 1;
     }
-    else
-    {
-        *num = *num > 10 ? 10 : *num; // max to 10 chunks.
-    }
 
     uint64 cs = size / *num;
     if (cs <= MIN_CHUNK_SIZE)
