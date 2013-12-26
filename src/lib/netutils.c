@@ -119,6 +119,7 @@ bool parse_url(const char* url, url_info** ui)
     sprintf(tmp, "%d", up->port);
     up->sport = strdup(tmp);
     *ui       = up;
+    bret = true;
     goto ret;
 
 free:
@@ -127,7 +128,7 @@ free:
         url_info_destroy(&up);
     }
 ret:
-    return true;
+    return bret;
 }
 
 

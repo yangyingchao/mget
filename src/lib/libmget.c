@@ -45,7 +45,7 @@ bool start_request(const char* url, const file_name* fn, int nc,
     url_info* ui = NULL;
     if (!parse_url(url, &ui))
     {
-        PDEBUG ("Failed to parse URL: %s\n", url);
+        printf ("Failed to parse URL: %s\n", url);
         return false;
     }
 
