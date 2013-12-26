@@ -110,7 +110,7 @@ uint64 get_remote_file_size(url_info* ui)
     return 0;
 }
 
-void process_http_request_c(url_info* ui, const char* dn, int nc,
+void process_http_request_c(url_info* ui, const char* fn, int nc,
                             void (*cb)(metadata* md), bool* stop_flag)
 {
     PDEBUG ("enter\n");
@@ -121,15 +121,15 @@ void process_http_request_c(url_info* ui, const char* dn, int nc,
 
     curl_global_init(CURL_GLOBAL_DEFAULT);
 
-    char fn [256] = {'\0'};
-    sprintf(fn, "%s/%s.tmd", dn, ui->bname);
+    char tfn [256] = {'\0'};
+    sprintf(tfn, "%s.tmd", fn, ui->bname);
     metadata_wrapper mw;
-    if (file_existp(fn) && metadata_create_from_file(fn, &mw))
+    if (file_existp(tfn) && metadata_create_from_file(tfn, &mw))
     {
         goto l1;
     }
 
-    remove_file(fn);
+    remove_file(tfn);
     uint64 total_size = get_remote_file_size(ui);
 
     mget_slis* lst = NULL; //TODO: fill this lst.
@@ -138,7 +138,7 @@ void process_http_request_c(url_info* ui, const char* dn, int nc,
         return;
     }
 
-    fhandle* fh  = fhandle_create(fn, FHM_CREATE);
+    fhandle* fh  = fhandle_create(tfn, FHM_CREATE);
     mw.fm        = fhandle_mmap(fh, 0, MD_SIZE(mw.md));
     mw.from_file = false;
     memset(mw.fm->addr, 0, MD_SIZE(mw.md));
@@ -166,10 +166,6 @@ l1:;
         PDEBUG ("Failed to create mh.\n");
         exit(1);
     }
-
-    memset(fn, 0, 256);
-    sprintf(fn, "%s/%s", dn, ui->bname);
-    PDEBUG ("fn: %s, bname: %s\n", fn, ui->bname);
 
     fhandle* fh2 = fhandle_create(fn, FHM_CREATE);
     fh_map*  fm2 = fhandle_mmap(fh2, 0, mw.md->hd.package_size);

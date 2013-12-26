@@ -83,17 +83,20 @@ int main(int argc, char *argv[])
     }
 
 
-    char* dst       = NULL;
-    bool  view_only = false;
-    int   opt       = 0;
-    int   nc        = 5;                // default number of connections.
-    while ((opt = getopt(argc, argv, "j:d:s")) != -1) {
+    bool view_only = false;
+    int  opt       = 0;
+    int  nc        = 5;                 // default number of connections.
+
+    file_name fn;
+    memset(&fn, 0, sizeof(file_name));
+
+    while ((opt = getopt(argc, argv, "j:d:o:s")) != -1) {
         switch (opt)
         {
             case 'd':
             {
-                dst = strdup(optarg);
-                printf ("dst: %s\n", dst);
+                fn.dirn = strdup(optarg);
+                printf ("dirn: %s\n", fn.dirn);
                 break;
             }
             case 's':
@@ -115,6 +118,11 @@ int main(int argc, char *argv[])
 
                 break;
             }
+            case 'o':
+            {
+                fn.basen = strdup(optarg);
+                break;
+            }
             default:
             {
                 break;
@@ -129,9 +137,9 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    if (!dst)
+    if (!fn.dirn)
     {
-        dst = ".";
+        fn.dirn = strdup(".");
     }
 
     if (view_only)
@@ -152,8 +160,7 @@ int main(int argc, char *argv[])
     }
     else
     {
-        printf ("downloading file: %s, saving to %s\n", target, dst);
-
+        printf ("downloading file: %s, saving to %s\n", target, fn.dirn);
         struct sigaction act;
         act.sa_handler   = sigterm_handler;
         act.sa_sigaction = NULL;
@@ -163,7 +170,7 @@ int main(int argc, char *argv[])
         PDEBUG ("ret = %d\n", ret);
 
         signal(SIGINT, sigterm_handler);
-        start_request(target, dst, nc, show_progress, &control_byte);
+        start_request(target, &fn, nc, show_progress, &control_byte);
     }
 
     return 0;

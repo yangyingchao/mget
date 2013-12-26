@@ -190,3 +190,30 @@ void fhandle_msync(fh_map* fm)
 {
     msync(fm->addr, fm->length, MS_SYNC);
 }
+
+#define STR_LEN(X) (X ? strlen(X) : 0)
+
+bool get_full_path(const file_name* fn, char** final)
+{
+    bool ret = false;
+    if (!final)
+        goto ret;
+
+    if (!fn || (!fn->dirn && !fn->basen))
+    {
+        *final = strdup(".");
+        goto ret;
+    }
+
+    *final = ZALLOC(char, STR_LEN(fn->dirn) + STR_LEN(fn->basen) + 1);
+    if (fn->dirn)
+        sprintf(*final, "%s/", fn->dirn);
+    if (fn->basen)
+    {
+        strcat(*final, fn->basen);
+        ret = true;
+    }
+
+ret:
+    return ret;
+}

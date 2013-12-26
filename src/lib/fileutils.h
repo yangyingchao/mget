@@ -3,6 +3,15 @@
 
 #include "typedefs.h"
 
+typedef struct _file_name
+{
+    char* dirn;
+    char* basen;
+} file_name;
+
+/** returns true if final directory is file, or false if final path is directory*/
+bool get_full_path(const file_name*, char**);
+
 typedef struct _fhandle
 {
     char*  fn;                          /*!< File name*/
