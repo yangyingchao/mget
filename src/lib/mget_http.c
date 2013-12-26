@@ -82,10 +82,33 @@ uint64 get_remote_file_size_http(url_info* ui)
     PDEBUG ("stat: %d, description: %s\n",
             stat, (char*)hash_table_entry_get(ht, "Status"));
 
-    if (stat != 206)
+    switch (stat)
     {
-        fprintf(stderr, "Not implemented for status code: %d\n", stat);
-        return 0;
+        case 206: // Ok, we can start download now.
+        {
+            break;
+        }
+        case 302: // Resource moved to other place.
+        {
+            char* loc = (char*)hash_table_entry_get(ht, "Location");
+            printf("Server returns 302, trying new locations: %s...\n", loc);
+            url_info* nui = NULL;
+            if (loc && parse_url(loc, &nui))
+            {
+                url_info_copy(ui, nui);
+                url_info_destroy(&nui);
+                return get_remote_file_size_http(ui);
+            }
+            fprintf(stderr, "Failed to get new location for status code: 302\n");
+            break;
+        }
+        default:
+        {
+            fprintf(stderr, "Not implemented for status code: %d\n", stat);
+            fprintf(stderr, "Response Header\n%s\n", buffer);
+            return 0;
+            break;
+        }
     }
 
     char* ptr = (char*)hash_table_entry_get(ht, "Content-Range");

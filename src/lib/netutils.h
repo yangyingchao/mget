@@ -27,6 +27,11 @@ typedef struct _url_info
     char*        furl;                  /* full url.*/
 } url_info;
 
+bool parse_url(const char* url, url_info** ui);
+void url_info_copy(url_info*,url_info*);
+void url_info_display(url_info*);
+void url_info_destroy(url_info** ui);
+
 #ifdef __cplusplus
 }
 #endif
