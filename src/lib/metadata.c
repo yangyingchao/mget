@@ -183,7 +183,7 @@ void metadata_destroy(metadata_wrapper* mw)
 
 void metadata_display(metadata* md)
 {
-    fprintf(stderr, "Showing metadata: %p\n", md);
+    fprintf(stderr, "\nShowing metadata: %p\n", md);
     if (!md)
     {
         fprintf(stderr, "Empty metadata!%s\n", "");
@@ -210,7 +210,7 @@ void metadata_display(metadata* md)
         free(cs);
         free(es);
     }
-    fprintf(stderr, "%s finished...\n", stringify_size(recv));
+    fprintf(stderr, "%s finished...\n\n", stringify_size(recv));
 }
 
 bool chunk_split(uint64 start, uint64 size, int *num, data_chunk** dc)

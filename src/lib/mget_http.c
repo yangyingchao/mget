@@ -75,11 +75,8 @@ uint64 get_remote_file_size_http(url_info* ui)
 
     char buffer[4096];
     memset(buffer, 0, 4096);
-    size_t rd = read(sk->sock, buffer, 4096);
-    printf("bytes: %lu, content: %s", rd, buffer);
-
+    size_t      rd    = read(sk->sock, buffer, 4096);
     hash_table* ht    = NULL;
-    size_t      dsize = 0;
     int         stat  = dissect_header(buffer, rd, &ht);
 
     PDEBUG ("stat: %d, description: %s\n",

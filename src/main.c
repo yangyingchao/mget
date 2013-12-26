@@ -137,11 +137,6 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    if (!fn.dirn)
-    {
-        fn.dirn = strdup(".");
-    }
-
     if (view_only)
     {
         if (file_existp(target))
@@ -160,7 +155,8 @@ int main(int argc, char *argv[])
     }
     else
     {
-        printf ("downloading file: %s, saving to %s\n", target, fn.dirn);
+        printf ("downloading file: %s, saving to %s/%s\n", target,
+                fn.dirn ? fn.dirn : "", fn.basen ? fn.basen:"");
         struct sigaction act;
         act.sa_handler   = sigterm_handler;
         act.sa_sigaction = NULL;
