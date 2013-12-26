@@ -1,9 +1,26 @@
 * Introduction
 
-MulityGet to speed up downloading from http server.
+MulityGet to speed up downloading from server.
 
-* Remember to change you MTU to larger value (for example 7200)
+It provides a library named libmget and a sample app named tmget.
 
-#+BEGIN_SRC sh
+
+You can download it from:[[http://github.com/yangyingchao/mget][ here .]]
+
+* Use tmget in gentoo
+
+You can set tmget to be used to fetch resources from internet, just update you
+make.conf:
+
+#+BEGIN_SRC conf
+FETCHCOMMAND="/usr/bin/tmget -j 8 -o \"\${DISTDIR}/\${FILE}\" \"\${URI}\""
+RESUMECOMMAND="${FETCHCOMMAND}"
+#+END_SRC
+
+* About MTU
+
+Remember to change you MTU to larger value (for example 7200), it MAY help.
+
+#+BEGIN_SRC text
 ifconfig eth0 mtu 7200
 #+END_SRC

@@ -33,3 +33,4 @@ GTAGS
 core.*
 /src/lib/mget_config.h
 /install_manifest.txt
+/README.html
