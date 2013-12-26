@@ -7,7 +7,7 @@
 #include "timeutil.h"
 #include <signal.h>
 
-#define MAX_NC       10
+#define MAX_NC       40
 
 #define handle_error(msg) \
     do { perror(msg); exit(EXIT_FAILURE); } while (0)
@@ -156,7 +156,7 @@ int main(int argc, char *argv[])
     else
     {
         printf ("downloading file: %s, saving to %s/%s\n", target,
-                fn.dirn ? fn.dirn : "", fn.basen ? fn.basen:"");
+                fn.dirn ? fn.dirn : (fn.basen ? "":"."), fn.basen ? fn.basen:"");
         struct sigaction act;
         act.sa_handler   = sigterm_handler;
         act.sa_sigaction = NULL;
