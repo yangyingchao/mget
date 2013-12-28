@@ -34,7 +34,18 @@ typedef struct _msock msock;
 typedef int (*sock_read_func)(int, void*);
 typedef int (*sock_write_func)(int, void*);
 
-// TODO: Hide sock and function pointers..
+
+/** copied from wget .. */
+struct transport_implementation {
+    int (*reader) (int, char *, int, void *);
+    int (*writer) (int, char *, int, void *);
+    int (*poller) (int, double, int, void *);
+    int (*peeker) (int, char *, int, void *);
+    const char *(*errstr) (int, void *);
+    void (*closer) (int, void *);
+};
+
+// TODO: Hide sock, use transport_implementation above...
 struct _msock
 {
     int             sock;
