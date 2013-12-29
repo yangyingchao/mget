@@ -20,7 +20,7 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#include "mget_sock.h"
+#include "connection.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -36,10 +36,10 @@
 typedef struct addrinfo address;
 
 
-typedef enum _sock_feature
+typedef enum _connection_feature
 {
     sf_keep_alive = 1,
-} sock_feature;
+} connection_feature;
 
 
 typedef struct _addr_entry
@@ -49,30 +49,31 @@ typedef struct _addr_entry
     uint32   feature;
 } addr_entry;
 
-typedef struct _msock_p
+typedef struct _connection_p
 {
-    msock sk;
+    connection conn;
 
-    char*  host;
+    int      sock;
+    char*    host;
     address* addr;
-    bool connected;
+    bool     connected;
     /* bool   busy; */
     /* uint32 atime; */
-} msock_p;
+} connection_p;
 
-#define SK2SKP(X)       (msock_p*)(X)
+#define CONN2CONNP(X)       (connection_p*)(X)
 
-typedef struct _sock_list
+typedef struct _connection_list
 {
     mget_slist_head* next;
-    msock*           sk;
-} sock_list;
+    connection*           conn;
+} connection_list;
 
-struct _sock_group
+struct _connection_group
 {
     int        cnt;                     // count of sockets.
     bool*      cflag;                   // control flag.
-    sock_list* lst;                     // list of sockets.
+    connection_list* lst;                     // list of sockets.
 };
 
 void addr_entry_destroy(void* entry)
@@ -86,9 +87,36 @@ void addr_entry_destroy(void* entry)
 }
 
 
+static uint32 tcp_connection_read(connection* conn, char* buf,
+                              uint32 size, void *priv)
+{
+    connection_p* pconn = (connection_p*) conn;
+    if (pconn && pconn->sock && buf)
+    {
+        return read(pconn->sock, buf, size);
+    }
+    return 0;
+
+}
+static uint32 tcp_connection_write(connection* conn, char* buf,
+                               uint32 size, void *priv)
+{
+    connection_p* pconn = (connection_p*) conn;
+    if (pconn && pconn->sock && buf)
+    {
+        return write(pconn->sock, buf, size);
+    }
+    return 0;
+}
+
+static void tcp_connection_close(connection* conn, char* buf,
+                             uint32 size, void *priv)
+{
+}
+
 static hash_table* g_addr_cache = NULL;
 
-msock* socket_get(url_info* ui)
+connection* connection_get(url_info* ui)
 {
     if (!g_addr_cache)
     {
@@ -96,7 +124,7 @@ msock* socket_get(url_info* ui)
         assert(g_addr_cache);
     }
 
-    msock_p* sk = ZALLOC1(msock_p);
+    connection_p* conn = ZALLOC1(connection_p);
     if (!ui || !ui->host)
     {
         goto ret;
@@ -105,10 +133,10 @@ msock* socket_get(url_info* ui)
     addr_entry* addr = GET_HASH_ENTRY(addr_entry, g_addr_cache, ui->host);
     if (addr)
     {
-        sk->addr = addr->addr;
-        sk->sk.sock = socket(sk->addr->ai_family, sk->addr->ai_socktype,
-                             sk->addr->ai_protocol);
-        if (connect(sk->sk.sock, sk->addr->ai_addr, sk->addr->ai_addrlen) == -1)
+        conn->addr = addr->addr;
+        conn->sock = socket(conn->addr->ai_family, conn->addr->ai_socktype,
+                             conn->addr->ai_protocol);
+        if (connect(conn->sock, conn->addr->ai_addr, conn->addr->ai_addrlen) == -1)
         {
             perror("Failed to connect");
         }
@@ -129,17 +157,17 @@ msock* socket_get(url_info* ui)
     address* rp = NULL;
     for (rp = addr->infos; rp != NULL; rp = rp->ai_next)
     {
-        sk->sk.sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-        if (sk->sk.sock == -1)
+        conn->sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+        if (conn->sock == -1)
         {
             continue;
         }
-        if (connect(sk->sk.sock, rp->ai_addr, rp->ai_addrlen) != -1)
+        if (connect(conn->sock, rp->ai_addr, rp->ai_addrlen) != -1)
         {
-            sk->connected = true;
+            conn->connected = true;
             break;
         }
-        close(sk->sk.sock);
+        close(conn->sock);
     }
 
     if (rp != NULL)
@@ -157,18 +185,20 @@ err:
     fprintf(stderr, "Failed to get proper host address for: %s\n",
             ui->host);
     FIF(addr);
-    FIF(sk);
-    sk = NULL;
+    FIF(conn);
+    conn = NULL;
 ret:
-    return (msock*)sk;
+    conn->conn.ci.writer = tcp_connection_write;
+    conn->conn.ci.reader = tcp_connection_read;
+    return (connection*)conn;
 }
 
-void socket_put(msock* sock)
+void connection_put(connection* sock)
 {
-    FIF(SK2SKP(sock));
+    FIF(CONN2CONNP(sock));
 }
 
-int socket_perform(sock_group* group)
+int connection_perform(connection_group* group)
 {
     PDEBUG ("enter, sg: %p\n", group);
 
@@ -188,23 +218,23 @@ int socket_perform(sock_group* group)
     struct epoll_event* events = ZALLOC(struct epoll_event, cnt);
 
     //TODO: Add sockets to Epoll
-    sock_list* p = group->lst;
+    connection_list* p = group->lst;
     PDEBUG ("p: %p, next: %p\n", p, p->next);
 
-    while (p && p->sk) {
+    while (p && p->conn) {
         PDEBUG ("p: %p, next: %p\n", p, p->next);
-        msock_p* sk = (msock_p*)p->sk;
-        if ((sk->sk.sock != 0) && sk->sk.rf && sk->sk.wf) {
-            /* fcntl(sk->sk.sock, F_SETFD, O_NONBLOCK); */
+        connection_p* conn = (connection_p*)p->conn;
+        if ((conn->sock != 0) && conn->conn.rf && conn->conn.wf) {
+            /* fcntl(conn->sock, F_SETFD, O_NONBLOCK); */
             struct epoll_event ev;
             ev.events = EPOLLIN | EPOLLOUT;
-            ev.data.ptr = sk;
-            if (epoll_ctl(epl, EPOLL_CTL_ADD, sk->sk.sock, &ev) == -1) {
+            ev.data.ptr = conn;
+            if (epoll_ctl(epl, EPOLL_CTL_ADD, conn->sock, &ev) == -1) {
                 perror("epoll_ctl: listen_sock");
                 exit(EXIT_FAILURE);
             }
         }
-        p = (sock_list*)p->next;
+        p = (connection_list*)p->next;
     }
 
     int nfds = 0;
@@ -225,20 +255,20 @@ int socket_perform(sock_group* group)
         }
 
         for (int i = 0; i < nfds; ++i) {
-            msock_p* psk = (msock_p*)events[i].data.ptr;
-            assert(psk);
+            connection_p* pconn = (connection_p*)events[i].data.ptr;
+            assert(pconn);
 
             int ret = 0;
             bool need_mod = false;
             if (events[i].events & EPOLLOUT) // Ready to send..
             {
-                ret = psk->sk.wf(psk->sk.sock, psk->sk.priv);
+                ret = pconn->conn.wf((connection*)pconn, pconn->conn.priv);
                 need_mod = true;
             }
 
             else if (events[i].events & EPOLLIN ) // Ready to read..
             {
-                ret = psk->sk.rf(psk->sk.sock, psk->sk.priv);
+                ret = pconn->conn.rf((connection*)pconn, pconn->conn.priv);
             }
 
             if (ret <= 0)
@@ -246,13 +276,13 @@ int socket_perform(sock_group* group)
                 PDEBUG ("remove socket...\n");
                 struct epoll_event ev;
                 ev.events = EPOLLIN | EPOLLOUT;
-                ev.data.ptr = psk;
-                if (epoll_ctl(epl, EPOLL_CTL_DEL, psk->sk.sock,
+                ev.data.ptr = pconn;
+                if (epoll_ctl(epl, EPOLL_CTL_DEL, pconn->sock,
                               &ev) == -1) {
                     perror("epoll_ctl: conn_sock");
                     exit(EXIT_FAILURE);
                 }
-                /* close(psk->sk.sock); */
+                /* close(pconn->sock); */
                 cnt --;
                 PDEBUG ("remaining sockets: %d\n", cnt);
 
@@ -261,8 +291,8 @@ int socket_perform(sock_group* group)
             {
                 struct epoll_event ev;
                 ev.events = EPOLLIN;
-                ev.data.ptr = psk;
-                epoll_ctl(epl, EPOLL_CTL_MOD, psk->sk.sock, &ev);
+                ev.data.ptr = pconn;
+                epoll_ctl(epl, EPOLL_CTL_MOD, pconn->sock, &ev);
             }
         }
 
@@ -282,22 +312,22 @@ int socket_perform(sock_group* group)
 }
 
 
-sock_group* sock_group_create(bool* flag)
+connection_group* connection_group_create(bool* flag)
 {
-    sock_group* group = ZALLOC1(sock_group);
+    connection_group* group = ZALLOC1(connection_group);
     group->cflag = flag;
 
-    INIT_LIST(group->lst, sock_list);
+    INIT_LIST(group->lst, connection_list);
 
     return group;
 }
 
-void sock_group_destroy(sock_group* group)
+void connection_group_destroy(connection_group* group)
 {
-    sock_list* g = group->lst;
+    connection_list* g = group->lst;
     while (g) {
-        sock_list* ng = (sock_list*)g->next;
-        FIF(SK2SKP(g->sk));
+        connection_list* ng = (connection_list*)g->next;
+        FIF(CONN2CONNP(g->conn));
         FIF(g);
         g=ng;
     }
@@ -305,16 +335,16 @@ void sock_group_destroy(sock_group* group)
     FIF(group);
 }
 
-void sock_add_to_group(sock_group* group, msock* sock)
+void connection_add_to_group(connection_group* group, connection* sock)
 {
     group->cnt ++;
-    sock_list* tail = group->lst;
-    if (tail->sk)
+    connection_list* tail = group->lst;
+    if (tail->conn)
     {
-        SEEK_LIST_TAIL(group->lst, tail, sock_list);
+        SEEK_LIST_TAIL(group->lst, tail, connection_list);
     }
-    assert(tail->sk == NULL);
-    tail->sk = sock;
+    assert(tail->conn == NULL);
+    tail->conn = sock;
     PDEBUG ("Socket: %p added to group: %p, current count: %d\n",
             sock, group, group->cnt);
 }

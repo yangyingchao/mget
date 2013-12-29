@@ -27,7 +27,7 @@
 #include "debug.h"
 #include "cmget_http.h"
 #ifdef TRY_MSOCK
-#include "mget_http.h"
+#include "http.h"
 #endif
 
 typedef void (*request_processor)(url_info* ui, const char* dn, int nc,

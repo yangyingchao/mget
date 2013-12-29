@@ -27,11 +27,10 @@
 #include "typedefs.h"
 #include "debug.h"
 #include "metadata.h"
-#include "mget_sock.h"
+#include "connection.h"
 #include "libmget.h"
-#include "mget_sock.h"
 #include <unistd.h>
-#include "mget_http.h"
+#include "http.h"
 #include "data_utlis.h"
 #include "timeutil.h"
 #include <signal.h>
@@ -109,7 +108,7 @@ int main(int argc, char *argv[])
 
     url_info_display(ui);
 
-    /* msock* sk = socket_get(ui, NULL, NULL); */
+    /* connection* sk = connection_get(ui, NULL, NULL); */
     /* printf("Socket: %p: %d\n",sk, sk? sk->sock : -1); */
     /* // Prepare to select. */
     /* write(sk->sock, "AAAAAAAAAAAAAAAA", 10); */

@@ -26,7 +26,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "mget_http.h"
+#include "cmget_http.h"
 #include "debug.h"
 #include "macros.h"
 #include "timeutil.h"

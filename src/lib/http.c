@@ -19,8 +19,8 @@
  * the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
  * Boston, MA 02110-1301, USA.
  */
-#include "mget_http.h"
-#include "mget_sock.h"
+#include "http.h"
+#include "connection.h"
 #include "debug.h"
 #include "timeutil.h"
 #include <unistd.h>
@@ -83,20 +83,20 @@ int dissect_header(const char* buffer, size_t length, hash_table** ht)
 
 uint64 get_remote_file_size_http(url_info* ui)
 {
-    msock* sk = socket_get(ui);
-    if (!sk)
+    connection* conn = connection_get(ui);
+    if (!conn)
     {
         fprintf(stderr, "Failed to get socket!\n");
         return 0;
     }
 
     char* hd = generate_request_header("GET", ui, 0, 0);
-    write(sk->sock, hd, strlen(hd));
+    conn->ci.writer(conn, hd, strlen(hd), NULL);
     free(hd);
 
     char buffer[4096];
     memset(buffer, 0, 4096);
-    size_t      rd    = read(sk->sock, buffer, 4096);
+    size_t      rd    = conn->ci.reader(conn, buffer, 4096, NULL);
     hash_table* ht    = NULL;
     int         stat  = dissect_header(buffer, rd, &ht);
 
@@ -148,13 +148,13 @@ uint64 get_remote_file_size_http(url_info* ui)
     }
     else
     {
-        // Check http headers and update sock_features....
+        // Check http headers and update connection_features....
     }
 
     return t;
 }
 
-typedef struct _sock_operation_param
+typedef struct _connection_operation_param
 {
     void*       addr;                   //base addr;
     data_chunk* dp;
@@ -166,7 +166,7 @@ typedef struct _sock_operation_param
     metadata*   md;
 } so_param;
 
-int http_read_sock(int sock, void* priv)
+int http_read_sock(connection* conn, void* priv)
 {
     if (!priv)
     {
@@ -181,7 +181,7 @@ int http_read_sock(int sock, void* priv)
     {
         char buf[4096] = {'\0'};
         memset(buf, 0, 4096);
-        size_t rd = read(sock, buf, 4095);
+        size_t rd = conn->ci.reader(conn, buf, 4095, NULL);
         if (rd)
         {
             char* ptr = strstr(buf, "\r\n\r\n");
@@ -220,8 +220,8 @@ int http_read_sock(int sock, void* priv)
 
     int rd;
     do
-        rd = read (sock, param->addr+dp->cur_pos,
-                   dp->end_pos - dp->cur_pos);
+        rd = conn->ci.reader(conn, param->addr+dp->cur_pos,
+                             dp->end_pos - dp->cur_pos, NULL);
     while (rd == -1 && errno == EINTR);
     if (rd == -1)
     {
@@ -252,7 +252,7 @@ int http_read_sock(int sock, void* priv)
     return rd;
 }
 
-int http_write_sock(int sock, void* priv)
+int http_write_sock(connection* conn, void* priv)
 {
     PDEBUG ("enter\n");
     if (!priv)
@@ -265,7 +265,7 @@ int http_write_sock(int sock, void* priv)
     char*       hd = generate_request_header("GET", cp->ui, cp->dp->cur_pos,
                                              cp->dp->end_pos);
     PDEBUG ("hd: \n%s\n", hd);
-    size_t written = write(sock, hd, strlen(hd));
+    size_t written = conn->ci.writer(conn, hd, strlen(hd), NULL);
     free(hd);
     return written;
 }
@@ -331,7 +331,7 @@ l1:
         return -1;
     }
 
-    sock_group* sg = sock_group_create(stop_flag);
+    connection_group* sg = connection_group_create(stop_flag);
     if (!sg)
     {
         fprintf(stderr, "Failed to craete sock group.\n");
@@ -349,8 +349,8 @@ l1:
 
         need_request = true;
 
-        msock* sk = socket_get(ui);
-        if (sk)
+        connection* conn = connection_get(ui);
+        if (conn)
         {
             so_param* param = ZALLOC1(so_param);
             param->addr = fm2->addr;
@@ -359,11 +359,11 @@ l1:
             param->md = mw.md;
             param->cb = cb;
 
-            sk->rf = http_read_sock;
-            sk->wf = http_write_sock;
-            sk->priv = param;
+            conn->rf = http_read_sock;
+            conn->wf = http_write_sock;
+            conn->priv = param;
 
-            sock_add_to_group(sg, sk);
+            connection_add_to_group(sg, conn);
         }
     }
 
@@ -374,7 +374,7 @@ l1:
     }
 
     PDEBUG ("Performing...\n");
-    int ret = socket_perform(sg);
+    int ret = connection_perform(sg);
 
     PDEBUG ("ret = %d\n", ret);
 

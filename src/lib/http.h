@@ -20,12 +20,12 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#ifndef _MGET_HTTP_H_
-#define _MGET_HTTP_H_
+#ifndef _HTTP_H_
+#define _HTTP_H_
 
 #include "netutils.h"
 #include "metadata.h"
 int process_http_request(url_info* ui, const char* dp, int nc,
                          void (*cb)(metadata* md), bool* stop_flag);
 
-#endif /* _MGET_HTTP_H_ */
+#endif /* _HTTP_H_ */
