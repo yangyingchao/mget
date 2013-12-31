@@ -50,8 +50,9 @@ void show_progress(metadata* md)
 
     if (md->hd.status == RS_SUCCEEDED)
     {
-        printf("Download finished, total cost: %s....\n",
-               stringify_time(md->hd.acc_time));
+        printf("Download finished, total cost: %s, average speed: %.02fKB/s....\n",
+               stringify_time(md->hd.acc_time),
+               (double)(md->hd.package_size)/K/md->hd.acc_time);
         return;
     }
 
