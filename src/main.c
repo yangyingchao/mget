@@ -54,6 +54,7 @@ void show_progress(metadata* md)
         printf("%s - Download finished in %s, average speed: %.02fKB/s....\n",
                date, stringify_time(md->hd.acc_time),
                (double)(md->hd.package_size)/K/md->hd.acc_time);
+        FIF(date);
         return;
     }
 
