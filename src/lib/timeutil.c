@@ -25,6 +25,7 @@
 #include <time.h>
 #include <string.h>
 #include <sys/time.h>
+#include <stdlib.h>
 
 uint32 get_time_ms()
 {
@@ -68,4 +69,21 @@ char* stringify_time(uint64 ts)
         sprintf(str_time, "%.01f days", (double)ts/DAY);
     }
     return str_time;
+}
+
+
+char* datetime_str(time_t t)
+{
+    static char output[32];
+    struct tm *tm = localtime(&t);
+    if (!tm)
+        abort ();
+    if (!strftime(output, sizeof(output), "%Y-%m-%d %H:%M:%S", tm))
+        abort ();
+    return strdup(output);
+}
+
+char* current_time_str()
+{
+    return datetime_str(time(NULL));
 }

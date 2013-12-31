@@ -34,6 +34,8 @@ uint32 get_time_s();
 
 char* stringify_time(uint64 ts);
 
+char* current_time_str();
+
 #ifdef __cplusplus
 }
 #endif
