@@ -271,7 +271,7 @@ int http_write_sock(connection* conn, void* priv)
 }
 
 int process_http_request(url_info* ui, const char* fn, int nc,
-                          void (*cb)(metadata* md), bool* stop_flag)
+                         void (*cb)(metadata* md), bool* stop_flag)
 {
     PDEBUG ("enter\n");
 
@@ -296,7 +296,7 @@ int process_http_request(url_info* ui, const char* fn, int nc,
 
 
     mget_slis* lst = NULL; //TODO: fill this lst.
-    if (!metadata_create_from_url(ui->furl, total_size, nc, lst, &mw.md))
+    if (!metadata_create_from_url(ui->furl, fn, total_size, nc, lst, &mw.md))
     {
         return -1;
     }

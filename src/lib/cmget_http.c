@@ -155,7 +155,7 @@ void process_http_request_c(url_info* ui, const char* fn, int nc,
     uint64 total_size = get_remote_file_size(ui);
 
     mget_slis* lst = NULL; //TODO: fill this lst.
-    if (!metadata_create_from_url(ui->furl, total_size, nc, lst, &mw.md))
+    if (!metadata_create_from_url(ui->furl, fn, total_size, nc, lst, &mw.md))
     {
         return;
     }

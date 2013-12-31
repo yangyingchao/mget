@@ -74,7 +74,7 @@ typedef struct metadata_head
 // **+---------------------------------------------------------------+
 // **|               DATA_CHUNK  END                                 |
 // **+-------------------------------+-------------------------------+
-// **|            URL    MIME   OTHERS   .....                       |
+// **|            URL  FN  MIME   OTHERS   .....                     |
 // **+-------------------------------+-------------------------------+
 
 typedef struct _metadata
@@ -82,6 +82,7 @@ typedef struct _metadata
     mh          hd;                     // header, up to 48 bytes.
     data_chunk* body;                   // pointer to data_chunk
     char*       url;                    // pointer to url
+    char*       fn;                     // saved file name.
     char*       mime;                   // pointer to mime type
     hash_table* ht;                     // hash table of extra body.
     char        raw_data[0];            // start to body of raw_data.
@@ -93,6 +94,7 @@ typedef struct _metadata
 #define CHUNK_NUM(X)       (X->hd.nr_chunks)
 #define CHUNK_SIZE(X)      (sizeof(data_chunk)*(X->hd.nr_chunks))
 #define GET_URL(X)         (((char*)X->raw_data)+CHUNK_SIZE(X))
+#define GET_FN(X)         (GET_URL(X)+strlen(GET_URL(X))+1)
 
 typedef struct _metadata_wrapper
 {
@@ -104,6 +106,7 @@ typedef struct _metadata_wrapper
 bool chunk_split(uint64 start, uint64 size, int *num, data_chunk** dc);
 bool metadata_create_from_file(const char* fn, metadata_wrapper* mw);
 bool metadata_create_from_url(const char* url,
+                              const char* fn,
                               uint64      size,
                               int         nc,
                               mget_slis*  lst,

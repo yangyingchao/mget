@@ -51,6 +51,9 @@ bool metadata_create_from_file(const char* fn, metadata_wrapper* mw)
         mw->md->url   = ptr;
 
         ptr          += strlen(mw->md->url) + 1;
+        mw->md->fn    = ptr;
+
+        ptr          += strlen(mw->md->fn) + 1;
         mw->md->mime  = ptr;
 
         ptr                += strlen(mw->md->mime) + 1;
@@ -71,6 +74,7 @@ bool metadata_create_from_file(const char* fn, metadata_wrapper* mw)
 }
 
 bool metadata_create_from_url(const char* url,
+                              const char* fn,
                               uint64      size,
                               int         nc,
                               mget_slis*  lst,
@@ -111,6 +115,15 @@ bool metadata_create_from_url(const char* url,
         }
 
         ptr += strlen(pmd->url) + 1;
+        pmd->fn = ptr;
+        if (fn)
+        {
+            char* tmp = get_basename(fn);
+            sprintf(pmd->fn, "%s", tmp);
+            free(tmp);
+        }
+
+        ptr += strlen(pmd->fn) + 1;
         pmd->mime = ptr;
         ptr += strlen(pmd->mime) + 1;
         pmd->ht = NULL; // TODO: Initialize hash table based on ptr.
@@ -138,12 +151,18 @@ void associate_wrapper(metadata_wrapper* mw)
     metadata* omd   = mw->md;
     nmd->hd  = omd->hd;
     nmd->url = GET_URL(nmd);
-    nmd->body = (data_chunk*)nmd->raw_data;
     if (omd->url)
         sprintf(nmd->url, "%s", omd->url);
     else
         nmd->url = NULL;
 
+    nmd->fn = GET_FN(nmd);
+    if (omd->fn)
+        sprintf(nmd->fn, "%s", omd->fn);
+    else
+        nmd->fn = NULL;
+
+    nmd->body = (data_chunk*)nmd->raw_data;
     for (uint8 i = 0; i < mw->md->hd.nr_chunks; ++i)
     {
         data_chunk* p = &mw->md->body[i];

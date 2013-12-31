@@ -51,8 +51,9 @@ void show_progress(metadata* md)
     if (md->hd.status == RS_SUCCEEDED)
     {
         char* date = current_time_str();
-        printf("%s - Download finished in %s, average speed: %.02fKB/s....\n",
-               date, stringify_time(md->hd.acc_time),
+        printf("%s - %s saved in %s [%.02fKB/s] ...\n",
+               date, md->fn,
+               stringify_time(md->hd.acc_time),
                (double)(md->hd.package_size)/K/md->hd.acc_time);
         FIF(date);
         return;

@@ -65,4 +65,5 @@ void fhandle_munmap_close(fh_map** fm);
 char* get_basename(const char* fname);
 bool file_existp(const char* fn);
 void remove_file(const char* fn);
+
 #endif /* _FILEUTILS_H_ */
