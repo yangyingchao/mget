@@ -61,13 +61,18 @@ void show_progress(metadata* md)
 
     int threshhold = 78 * md->hd.acon / md->hd.nr_chunks;
 
-    if (idx++ < threshhold)
+    if (idx < threshhold)
     {
         if (!ts)
         {
             ts = get_time_ms();
+            fprintf(stderr, ".");
         }
-        fprintf(stderr, ".");
+        else if ((get_time_ms() - ts) > 1000/threshhold * idx )
+        {
+            fprintf(stderr, ".");
+            idx++;
+        }
     }
     else
     {
