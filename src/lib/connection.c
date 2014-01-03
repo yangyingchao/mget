@@ -247,11 +247,11 @@ int connection_perform(connection_group* group)
     int nfds = 0;
     PDEBUG ("%p: %d\n", group->cflag, *group->cflag);
     struct timeval tv;
-    tv.tv_sec  = 1;
-    tv.tv_usec = 0;
 
     while (!(*(group->cflag))) {
 
+        tv.tv_sec  = 1;
+        tv.tv_usec = 0;
         nfds = select(maxfd, &rfds, &wfds, NULL, &tv);
 
         if (nfds == -1) {
