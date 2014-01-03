@@ -1,0 +1,12 @@
+#!/bin/bash
+
+        execute_process(
+            COMMAND rm -rf "CMakeCache.txt"
+            COMMAND find . -name CMakeFiles -prune -print -exec rm -rf {} \;
+            COMMAND find . -name Makefile -prune -print -exec rm -rf {} \;
+        )
+
+
+
+
+
