@@ -39,12 +39,7 @@ void url_info_destroy(url_info** ui)
     if (ui && *ui)
     {
         url_info* up = *ui;
-        FIF(up->protocol);
-        FIF(up->host);
-        FIF(up->uri);
-        FIF(up->bname);
         FIF(up->furl);
-        FIFZ(ui);
     }
 }
 
@@ -56,7 +51,7 @@ bool parse_url(const char* url, url_info** ui)
     if (!url)
         goto ret;
 
-    int length = strlen(url);
+    size_t length = strlen(url);
     if (length == 0)
         goto ret;
 
@@ -67,8 +62,8 @@ bool parse_url(const char* url, url_info** ui)
     up->furl = strdup(url);
 
     int length1 = -1, length2 = -1;
-    int num     = sscanf(url, "%m[^://]://%m[^:/]%n:%d%n",
-                         &up->protocol, &up->host, &length1, &up->port, &length2);
+    int num     = sscanf(url, "%[^://]://%[^:/]%n:%d%n",
+                         up->protocol, up->host, &length1, &up->port, &length2);
     if (num <= 0)
     {
         goto free;
@@ -115,10 +110,8 @@ bool parse_url(const char* url, url_info** ui)
         }
     }
 
-    char tmp[64] = {'\0'};
-    sprintf(tmp, "%d", up->port);
-    up->sport = strdup(tmp);
-    *ui       = up;
+    sprintf(up->sport, "%d", up->port);
+    *ui  = up;
     bret = true;
     goto ret;
 
@@ -150,18 +143,15 @@ void url_info_copy(url_info* u1,url_info* u2)
 {
     if (u1 && u2)
     {
-        FIF(u1->protocol);
-        FIF(u1->host);
-        FIF(u1->sport);
         FIF(u1->uri);
         FIF(u1->bname);
         FIF(u1->furl);
 
-        u1->protocol = strdup(u2->protocol);
-        u1->host     = strdup(u2->host);
-        u1->sport    = strdup(u2->sport);
-        u1->uri      = strdup(u2->uri);
-        u1->bname    = strdup(u2->bname);
-        u1->furl     = strdup(u2->furl);
+        sprintf(u1->protocol, "%s", u2->protocol);
+        sprintf(u1->host, "%s", u2->host);
+        sprintf(u1->sport, "%s", u2->sport);
+        u1->uri   = strdup(u2->uri);
+        u1->bname = strdup(u2->bname);
+        u1->furl  = strdup(u2->furl);
     }
 }

@@ -35,12 +35,12 @@ uint32 get_time_ms()
         return 0;
     }
 
-    return tv.tv_sec * 1000 + tv.tv_usec / 1000;
+    return (uint32)tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 
 uint32 get_time_s()
 {
-    return time(NULL);
+    return (uint32)time(NULL);
 }
 
 #define MINUTE     (60)

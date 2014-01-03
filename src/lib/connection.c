@@ -30,7 +30,7 @@
 #include "data_utlis.h"
 #include "debug.h"
 #include <unistd.h>
-#include <sys/epoll.h>
+#include <sys/select.h>
 #include <fcntl.h>
 
 typedef struct addrinfo address;
@@ -57,6 +57,7 @@ typedef struct _connection_p
     char*    host;
     address* addr;
     bool     connected;
+    bool     active;
     /* bool   busy; */
     /* uint32 atime; */
 } connection_p;
@@ -93,8 +94,14 @@ static uint32 tcp_connection_read(connection* conn, char* buf,
     connection_p* pconn = (connection_p*) conn;
     if (pconn && pconn->sock && buf)
     {
-        return read(pconn->sock, buf, size);
+        uint32 rd = (uint32)read(pconn->sock, buf, size);
+        if (!rd || rd == -1)
+        {
+            PDEBUG ("rd: %d\n", rd);
+        }
+        return rd;
     }
+
     return 0;
 
 }
@@ -104,7 +111,7 @@ static uint32 tcp_connection_write(connection* conn, char* buf,
     connection_p* pconn = (connection_p*) conn;
     if (pconn && pconn->sock && buf)
     {
-        return write(pconn->sock, buf, size);
+        return (uint32)write(pconn->sock, buf, size);
     }
     return 0;
 }
@@ -188,6 +195,7 @@ err:
     FIF(conn);
     conn = NULL;
 ret:
+    conn->active = true;
     conn->conn.ci.writer = tcp_connection_write;
     conn->conn.ci.reader = tcp_connection_read;
     return (connection*)conn;
@@ -208,14 +216,13 @@ int connection_perform(connection_group* group)
     if (!cnt)
         return -1;
 
-    int epl = epoll_create(cnt);
-    if (epl == -1)
-    {
-        perror("epool_create");
-        exit(EXIT_FAILURE);
-    }
+    fd_set rfds;
+    FD_ZERO(&rfds);
 
-    struct epoll_event* events = ZALLOC(struct epoll_event, cnt);
+    fd_set wfds;
+    FD_ZERO(&wfds);
+
+    int maxfd = 0;
 
     //TODO: Add sockets to Epoll
     connection_list* p = group->lst;
@@ -226,74 +233,74 @@ int connection_perform(connection_group* group)
         connection_p* conn = (connection_p*)p->conn;
         if ((conn->sock != 0) && conn->conn.rf && conn->conn.wf) {
             /* fcntl(conn->sock, F_SETFD, O_NONBLOCK); */
-            struct epoll_event ev;
-            ev.events = EPOLLIN | EPOLLOUT;
-            ev.data.ptr = conn;
-            if (epoll_ctl(epl, EPOLL_CTL_ADD, conn->sock, &ev) == -1) {
-                perror("epoll_ctl: listen_sock");
-                exit(EXIT_FAILURE);
+            FD_SET(conn->sock, &wfds);
+            if (maxfd < conn->sock)
+            {
+                maxfd = conn->sock;
             }
         }
         p = (connection_list*)p->next;
     }
 
-    int nfds = 0;
+    maxfd ++;
 
+    int nfds = 0;
     PDEBUG ("%p: %d\n", group->cflag, *group->cflag);
+    struct timeval tv;
+    tv.tv_sec  = 1;
+    tv.tv_usec = 0;
+
     while (!(*(group->cflag))) {
-        nfds = epoll_wait(epl, events, cnt, 1000); // set timeout to 1 second.
+
+        nfds = select(maxfd, &rfds, &wfds, NULL, &tv);
 
         if (nfds == -1) {
-            perror("epoll_pwait");
+            perror("select fail:");
             break;
         }
 
         if (nfds == 0)
         {
             fprintf (stderr, "time out ....\n");
-            continue;
         }
 
-        for (int i = 0; i < nfds; ++i) {
-            connection_p* pconn = (connection_p*)events[i].data.ptr;
-            assert(pconn);
+        connection_list* p = group->lst;
+        while (p && p->conn) {
+            connection_p* pconn    = (connection_p*)p->conn;
+            int           ret      = 0;
 
-            int ret = 0;
-            bool need_mod = false;
-            if (events[i].events & EPOLLOUT) // Ready to send..
-            {
+            if (FD_ISSET(pconn->sock, &wfds)) {
                 ret = pconn->conn.wf((connection*)pconn, pconn->conn.priv);
-                need_mod = true;
-            }
-
-            else if (events[i].events & EPOLLIN ) // Ready to read..
-            {
-                ret = pconn->conn.rf((connection*)pconn, pconn->conn.priv);
-            }
-
-            if (ret <= 0)
-            {
-                PDEBUG ("remove socket...\n");
-                struct epoll_event ev;
-                ev.events = EPOLLIN | EPOLLOUT;
-                ev.data.ptr = pconn;
-                if (epoll_ctl(epl, EPOLL_CTL_DEL, pconn->sock,
-                              &ev) == -1) {
-                    perror("epoll_ctl: conn_sock");
-                    exit(EXIT_FAILURE);
+                if (ret > 0)
+                {
+                    FD_CLR(pconn->sock, &wfds);
+                    FD_SET(pconn->sock, &rfds);
                 }
-                /* close(pconn->sock); */
-                cnt --;
-                PDEBUG ("remaining sockets: %d\n", cnt);
+            }
 
-            }
-            else if (need_mod)
+            else if (FD_ISSET(pconn->sock, &rfds)) {
+                ret = pconn->conn.rf((connection*)pconn, pconn->conn.priv);
+                if (ret && ret != -1)
+                {
+                    FD_SET(pconn->sock, &rfds);
+                }
+                else
+                {
+                    PDEBUG ("remove socket: %d, ret: %d...\n", pconn->sock, ret);
+                    FD_CLR(pconn->sock, &rfds);
+                    /* close(pconn->sock); */
+                    cnt --;
+                    PDEBUG ("remaining sockets: %d\n", cnt);
+                    pconn->active = false;
+                }
+           }
+
+            else if (pconn->active)
             {
-                struct epoll_event ev;
-                ev.events = EPOLLIN;
-                ev.data.ptr = pconn;
-                epoll_ctl(epl, EPOLL_CTL_MOD, pconn->sock, &ev);
+                FD_SET(pconn->sock, &rfds);
             }
+
+            p = (connection_list*)p->next;
         }
 
         if (cnt == 0)

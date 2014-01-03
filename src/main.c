@@ -107,12 +107,12 @@ void usage(int argc, char *argv[])
 }
 int main(int argc, char *argv[])
 {
+
     if (argc == 1)
     {
         usage(argc, argv);
         return 1;
     }
-
 
     bool view_only = false;
     int  opt       = 0;
@@ -127,7 +127,6 @@ int main(int argc, char *argv[])
             case 'd':
             {
                 fn.dirn = strdup(optarg);
-                printf ("dirn: %s\n", fn.dirn);
                 break;
             }
             case 's':

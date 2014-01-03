@@ -5,22 +5,6 @@ set(VERSION_MAJOR 0)
 set(VERSION_MINOR 0)
 set(VERSION_PATCH 0)
 
-option (DLOG
-  "Enable debug..."
-  ON)
-
-option (MSOCK
-  "Try use raw sock instead of libcurl.."
-  ON)
-
-if(DLOG)
-ADD_DEFINITIONS("-DDEBUG")
-endif(DLOG)
-
-if(MSOCK)
-  set(TRY_MSOCK 1)
-endif(MSOCK)
-
 configure_file(mget_config.h.in mget_config.h)
 add_library(mget SHARED libmget.c metadata.c fileutils.c
   http.c connection.c cmget_http.c

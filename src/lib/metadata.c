@@ -165,7 +165,6 @@ void associate_wrapper(metadata_wrapper* mw)
     nmd->body = (data_chunk*)nmd->raw_data;
     for (uint8 i = 0; i < mw->md->hd.nr_chunks; ++i)
     {
-        data_chunk* p = &mw->md->body[i];
         nmd->body[i]  = mw->md->body[i];
     }
 
@@ -233,7 +232,7 @@ void metadata_display(metadata* md)
 
     fprintf(stderr, "size: %08llX (%.2f)M, nc: %d,url: %p -- %s\n",
             md->hd.package_size, (float)md->hd.package_size/(1*M), md->hd.nr_chunks,
-            md->url, md->url, md->url);
+            md->url, md->url);
 
     uint64 recv = 0;
     for (uint8 i = 0; i < md->hd.nr_chunks; ++i)

@@ -49,30 +49,45 @@ int dissect_header(const char* buffer, size_t length, hash_table** ht)
     }
 
     hash_table* pht = hash_table_create(256, free);
-    assert(pht);
+    if (!pht)
+    {
+        abort();
+    }
+
     *ht = pht;
 
     const char* ptr = buffer;
-    int   num   = 0;
-    int   stat  = 0;
-    char* value = NULL;
-    int   n     = 0;
-    size_t ldsize = 0;
+    int         n      = 0;
+    int         num    = 0;
+    int         stat   = 0;
+    char value[64]     = {'\0'};
+    size_t      ldsize = 0;
 
-    num = sscanf(ptr, "HTTP/1.1 %m[^\r\n]\r\n%n", &value, &n);
+
+
+    num = sscanf(ptr, "HTTP/1.1 %[^\r\n]\r\n%n", value, &n);
+    if (!num)
+    {
+        perror("Failed to parse header");
+        return -1;
+    }
+
     char* key = strdup("Status");
-    hash_table_insert(pht, key, value);
+
+    hash_table_insert(pht, key, strdup(value));
     ptr    += n;
 
     num = sscanf(value, "%d", &stat);
     assert(num);
 
+    char k[256] = {'\0'};
+    char v[256] = {'\0'};
     while (ptr < buffer + length) {
-        char* k = NULL;
-        char* v = NULL;
-        if (sscanf((const char*)ptr, "%m[^:]: %m[^\r\n]\r\n%n", &k, &v, &n))
+        memset(k, 0, 256);
+        memset(v, 0, 256);
+        if (sscanf((const char*)ptr, "%[^:]: %[^\r\n]\r\n%n", k, v, &n))
         {
-            hash_table_insert(pht, k, v);
+            hash_table_insert(pht, strdup(k), strdup(v));
             ldsize += n;
             ptr += n;
         }
@@ -139,8 +154,10 @@ uint64 get_remote_file_size_http(url_info* ui)
         return 0;
     }
 
+    PDEBUG ("Range:: %s\n", ptr);
+
     uint64 s, e, t;
-    int num = sscanf(ptr, "bytes %Lu-%Lu/%Lu",
+    int num = sscanf(ptr, "bytes %llu-%llu/%llu",
                      &s, &e, &t);
     if (!num)
     {
@@ -188,7 +205,7 @@ int http_read_sock(connection* conn, void* priv)
             if (ptr == NULL)
             {
                 // Header not complete, store and return positive value.
-                param->hd = strdup(ptr);
+                param->hd = strdup(buf);
                 return 1;
             }
 
@@ -206,7 +223,6 @@ int http_read_sock(connection* conn, void* priv)
 
             char* mm = ZALLOC(char, ds+1);
             strncpy(mm, buf, ds);
-            PDEBUG ("Header Length: %lu, content:\n%s\n", ds, mm);
             free(mm);
 
             size_t length = rd - ds;
@@ -237,6 +253,13 @@ int http_read_sock(connection* conn, void* priv)
             (*(param->cb))(param->md);
         }
     }
+    else
+    {
+        PDEBUG ("Read returns 0: showing chunk: \n");
+
+        PDEBUG ("retuned zero: dp: %p : %llX -- %llX\n",
+                dp, dp->cur_pos, dp->end_pos);
+    }
 
     if (dp->cur_pos >= dp->end_pos)
     {
@@ -264,7 +287,6 @@ int http_write_sock(connection* conn, void* priv)
 
     char*       hd = generate_request_header("GET", cp->ui, cp->dp->cur_pos,
                                              cp->dp->end_pos);
-    PDEBUG ("hd: \n%s\n", hd);
     size_t written = conn->ci.writer(conn, hd, strlen(hd), NULL);
     free(hd);
     return written;
@@ -276,7 +298,7 @@ int process_http_request(url_info* ui, const char* fn, int nc,
     PDEBUG ("enter\n");
 
     char tfn [256] = {'\0'};
-    sprintf(tfn, "%s.tmd", fn, ui->bname);
+    sprintf(tfn, "%s.tmd", fn);
 
     metadata_wrapper mw;
     if (file_existp(tfn) && metadata_create_from_file(tfn, &mw))

@@ -1,0 +1,5 @@
+#!/bin/bash
+
+cd @PROJECT_BINARY_DIR@ && rm -rf "CMakeCache.txt" && find . -name CMakeFiles -prune -print -exec rm -rf {} \;
+
+

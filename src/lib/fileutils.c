@@ -38,13 +38,12 @@
 
 fhandle* fhandle_create(const char* fn, FHM mode)
 {
-    fhandle* fh = (fhandle*)malloc(sizeof(fhandle));
+    fhandle* fh = ZALLOC1(fhandle);
     if (!fn || !fh)
     {
-        return NULL;
+        goto err;
     }
 
-    memset(fh, 0, sizeof(fh));
     fh->fn = strdup(fn);
     fh->fd = open(fn, O_RDWR | ((mode & FHM_CREATE) ? O_CREAT : 0), FM_RWUSR);
     struct stat st;

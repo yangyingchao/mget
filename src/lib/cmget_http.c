@@ -74,14 +74,13 @@ size_t recv_header(void *buffer,  size_t size, size_t nmemb,
 
     if (ht)
     {
-        char* k = NULL;
-        char* v = NULL;
-        if (sscanf((const char*)buffer, "%m[^:] : %m[^$] ", &k, &v))
+        char k[256] = {'\0'};
+        char v[256] = {'\0'};
+        if (sscanf((const char*)buffer, "%[^:] : %[^$] ", k, v))
         {
             if (!hash_table_insert(ht, rstrip(k), rstrip(v)))
             {
                 PDEBUG ("Failed to add kvp: %s, %s\n", k, v);
-                FIF(k); FIF(v);
             }
         }
     }
@@ -144,7 +143,7 @@ void process_http_request_c(url_info* ui, const char* fn, int nc,
     curl_global_init(CURL_GLOBAL_DEFAULT);
 
     char tfn [256] = {'\0'};
-    sprintf(tfn, "%s.tmd", fn, ui->bname);
+    sprintf(tfn, "%s.tmd", fn);
     metadata_wrapper mw;
     if (file_existp(tfn) && metadata_create_from_file(tfn, &mw))
     {
@@ -199,8 +198,6 @@ l1:;
     }
 
     easy_param* params = ZALLOC(easy_param, mw.md->hd.nr_chunks);
-
-    struct curl_slist* flist = NULL; // used to record allocated resourcs...
 
     CURL**  ehs = ZALLOC(CURL*, mw.md->hd.nr_chunks);
     bool need_request = false;

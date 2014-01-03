@@ -32,11 +32,11 @@
 #define PDEBUG(fmt, args...)                                            \
     do {                                                                \
         const char* file = __FILE__;                                    \
-        const char* ptr = file;                                         \
+        const char* xxxptr = file;                                         \
         const char* sep = "/";                                          \
-        while ((ptr = strstr(file, sep)) != NULL) {                     \
-            file = ptr;                                                 \
-            file = ++ptr;                                               \
+        while ((xxxptr = strstr(file, sep)) != NULL) {                     \
+            file = xxxptr;                                                 \
+            file = ++xxxptr;                                               \
         }                                                               \
                                                                         \
         fprintf(stderr, "TDEBUG: - %s(%d)-%s: ",file, __LINE__,__FUNCTION__); \

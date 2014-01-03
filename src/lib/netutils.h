@@ -41,11 +41,11 @@ typedef struct _url_info
 {
     url_protocol eprotocol;
     uint32       port;
-    char*        protocol;
-    char*        host;
-    char*        sport;
+    char         protocol[8];
+    char         host[64];
+    char         sport[8];
+    char*         bname;
     char*        uri;
-    char*        bname;
     char*        furl;                  /* full url.*/
 } url_info;
 

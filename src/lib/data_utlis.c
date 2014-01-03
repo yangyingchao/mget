@@ -112,24 +112,24 @@ hash_table* hash_table_create(uint32 hashSize, DestroyFunction dFunctor)
 
 bool hash_table_insert(hash_table* table, char* key, void* val)
 {
-    if (!table || !key || !val )
+    bool ret = false;
+    if (table && key && val )
     {
-        return false;
-    }
-
-    // Insert entry into the first open slot starting from index.
-    uint32 i;
-    for (i = table->hashFunctor(key); i < table->capacity; ++i)
-    {
-        TableEntry* entry = &table->entries[i];
-        if (entry->key == NULL)
+        uint32 i;
+        // Insert entry into the first open slot starting from index.
+        for (i = table->hashFunctor(key); i < table->capacity; ++i)
         {
-            entry->key = key;
-            entry->val = val;
-            return true;
+            TableEntry* entry = &table->entries[i];
+            if (entry->key == NULL)
+            {
+                entry->key = key;
+                entry->val = val;
+                ret= true;
+                break;
+            }
         }
     }
-    return false;
+    return ret;
 }
 
 /*! Looks for the given data based on key.

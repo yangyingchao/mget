@@ -18,6 +18,14 @@ configure_file(
     "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
     IMMEDIATE @ONLY)
 
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake_distclean.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/cmake_distclean.cmake"
+    IMMEDIATE @ONLY)
+
 add_custom_target(uninstall
     COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
+
+add_custom_target(distclean
+    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_distclean.cmake)
 
