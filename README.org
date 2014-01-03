@@ -13,7 +13,7 @@ You can set tmget to be used to fetch resources from internet, just update you
 make.conf:
 
 #+BEGIN_SRC conf
-FETCHCOMMAND="/usr/bin/tmget -j 8 -o \"\${DISTDIR}/\${FILE}\" \"\${URI}\""
+FETCHCOMMAND="/usr/bin/mget -j 10 -o \"\${DISTDIR}/\${FILE}\" \"\${URI}\""
 RESUMECOMMAND="${FETCHCOMMAND}"
 #+END_SRC
 
