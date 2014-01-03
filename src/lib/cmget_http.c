@@ -76,9 +76,9 @@ size_t recv_header(void *buffer,  size_t size, size_t nmemb,
     {
         char k[256] = {'\0'};
         char v[256] = {'\0'};
-        if (sscanf((const char*)buffer, "%[^:] : %[^$] ", k, v))
+        if (sscanf((const char*)buffer, "%[^:]: %[^$] ", k, v))
         {
-            if (!hash_table_insert(ht, rstrip(k), rstrip(v)))
+            if (!hash_table_insert(ht, strdup(rstrip(k)), strdup(rstrip(v))))
             {
                 PDEBUG ("Failed to add kvp: %s, %s\n", k, v);
             }
@@ -114,10 +114,32 @@ uint64 get_remote_file_size(url_info* ui)
     PDEBUG ("Status Code: %ld\n", stat);
     //@todo: handle 302!!
 
-    if (stat != 200)
+    switch (stat)
     {
-        fprintf(stderr, "Not implemented!\n");
-        exit(1);
+        case 200:
+        {
+            break;
+        }
+        case 302: // Resource moved to other place.
+        {
+            char* loc = (char*)hash_table_entry_get(ht, "Location");
+            printf("Server returns 302, trying new locations: %s...\n", loc);
+            url_info* nui = NULL;
+            if (loc && parse_url(loc, &nui))
+            {
+                url_info_copy(ui, nui);
+                url_info_destroy(&nui);
+                return get_remote_file_size(ui);
+            }
+            fprintf(stderr, "Failed to get new location for status code: 302\n");
+            break;
+        }
+        default:
+        {
+            fprintf(stderr, "Not implemented for status code: %ld\n", stat);
+            return 0;
+            break;
+        }
     }
 
     char* val = (char*)hash_table_entry_get(ht, "Content-Length");

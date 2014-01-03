@@ -66,11 +66,11 @@ void show_progress(metadata* md)
         if (!ts)
         {
             ts = get_time_ms();
-            printf(".");
+            fprintf(stderr, ".");
         }
         else if ((get_time_ms() - ts) > 1000/threshhold * idx )
         {
-            printf(".");
+            fprintf(stderr, ".");
             idx++;
         }
     }
@@ -88,7 +88,7 @@ void show_progress(metadata* md)
         uint64 diff_size = recv-last_recv;
         char* s2 = strdup(stringify_size(diff_size));
         uint32 c_time = get_time_ms();
-        printf("Progress: received %s in %.02f seconds, %.02f percent, %.02fKB/s\n",
+        fprintf(stderr, "Progress: received %s in %.02f seconds, %.02f percent, %.02fKB/s\n",
                 s2, (double)(c_time-ts)/1000, (double)recv/total * 100,
                 (double)(diff_size)*1000/K/(c_time -ts));
         idx       = 0;

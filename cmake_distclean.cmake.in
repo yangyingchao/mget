@@ -2,5 +2,7 @@
 execute_process(
     COMMAND find . -name CMakeFiles -prune -print -exec rm -rf {} \;
     COMMAND find . -name Makefile -prune -print -exec rm -rf {} \;
-    COMMAND rm -rf CMakeCache.txt cmake_uninstall.cmake
+    COMMAND rm -rf CMakeCache.txt
+    COMMAND rm -rf cmake_uninstall.cmake
+    COMMAND rm -rf cmake_distclean.cmake
 )
