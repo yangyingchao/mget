@@ -7,9 +7,9 @@ It provides a library named libmget and a sample app named tmget.
 
 You can download it from:[[http://github.com/yangyingchao/mget][ here .]]
 
-* Use tmget in gentoo
+* Use mget in gentoo
 
-You can set tmget to be used to fetch resources from internet, just update you
+You can set mget to be used to fetch resources from internet, just update you
 make.conf:
 
 #+BEGIN_SRC conf
@@ -24,3 +24,7 @@ Remember to change you MTU to larger value (for example 7200), it MAY help.
 #+BEGIN_SRC text
 ifconfig eth0 mtu 7200
 #+END_SRC
+
+* SSL Support
+
+ It uses GnuTls to implement SSL support...
