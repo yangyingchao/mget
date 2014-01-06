@@ -62,7 +62,7 @@ bool parse_url(const char* url, url_info** ui)
     up->furl = strdup(url);
 
     int length1 = -1, length2 = -1;
-    int num     = sscanf(url, "%[^://]://%[^:/]%n:%d%n",
+    int num     = sscanf(url, "%[^://]://%[^:/]%n:%lu%n",
                          up->protocol, up->host, &length1, &up->port, &length2);
     if (num <= 0)
     {
@@ -110,7 +110,7 @@ bool parse_url(const char* url, url_info** ui)
         }
     }
 
-    sprintf(up->sport, "%d", up->port);
+    sprintf(up->sport, "%lu", up->port);
     *ui  = up;
     bret = true;
     goto ret;
@@ -133,7 +133,7 @@ void url_info_display(url_info* ui)
         PDEBUG ("empty url_info...\n");
         return;
     }
-    PDEBUG ("Protocol: %02X (%s), port: %d, host: %s, uri: %s,\nurl: %s,filename: %s\n",
+    PDEBUG ("Protocol: %02X (%s), port: %lu, host: %s, uri: %s,\nurl: %s,filename: %s\n",
             ui->eprotocol, ui->protocol, ui->port, ui->host, ui->uri,
             ui->furl, ui->bname);
 }

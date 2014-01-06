@@ -96,13 +96,17 @@ int dissect_header(const char* buffer, size_t length, hash_table** ht)
     return stat;
 }
 
-uint64 get_remote_file_size_http(url_info* ui)
+uint64 get_remote_file_size_http(url_info* ui, connection* conn)
 {
-    connection* conn = connection_get(ui);
+    uint64 t = 0;
     if (!conn)
     {
-        fprintf(stderr, "Failed to get socket!\n");
-        return 0;
+        conn = connection_get(ui);
+        if (!conn)
+        {
+            fprintf(stderr, "Failed to get socket!\n");
+            goto ret;
+        }
     }
 
     char* hd = generate_request_header("GET", ui, 0, 0);
@@ -133,7 +137,7 @@ uint64 get_remote_file_size_http(url_info* ui)
             {
                 url_info_copy(ui, nui);
                 url_info_destroy(&nui);
-                return get_remote_file_size_http(ui);
+                return get_remote_file_size_http(ui, conn);
             }
             fprintf(stderr, "Failed to get new location for status code: 302\n");
             break;
@@ -142,8 +146,7 @@ uint64 get_remote_file_size_http(url_info* ui)
         {
             fprintf(stderr, "Not implemented for status code: %d\n", stat);
             fprintf(stderr, "Response Header\n%s\n", buffer);
-            return 0;
-            break;
+            goto ret;
         }
     }
 
@@ -151,12 +154,13 @@ uint64 get_remote_file_size_http(url_info* ui)
     if (!ptr)
     {
         fprintf(stderr, "Content Range not returned!\n");
-        return 0;
+        t = 0;
+        goto ret;
     }
 
     PDEBUG ("Range:: %s\n", ptr);
 
-    uint64 s, e, t;
+    uint64 s, e;
     int num = sscanf(ptr, "bytes %llu-%llu/%llu",
                      &s, &e, &t);
     if (!num)
@@ -168,6 +172,8 @@ uint64 get_remote_file_size_http(url_info* ui)
         // Check http headers and update connection_features....
     }
 
+ret:
+    connection_put(conn);
     return t;
 }
 
@@ -190,6 +196,7 @@ int http_read_sock(connection* conn, void* priv)
         return -1;
     }
 
+    //todo: Ensure we read all data stored in this connection.
     so_param*   param = (so_param*) priv;
     data_chunk* dp    = (data_chunk*)param->dp;
     void*       addr  = param->addr + dp->cur_pos;
@@ -307,7 +314,7 @@ int process_http_request(url_info* ui, const char* fn, int nc,
     }
 
     remove_file(tfn);
-    uint64 total_size = get_remote_file_size_http(ui);
+    uint64 total_size = get_remote_file_size_http(ui, NULL);
     if (!total_size)
     {
         fprintf(stderr, "Can't get remote file size: %s\n", ui->furl);

@@ -35,6 +35,7 @@ as that of the covered work.  */
 #define DEFAULT_LOGFILE "wget-log"
 
 #include <stdio.h>
+#include <stdbool.h>
 
 enum log_options { LOG_VERBOSE, LOG_NOTQUIET, LOG_NONVERBOSE, LOG_ALWAYS };
 

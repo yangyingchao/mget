@@ -68,6 +68,7 @@ bool start_request(const char* url, const file_name* fn, int nc,
     switch (ui->eprotocol)
     {
         case UP_HTTP:
+        case UP_HTTPS:
         {
             // If TRY_MSOCK defined, try use raw socket
             // if it is not defined or raw socket failed, use libcurl.
@@ -79,12 +80,6 @@ bool start_request(const char* url, const file_name* fn, int nc,
             }
 #endif
         }
-        case UP_HTTPS:
-        {
-            process_http_request_c(ui, fpath, nc, cb, stop_flag);
-            break;
-        }
-
         default:
         {
             break;

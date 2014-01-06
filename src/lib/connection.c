@@ -21,8 +21,7 @@
  */
 
 #include "connection.h"
-#include <sys/types.h>
-#include <sys/socket.h>
+#include "mget_config.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -32,9 +31,13 @@
 #include <unistd.h>
 #include <sys/select.h>
 #include <fcntl.h>
+#include <errno.h>
+
+#ifdef USE_GNUTLS
+#include "ssl.h"
+#endif
 
 typedef struct addrinfo address;
-
 
 typedef enum _connection_feature
 {
@@ -58,6 +61,7 @@ typedef struct _connection_p
     address* addr;
     bool     connected;
     bool     active;
+    void*    priv;
     /* bool   busy; */
     /* uint32 atime; */
 } connection_p;
@@ -89,15 +93,15 @@ void addr_entry_destroy(void* entry)
 
 
 static uint32 tcp_connection_read(connection* conn, char* buf,
-                              uint32 size, void *priv)
+                                  uint32 size, void *priv)
 {
     connection_p* pconn = (connection_p*) conn;
     if (pconn && pconn->sock && buf)
     {
         uint32 rd = (uint32)read(pconn->sock, buf, size);
-        if (!rd || rd == -1)
+        if ((!rd && errno != EAGAIN) || rd == -1)
         {
-            PDEBUG ("rd: %d\n", rd);
+            PDEBUG ("rd: %lu\n", rd);
         }
         return rd;
     }
@@ -105,8 +109,9 @@ static uint32 tcp_connection_read(connection* conn, char* buf,
     return 0;
 
 }
+
 static uint32 tcp_connection_write(connection* conn, char* buf,
-                               uint32 size, void *priv)
+                                   uint32 size, void *priv)
 {
     connection_p* pconn = (connection_p*) conn;
     if (pconn && pconn->sock && buf)
@@ -120,6 +125,30 @@ static void tcp_connection_close(connection* conn, char* buf,
                              uint32 size, void *priv)
 {
 }
+
+#ifdef USE_GNUTLS
+static uint32 secure_connection_read(connection* conn, char* buf,
+                                     uint32 size, void *priv)
+{
+    connection_p* pconn = (connection_p*) conn;
+    if (pconn && pconn->sock && buf)
+    {
+        return secure_socket_read(pconn->sock, buf, size, pconn->priv);
+    }
+    return 0;
+}
+
+static uint32 secure_connection_write(connection* conn, char* buf,
+                                      uint32 size, void *priv)
+{
+    connection_p* pconn = (connection_p*) conn;
+    if (pconn && pconn->sock && buf)
+    {
+        return secure_socket_write(pconn->sock, buf, size, pconn->priv);
+    }
+    return 0;
+}
+#endif
 
 static hash_table* g_addr_cache = NULL;
 
@@ -196,8 +225,32 @@ err:
     conn = NULL;
 ret:
     conn->active = true;
-    conn->conn.ci.writer = tcp_connection_write;
-    conn->conn.ci.reader = tcp_connection_read;
+    switch (ui->eprotocol)
+    {
+        case UP_HTTPS:
+        {
+#ifdef USE_GNUTLS
+            ssl_init();
+            if ((conn->priv = make_socket_secure(conn->sock)) == NULL)
+            {
+                fprintf(stderr, "Failed to make socket secure\n");
+                exit(1);
+            }
+            conn->conn.ci.writer = secure_connection_write;
+            conn->conn.ci.reader = secure_connection_read;
+#else
+            fprintf(stderr, "FATAL: HTTPS requires GnuTLS, which is not installed....\n");
+            exit(1);
+#endif
+            break;
+        }
+        default:
+        {
+            conn->conn.ci.writer = tcp_connection_write;
+            conn->conn.ci.reader = tcp_connection_read;
+            break;
+        }
+    }
     return (connection*)conn;
 }
 
@@ -232,7 +285,7 @@ int connection_perform(connection_group* group)
         PDEBUG ("p: %p, next: %p\n", p, p->next);
         connection_p* conn = (connection_p*)p->conn;
         if ((conn->sock != 0) && conn->conn.rf && conn->conn.wf) {
-            /* fcntl(conn->sock, F_SETFD, O_NONBLOCK); */
+            fcntl(conn->sock, F_SETFD, O_NONBLOCK);
             FD_SET(conn->sock, &wfds);
             if (maxfd < conn->sock)
             {

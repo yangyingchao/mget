@@ -28,8 +28,6 @@ Corresponding Source for a non-source form of such a combination
 shall include the source code for the parts of OpenSSL used as well
 as that of the covered work.  */
 
-#include "wget.h"
-
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -38,7 +36,6 @@ as that of the covered work.  */
 #include <assert.h>
 #include <errno.h>
 
-#include "utils.h"
 #include "log.h"
 
 /* 2005-10-25 SMS.
@@ -157,7 +154,7 @@ free_log_line (int num)
   struct log_ln *ln = log_lines + num;
   if (ln->malloced_line)
     {
-      xfree (ln->malloced_line);
+      /* xfree (ln->malloced_line); */
       ln->malloced_line = NULL;
     }
   ln->content = NULL;
@@ -170,7 +167,10 @@ free_log_line (int num)
 static void
 saved_append_1 (const char *start, const char *end)
 {
-  int len = end - start;
+// TODO: Remove this ifdef!
+#if 0
+
+int len = end - start;
   if (!len)
     return;
 
@@ -243,6 +243,8 @@ saved_append_1 (const char *start, const char *end)
   trailing_line = !(end[-1] == '\n');
   if (!trailing_line)
     ROT_ADVANCE (log_line_current);
+#endif // End of #if 0
+
 }
 
 /* Log the contents of S, as explained above.  If S consists of
@@ -340,15 +342,16 @@ log_set_warc_log_fp (FILE * fp)
 void
 logputs (enum log_options o, const char *s)
 {
-  FILE *fp;
+// TODO: Remove this ifdef!
+#if 0
+
+FILE *fp;
   FILE *warcfp;
 
   check_redirect_output ();
   if ((fp = get_log_fp ()) == NULL)
     return;
   warcfp = get_warc_log_fp ();
-  CHECK_VERBOSE (o);
-
   FPUTS (s, fp);
   if (warcfp != NULL)
     FPUTS (s, warcfp);
@@ -358,6 +361,8 @@ logputs (enum log_options o, const char *s)
     logflush ();
   else
     needs_flushing = true;
+#endif // End of #if 0
+
 }
 
 struct logvprintf_state {
@@ -384,7 +389,10 @@ static bool
 log_vprintf_internal (struct logvprintf_state *state, const char *fmt,
                       va_list args)
 {
-  char smallmsg[128];
+// TODO: Remove this ifdef!
+#if 0
+
+char smallmsg[128];
   char *write_ptr = smallmsg;
   int available_size = sizeof (smallmsg);
   int numwritten;
@@ -454,8 +462,9 @@ log_vprintf_internal (struct logvprintf_state *state, const char *fmt,
     logflush ();
   else
     needs_flushing = true;
+#endif // End of #if 0
 
-  return true;
+return true;
 }
 
 /* Flush LOGFP.  Useful while flushing is disabled.  */
@@ -526,26 +535,35 @@ log_set_save_context (bool savep)
 void
 logprintf (enum log_options o, const char *fmt, ...)
 {
-  va_list args;
-  struct logvprintf_state lpstate;
-  bool done;
+    va_list args;
+    va_start (args, fmt);
+    vfprintf(stdout, fmt, args);
+    va_end (args);
 
-  check_redirect_output ();
-  if (inhibit_logging)
-    return;
-  CHECK_VERBOSE (o);
+    // TODO: Remove this ifdef!
+#if 0
 
-  xzero (lpstate);
-  do
+    va_list args;
+    struct logvprintf_state lpstate;
+    bool done;
+
+    check_redirect_output ();
+    if (inhibit_logging)
+        return;
+
+    xzero (lpstate);
+    do
     {
-      va_start (args, fmt);
-      done = log_vprintf_internal (&lpstate, fmt, args);
-      va_end (args);
+        va_start (args, fmt);
+        done = log_vprintf_internal (&lpstate, fmt, args);
+        va_end (args);
 
-      if (done && errno == EPIPE)
-        exit (1);
+        if (done && errno == EPIPE)
+            exit (1);
     }
-  while (!done);
+    while (!done);
+#endif // End of #if 0
+
 }
 
 #ifdef ENABLE_DEBUG
@@ -586,7 +604,7 @@ log_init (const char *file, bool appendp)
       logfp = fopen (file, appendp ? "a" : "w");
       if (!logfp)
         {
-          fprintf (stderr, "%s: %s: %s\n", exec_name, file, strerror (errno));
+          fprintf (stderr, "mget: %s: %s\n", file, strerror (errno));
           exit (1);
         }
     }
@@ -679,12 +697,17 @@ log_dump_context (void)
 static int
 count_nonprint (const char *source)
 {
-  const char *p;
+// TODO: Remove this ifdef!
+#if 0
+
+const char *p;
   int cnt;
   for (p = source, cnt = 0; *p; p++)
     if (!c_isprint (*p))
       ++cnt;
   return cnt;
+#endif // End of #if 0
+return 0;
 }
 
 /* Copy SOURCE to DEST, escaping non-printable characters.
@@ -713,7 +736,10 @@ count_nonprint (const char *source)
 static void
 copy_and_escape (const char *source, char *dest, char escape, int base)
 {
-  const char *from = source;
+// TODO: Remove this ifdef!
+#if 0
+
+const char *from = source;
   char *to = dest;
   unsigned char c;
 
@@ -747,6 +773,8 @@ copy_and_escape (const char *source, char *dest, char escape, int base)
       abort ();
     }
   *to = '\0';
+#endif // End of #if 0
+
 }
 
 #define RING_SIZE 3
@@ -759,7 +787,10 @@ static struct ringel ring[RING_SIZE];   /* ring data */
 static const char *
 escnonprint_internal (const char *str, char escape, int base)
 {
-  static int ringpos;                   /* current ring position */
+// TODO: Remove this ifdef!
+#if 0
+
+static int ringpos;                   /* current ring position */
   int nprcnt;
 
   assert (base == 8 || base == 16);
@@ -793,6 +824,9 @@ escnonprint_internal (const char *str, char escape, int base)
     ringpos = (ringpos + 1) % RING_SIZE;
     return r->buffer;
   }
+#endif // End of #if 0
+
+  return NULL;
 }
 
 /* Return a pointer to a static copy of STR with the non-printable
@@ -840,9 +874,14 @@ escnonprint_uri (const char *str)
 void
 log_cleanup (void)
 {
-  size_t i;
+// TODO: Remove this ifdef!
+#if 0
+
+size_t i;
   for (i = 0; i < countof (ring); i++)
     xfree_null (ring[i].buffer);
+#endif // End of #if 0
+
 }
 
 /* When SIGHUP or SIGUSR1 are received, the output is redirected
@@ -855,7 +894,10 @@ static const char *redirect_request_signal_name;
 static void
 redirect_output (void)
 {
-  char *logfile;
+// TODO: Remove this ifdef!
+#if 0
+
+char *logfile;
   logfp = unique_create (DEFAULT_LOGFILE, false, &logfile);
   if (logfp)
     {
@@ -875,6 +917,8 @@ redirect_output (void)
       inhibit_logging = true;
     }
   save_context_p = false;
+#endif // End of #if 0
+
 }
 
 /* Check whether a signal handler requested the output to be
