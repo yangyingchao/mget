@@ -14,6 +14,7 @@ configure_file(mget_config.h.in mget_config.h)
 add_library(mget SHARED libmget.c metadata.c fileutils.c
   http.c connection.c  timeutil.c  data_utlis.c netutils.c gnutls.c log.c)
 
+target_link_libraries(mget m)
 install(
   TARGETS mget
   LIBRARY
