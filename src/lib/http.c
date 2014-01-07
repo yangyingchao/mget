@@ -101,12 +101,7 @@ uint64 get_remote_file_size_http(url_info* ui, connection* conn)
     uint64 t = 0;
     if (!conn)
     {
-        conn = connection_get(ui);
-        if (!conn)
-        {
-            fprintf(stderr, "Failed to get socket!\n");
-            goto ret;
-        }
+        return 0;
     }
 
     char* hd = generate_request_header("GET", ui, 0, 0);
@@ -173,7 +168,6 @@ uint64 get_remote_file_size_http(url_info* ui, connection* conn)
     }
 
 ret:
-    connection_put(conn);
     return t;
 }
 
@@ -314,7 +308,15 @@ int process_http_request(url_info* ui, const char* fn, int nc,
     }
 
     remove_file(tfn);
-    uint64 total_size = get_remote_file_size_http(ui, NULL);
+
+    connection* conn = connection_get(ui);
+    if (!conn)
+    {
+        fprintf(stderr, "Failed to get socket!\n");
+        return -1;
+    }
+
+    uint64 total_size = get_remote_file_size_http(ui, conn);
     if (!total_size)
     {
         fprintf(stderr, "Can't get remote file size: %s\n", ui->furl);
@@ -378,22 +380,29 @@ l1:
 
         need_request = true;
 
-        connection* conn = connection_get(ui);
-        if (conn)
+        if (!conn)
         {
-            so_param* param = ZALLOC1(so_param);
-            param->addr = fm2->addr;
-            param->dp = mw.md->body + i;
-            param->ui = ui;
-            param->md = mw.md;
-            param->cb = cb;
-
-            conn->rf = http_read_sock;
-            conn->wf = http_write_sock;
-            conn->priv = param;
-
-            connection_add_to_group(sg, conn);
+            conn = connection_get(ui);
+            if (!conn)
+            {
+                fprintf(stderr, "Failed to create connection!!\n");
+                goto ret;
+            }
         }
+
+        so_param* param = ZALLOC1(so_param);
+        param->addr = fm2->addr;
+        param->dp = mw.md->body + i;
+        param->ui = ui;
+        param->md = mw.md;
+        param->cb = cb;
+
+        conn->rf = http_read_sock;
+        conn->wf = http_write_sock;
+        conn->priv = param;
+
+        connection_add_to_group(sg, conn);
+        conn = NULL;
     }
 
     if (!need_request)
