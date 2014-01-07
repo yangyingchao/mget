@@ -25,7 +25,6 @@
 #include <stdio.h>
 #include <strings.h>
 #include "debug.h"
-#include "cmget_http.h"
 #ifdef TRY_MSOCK
 #include "http.h"
 #endif

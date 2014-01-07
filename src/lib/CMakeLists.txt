@@ -12,9 +12,7 @@ endif (GNUTLS_FOUND)
 
 configure_file(mget_config.h.in mget_config.h)
 add_library(mget SHARED libmget.c metadata.c fileutils.c
-  http.c connection.c cmget_http.c
-  timeutil.c  data_utlis.c netutils.c gnutls.c log.c)
-target_link_libraries(mget m curl)
+  http.c connection.c  timeutil.c  data_utlis.c netutils.c gnutls.c log.c)
 
 install(
   TARGETS mget
