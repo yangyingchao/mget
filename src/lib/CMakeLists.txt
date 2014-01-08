@@ -7,8 +7,21 @@ set(VERSION_PATCH 0)
 
 find_package (GnuTLS)
 if (GNUTLS_FOUND)
-  set(USE_GNUTLS 1)
+  set(HAVE_GNUTLS 1)
 endif (GNUTLS_FOUND)
+
+include(CheckIncludeFiles)
+include(CheckFunctionExists)
+include(CheckLibraryExists)
+
+CHECK_INCLUDE_FILES(sys/epoll.h HAVE_EPOLL)
+if(NOT HAVE_EPOLL)
+  message(STATUS "epoll not found, trying to use select system call")
+  CHECK_INCLUDE_FILES(sys/select.h HAVE_SELECT)
+  if(NOT HAVE_SELECT)
+    message(FATAL_ERROR "ERROR: requires select system call!")
+  endif(NOT HAVE_SELECT)
+endif(NOT HAVE_EPOLL)
 
 configure_file(mget_config.h.in mget_config.h)
 add_library(mget SHARED libmget.c metadata.c fileutils.c

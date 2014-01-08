@@ -30,7 +30,7 @@
 
 #define GET_VERSION()       ((VERSION_MAJOR << 24) | (VERSION_MINOR << 16) | (VERSION_PATCH<<8))
 
-#cmakedefine TRY_MSOCK
-#cmakedefine USE_GNUTLS
+#cmakedefine HAVE_EPOLL
+#cmakedefine HAVE_GNUTLS
 
 #endif /* _MGET_CONFIG_H_ */

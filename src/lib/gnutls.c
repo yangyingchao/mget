@@ -1,4 +1,24 @@
-/* This example code is placed in the public domain. */
+/** gnutls.c --- implementation of ssl using gnutls.
+ *
+ * Copyright (C) 2014 Yang,Ying-chao
+ *
+ * Author: Yang,Ying-chao <yangyingchao@gmail.com>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2, or (at
+ * your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; see the file COPYING.  If not, write to
+ * the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+ * Boston, MA 02110-1301, USA.
+ */
 
 #include "log.h"
 #include "macros.h"
@@ -137,7 +157,7 @@ void* make_socket_secure(int sk)
 
     gnutls_set_default_priority (*session);
     gnutls_credentials_set (*session, GNUTLS_CRD_CERTIFICATE, credentials);
-    gnutls_transport_set_int (*session, sk);
+    gnutls_transport_set_ptr (*session, (gnutls_transport_ptr_t)sk);
 
     int allowed_protocols[4] = {0, 0, 0, 0};
     allowed_protocols[0] = GNUTLS_SSL3;

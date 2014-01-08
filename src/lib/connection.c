@@ -21,20 +21,25 @@
  */
 
 #include "connection.h"
-#include "mget_config.h"
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#include "typedefs.h"
 #include "data_utlis.h"
 #include "debug.h"
-#include <unistd.h>
-#include <sys/select.h>
-#include <fcntl.h>
+#include "mget_config.h"
+#include "typedefs.h"
 #include <errno.h>
+#include <fcntl.h>
+#include <netdb.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <unistd.h>
 
-#ifdef USE_GNUTLS
+#ifdef HAVE_GNUTLS
 #include "ssl.h"
+#endif
+
+#ifdef HAVE_EPOLL
+#include <sys/epoll.h>
+#else
+#include <sys/select.h>
 #endif
 
 typedef struct addrinfo address;
@@ -126,7 +131,7 @@ static void tcp_connection_close(connection* conn, char* buf,
 {
 }
 
-#ifdef USE_GNUTLS
+#ifdef HAVE_GNUTLS
 static uint32 secure_connection_read(connection* conn, char* buf,
                                      uint32 size, void *priv)
 {
@@ -229,7 +234,7 @@ ret:
     {
         case UP_HTTPS:
         {
-#ifdef USE_GNUTLS
+#ifdef HAVE_GNUTLS
             ssl_init();
             if ((conn->priv = make_socket_secure(conn->sock)) == NULL)
             {
@@ -269,6 +274,96 @@ int connection_perform(connection_group* group)
     if (!cnt)
         return -1;
 
+#ifdef HAVE_EPOLL
+
+    int epl = epoll_create(cnt);
+    if (epl == -1)
+    {
+        perror("epool_create");
+        exit(EXIT_FAILURE);
+    }
+
+    struct epoll_event* events = ZALLOC(struct epoll_event, cnt);
+
+    //TODO: Add sockets to Epoll
+    connection_list* p = group->lst;
+    PDEBUG ("p: %p, next: %p\n", p, p->next);
+
+    while (p && p->conn) {
+        PDEBUG ("p: %p, next: %p\n", p, p->next);
+        connection_p* conn = (connection_p*)p->conn;
+        if ((conn->sock != 0) && conn->conn.rf && conn->conn.wf) {
+            /* fcntl(conn->sock, F_SETFD, O_NONBLOCK); */
+            struct epoll_event ev;
+            ev.events = EPOLLIN | EPOLLOUT;
+            ev.data.ptr = conn;
+            if (epoll_ctl(epl, EPOLL_CTL_ADD, conn->sock, &ev) == -1) {
+                perror("epoll_ctl: listen_sock");
+                exit(EXIT_FAILURE);
+            }
+        }
+        p = (connection_list*)p->next;
+    }
+
+    int nfds = 0;
+
+    PDEBUG ("%p: %d\n", group->cflag, *group->cflag);
+    while (!(*(group->cflag))) {
+        nfds = epoll_wait(epl, events, cnt, 1000); // set timeout to 1 second.
+
+        if (nfds == -1) {
+            perror("epoll_pwait");
+            break;
+        }
+
+        if (nfds == 0)
+        {
+            fprintf (stderr, "time out ....\n");
+            continue;
+        }
+
+        for (int i = 0; i < nfds; ++i) {
+            connection_p* pconn = (connection_p*)events[i].data.ptr;
+            assert(pconn);
+
+            int ret = 0;
+            bool need_mod = false;
+            if (events[i].events & EPOLLOUT) // Ready to send..
+            {
+                ret = pconn->conn.wf((connection*)pconn, pconn->conn.priv);
+                need_mod = true;
+            }
+
+            else if (events[i].events & EPOLLIN ) // Ready to read..
+            {
+                ret = pconn->conn.rf((connection*)pconn, pconn->conn.priv);
+            }
+
+            if (ret <= 0)
+            {
+                PDEBUG ("remove socket...\n");
+                struct epoll_event ev;
+                ev.events = EPOLLIN | EPOLLOUT;
+                ev.data.ptr = pconn;
+                if (epoll_ctl(epl, EPOLL_CTL_DEL, pconn->sock,
+                              &ev) == -1) {
+                    perror("epoll_ctl: conn_sock");
+                    exit(EXIT_FAILURE);
+                }
+                /* close(pconn->sock); */
+                cnt --;
+                PDEBUG ("remaining sockets: %d\n", cnt);
+
+            }
+            else if (need_mod)
+            {
+                struct epoll_event ev;
+                ev.events = EPOLLIN;
+                ev.data.ptr = pconn;
+                epoll_ctl(epl, EPOLL_CTL_MOD, pconn->sock, &ev);
+            }
+        }
+#else
     fd_set rfds;
     FD_ZERO(&rfds);
 
@@ -346,7 +441,7 @@ int connection_perform(connection_group* group)
                     PDEBUG ("remaining sockets: %d\n", cnt);
                     pconn->active = false;
                 }
-           }
+            }
 
             else if (pconn->active)
             {
@@ -355,7 +450,7 @@ int connection_perform(connection_group* group)
 
             p = (connection_list*)p->next;
         }
-
+#endif
         if (cnt == 0)
         {
             break;

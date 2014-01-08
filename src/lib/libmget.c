@@ -25,9 +25,7 @@
 #include <stdio.h>
 #include <strings.h>
 #include "debug.h"
-#ifdef TRY_MSOCK
 #include "http.h"
-#endif
 
 typedef void (*request_processor)(url_info* ui, const char* dn, int nc,
                                   void (*cb)(metadata* md), bool* stop_flag);
@@ -69,15 +67,11 @@ bool start_request(const char* url, const file_name* fn, int nc,
         case UP_HTTP:
         case UP_HTTPS:
         {
-            // If TRY_MSOCK defined, try use raw socket
-            // if it is not defined or raw socket failed, use libcurl.
-#ifdef TRY_MSOCK
             int ret = process_http_request(ui, fpath, nc, cb, stop_flag);
             if (ret == 0)
             {
                 break;
             }
-#endif
         }
         default:
         {
