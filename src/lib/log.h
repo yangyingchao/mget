@@ -32,7 +32,7 @@ as that of the covered work.  */
 #define LOG_H
 
 /* The log file to which Wget writes to after HUP.  */
-#define DEFAULT_LOGFILE "wget-log"
+#define DEFAULT_LOGFILE "mget-log"
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -42,9 +42,7 @@ enum log_options { LOG_VERBOSE, LOG_NOTQUIET, LOG_NONVERBOSE, LOG_ALWAYS };
 void log_set_warc_log_fp (FILE *);
 
 void logprintf (enum log_options, const char *, ...);
-     // GCC_FORMAT_ATTR (2, 3);
-void debug_logprintf (const char *, ...) // GCC_FORMAT_ATTR (1, 2)
-        ;
+void debug_logprintf (const char *, ...);
 void logputs (enum log_options, const char *);
 void logflush (void);
 void log_set_flush (bool);

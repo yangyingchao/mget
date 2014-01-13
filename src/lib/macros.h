@@ -32,4 +32,13 @@
 #define FIF(X)  if((X)) free((X))
 #define FIFZ(X) if(*X) {free(*(X)), *(X) = NULL;}
 
+#define XZERO(X)       memset(&(X), '\0', sizeof(X));
+
+#define COUNTOF(array) (sizeof (array) / sizeof ((array)[0]))
+#define XREALLOC(X,Y)       realloc((X), (Y))
+
+#define xfree(X) FIF(X)
+#define xrealloc(X, Y)       XREALLOC(X, Y)
+
+
 #endif /* _MACROS_H_ */

@@ -157,7 +157,8 @@ void* make_socket_secure(int sk)
 
     gnutls_set_default_priority (*session);
     gnutls_credentials_set (*session, GNUTLS_CRD_CERTIFICATE, credentials);
-    gnutls_transport_set_ptr (*session, (gnutls_transport_ptr_t)sk);
+    /* gnutls_transport_set_ptr (*session, (gnutls_transport_ptr_t)sk); */
+    gnutls_transport_set_int2 (*session, sk, sk);
 
     int allowed_protocols[4] = {0, 0, 0, 0};
     allowed_protocols[0] = GNUTLS_SSL3;
