@@ -240,12 +240,6 @@ int http_read_sock(connection* conn, void* priv)
         rd = conn->ci.reader(conn, param->addr+dp->cur_pos,
                              dp->end_pos - dp->cur_pos, NULL);
     while (rd == -1 && errno == EINTR);
-    if (rd == -1)
-    {
-        fprintf(stderr, "read returns -1\n");
-        assert(0);
-    }
-
     if (rd > 0)
     {
         dp->cur_pos += rd;
@@ -254,12 +248,21 @@ int http_read_sock(connection* conn, void* priv)
             (*(param->cb))(param->md);
         }
     }
-    else
+    else if (rd == 0)
     {
+        fprintf(stderr, "socket: closed..\n");
         PDEBUG ("Read returns 0: showing chunk: \n");
 
         PDEBUG ("retuned zero: dp: %p : %llX -- %llX\n",
                 dp, dp->cur_pos, dp->end_pos);
+    }
+    else
+    {
+        fprintf(stderr, "read returns %d\n", rd);
+        if (errno != EAGAIN)
+        {
+            fprintf(stderr, "read returns %d: %s\n", rd, strerror(errno));
+        }
     }
 
     if (dp->cur_pos >= dp->end_pos)

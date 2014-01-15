@@ -293,7 +293,7 @@ int connection_perform(connection_group* group)
         PDEBUG ("p: %p, next: %p\n", p, p->next);
         connection_p* conn = (connection_p*)p->conn;
         if ((conn->sock != 0) && conn->conn.rf && conn->conn.wf) {
-            /* fcntl(conn->sock, F_SETFD, O_NONBLOCK); */
+            fcntl(conn->sock, F_SETFD, O_NONBLOCK);
             struct epoll_event ev;
             ev.events = EPOLLIN | EPOLLOUT;
             ev.data.ptr = conn;
@@ -334,26 +334,28 @@ int connection_perform(connection_group* group)
                 need_mod = true;
             }
 
-            else if (events[i].events & EPOLLIN ) // Ready to read..
+            if (events[i].events & EPOLLIN ) // Ready to read..
             {
                 ret = pconn->conn.rf((connection*)pconn, pconn->conn.priv);
             }
 
             if (ret <= 0)
             {
-                PDEBUG ("remove socket...\n");
-                struct epoll_event ev;
-                ev.events = EPOLLIN | EPOLLOUT;
-                ev.data.ptr = pconn;
-                if (epoll_ctl(epl, EPOLL_CTL_DEL, pconn->sock,
-                              &ev) == -1) {
-                    perror("epoll_ctl: conn_sock");
-                    exit(EXIT_FAILURE);
+                if (ret == 0 || errno != EAGAIN)
+                {
+                    PDEBUG ("remove socket...\n");
+                    struct epoll_event ev;
+                    ev.events = EPOLLIN | EPOLLOUT;
+                    ev.data.ptr = pconn;
+                    if (epoll_ctl(epl, EPOLL_CTL_DEL, pconn->sock,
+                                  &ev) == -1) {
+                        perror("epoll_ctl: conn_sock");
+                        exit(EXIT_FAILURE);
+                    }
+                    /* close(pconn->sock); */
+                    cnt --;
+                    PDEBUG ("remaining sockets: %d\n", cnt);
                 }
-                /* close(pconn->sock); */
-                cnt --;
-                PDEBUG ("remaining sockets: %d\n", cnt);
-
             }
             else if (need_mod)
             {
