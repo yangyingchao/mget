@@ -1,3 +1,4 @@
+
 /** data_utlis.h --- generic data structures
  *
  * Copyright (C) 2013 Yang,Ying-chao
@@ -30,21 +31,19 @@
 #include "typedefs.h"
 #include "macros.h"
 
-typedef void (*free_func)   (void*);
+typedef void (*free_func) (void *);
 
-typedef struct _mget_slis
-{
-    void*     data;
+typedef struct _mget_slis {
+    void *data;
     free_func f;
-    struct _mget_slis* next;
-}mget_slis;
+    struct _mget_slis *next;
+} mget_slis;
 
-mget_slis* mget_slist_append(mget_slis* l, void*data, free_func f);
-void       mget_slist_free(mget_slis* lst);
+mget_slis *mget_slist_append(mget_slis * l, void *data, free_func f);
+void mget_slist_free(mget_slis * lst);
 
-typedef struct _mget_slist_head
-{
-    struct mget_slist_head* next;
+typedef struct _mget_slist_head {
+    struct mget_slist_head *next;
 } mget_slist_head;
 
 #define INIT_LIST(instance, type) do {                                  \
@@ -79,44 +78,41 @@ typedef struct _mget_slist_head
     } while (0)                                             \
 
 
-typedef struct _kv_pair
-{
-    char* k;
-    char* v;
+typedef struct _kv_pair {
+    char *k;
+    char *v;
 } kvp;
 
 
 // Hash Tables.
 
-typedef void (*DestroyFunction)(void* data);
-typedef uint32  (*HashFunction)(const char* key);
+typedef void (*DestroyFunction) (void *data);
+typedef uint32(*HashFunction) (const char *key);
 
-typedef struct _TableEntry
-{
-    char* key;
-    void* val;
+typedef struct _TableEntry {
+    char *key;
+    void *val;
 } TableEntry;
 
-typedef struct _hash_table
-{
-    int         capacity;
-    TableEntry* entries;
+typedef struct _hash_table {
+    int capacity;
+    TableEntry *entries;
 
-    void*           bufer;              // Serailized buffer.
-    HashFunction    hashFunctor;
+    void *bufer;		// Serailized buffer.
+    HashFunction hashFunctor;
     DestroyFunction deFunctor;
 } hash_table;
 
 
 // Functions.
-void hash_table_destroy(hash_table* table);
-hash_table* hash_table_create(uint32 size, DestroyFunction dFunctor);
-bool hash_table_insert(hash_table* table, char* key, void* val);
-void* hash_table_entry_get(hash_table* table, const char* key);
+void hash_table_destroy(hash_table * table);
+hash_table *hash_table_create(uint32 size, DestroyFunction dFunctor);
+bool hash_table_insert(hash_table * table, char *key, void *val);
+void *hash_table_entry_get(hash_table * table, const char *key);
 
-void dump_hash_table(hash_table* ht, void* buffer);
+void dump_hash_table(hash_table * ht, void *buffer);
 
-char* rstrip(char* str);
+char *rstrip(char *str);
 
 #define GET_HASH_ENTRY(T, H, K)       ((T*)hash_table_entry_get(H, K))
 
@@ -127,10 +123,10 @@ char* rstrip(char* str);
 #define T       (1 << 40)
 
 // user should copy this tring after it returns!
-const char* stringify_size(uint64 sz);
+const char *stringify_size(uint64 sz);
 
 // #ifdef __cplusplus
 // }
 // #endif
 
-#endif /* _DATA_UTLIS_H_ */
+#endif				/* _DATA_UTLIS_H_ */

@@ -1,3 +1,4 @@
+
 /** mget_http.h --- interface of libmget using raw socket
  *
  * Copyright (C) 2013 Yang,Ying-chao
@@ -25,7 +26,7 @@
 
 #include "netutils.h"
 #include "metadata.h"
-int process_http_request(url_info* ui, const char* dp, int nc,
-                         void (*cb)(metadata* md), bool* stop_flag);
+int process_http_request(url_info * ui, const char *dp, int nc,
+			 void (*cb) (metadata * md), bool * stop_flag);
 
-#endif /* _HTTP_H_ */
+#endif				/* _HTTP_H_ */

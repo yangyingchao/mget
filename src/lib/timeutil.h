@@ -1,3 +1,4 @@
+
 /** timeutil.h --- utility related to time.
  *
  * Copyright (C) 2013 Yang,Ying-chao
@@ -29,15 +30,14 @@ extern "C" {
 
 #include "typedefs.h"
 
-uint32 get_time_ms();
-uint32 get_time_s();
+    uint32 get_time_ms();
+    uint32 get_time_s();
 
-char* stringify_time(uint64 ts);
+    char *stringify_time(uint64 ts);
 
-char* current_time_str();
+    char *current_time_str();
 
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* _TIMEUTIL_H_ */
+#endif				/* _TIMEUTIL_H_ */

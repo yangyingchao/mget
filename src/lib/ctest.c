@@ -1,3 +1,4 @@
+
 /** ctest.c --- internal test of libmget.
  *
  * Copyright (C) 2013 Yang,Ying-chao
@@ -35,53 +36,51 @@
 #include "timeutil.h"
 #include <signal.h>
 
-static uint64 sz = 0; // total size
-static uint64 rz = 0; // received size;
+static uint64 sz = 0;		// total size
+static uint64 rz = 0;		// received size;
 
-void show_progress(metadata* md)
+void show_progress(metadata * md)
 {
     static int idx = 0;
     static uint32 ts = 0;
     static uint64 last_recv = 0;
 
-    if (md->hd.status == RS_SUCCEEDED)
-    {
-        printf("Download finished, total cost: %s....\n",
-               stringify_time(md->hd.acc_time));
-        return;
+    if (md->hd.status == RS_SUCCEEDED) {
+	printf("Download finished, total cost: %s....\n",
+	       stringify_time(md->hd.acc_time));
+	return;
     }
 
     int threshhold = 78;
 
-    if (idx++ < threshhold)
-    {
-        if (!ts)
-        {
-            ts = get_time_ms();
-        }
-        fprintf(stderr, ".");
-    }
-    else
-    {
-        data_chunk* dp = md->body;
-        uint64 total = md->hd.package_size;
-        uint64 recv  = 0;
-        for (int i = 0; i < md->hd.nr_chunks; ++i)
-        {
-            recv += dp->cur_pos - dp->start_pos;
-            dp++;
-        }
+    if (idx++ < threshhold) {
+	if (!ts) {
+	    ts = get_time_ms();
+	}
+	fprintf(stderr, ".");
+    } else {
+	data_chunk *dp = md->body;
+	uint64 total = md->hd.package_size;
+	uint64 recv = 0;
 
-        uint64 diff_size = recv-last_recv;
-        char* s2 = strdup(stringify_size(diff_size));
-        uint32 c_time = get_time_ms();
-        fprintf(stderr, "Progress: received %s in %.02f seconds, %.02f percent, %.02fKB/s\n",
-                s2, (double)(c_time-ts)/1000, (double)recv/total * 100,
-                (double)(diff_size)*1000/K/(c_time -ts));
-        idx       = 0;
-        last_recv = recv;
-        ts = c_time;
-        free(s2);
+	for (int i = 0; i < md->hd.nr_chunks; ++i) {
+	    recv += dp->cur_pos - dp->start_pos;
+	    dp++;
+	}
+
+	uint64 diff_size = recv - last_recv;
+	char *s2 = strdup(stringify_size(diff_size));
+	uint32 c_time = get_time_ms();
+
+	fprintf(stderr,
+		"Progress: received %s in %.02f seconds, %.02f percent, %.02fKB/s\n",
+		s2, (double) (c_time - ts) / 1000,
+		(double) recv / total * 100,
+		(double) (diff_size) * 1000 / K / (c_time - ts));
+	idx = 0;
+	last_recv = recv;
+	ts = c_time;
+	free(s2);
     }
 }
 
@@ -91,19 +90,20 @@ void sigterm_handler(int signum)
 {
     control_byte = true;
     fprintf(stderr, "Flag: %p, %d, Saving temporary data...\n",
-            &control_byte, control_byte);
+	    &control_byte, control_byte);
 }
 
 int main(int argc, char *argv[])
 {
 
-    FILE* fp = fopen("/tmp/testa.txt", "w");
-    const char* url = "http://mirrors.sohu.com/gentoo/distfiles/curl-7.33.0.tar.bz2";
+    FILE *fp = fopen("/tmp/testa.txt", "w");
+    const char *url =
+	"http://mirrors.sohu.com/gentoo/distfiles/curl-7.33.0.tar.bz2";
 
-    url_info* ui;
-    if (!parse_url(url, &ui))
-    {
-        fprintf(stderr, "Failed to parse url: %s\n", url);
+    url_info *ui;
+
+    if (!parse_url(url, &ui)) {
+	fprintf(stderr, "Failed to parse url: %s\n", url);
     }
 
     url_info_display(ui);
@@ -118,16 +118,18 @@ int main(int argc, char *argv[])
     /* printf ("r: %lu, msg: %s\n", r, buf); */
 
     struct sigaction act;
-    act.sa_handler   = sigterm_handler;
+
+    act.sa_handler = sigterm_handler;
     act.sa_sigaction = NULL;
     sigemptyset(&act.sa_mask);
     act.sa_flags = 0;
     int ret = sigaction(SIGINT, &act, NULL);
-    PDEBUG ("ret = %d\n", ret);
+
+    PDEBUG("ret = %d\n", ret);
 
     signal(SIGINT, sigterm_handler);
 
-    PDEBUG ("cb: %p\n", &control_byte);
+    PDEBUG("cb: %p\n", &control_byte);
 
     process_http_request(ui, ".", 9, show_progress, &control_byte);
     fclose(fp);

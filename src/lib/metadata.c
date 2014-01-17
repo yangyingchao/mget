@@ -34,69 +34,67 @@
 
 #define SHOW_CHUNK(p)    PDEBUG ("%p, cur_pos: %08llX, end_pos: %08llX\n",p,p->cur_pos, p->end_pos)
 
-bool metadata_create_from_file(const char* fn, metadata_wrapper* mw)
+bool metadata_create_from_file(const char *fn, metadata_wrapper * mw)
 {
-    fhandle*  fh = NULL;
-    fh_map*   fm = NULL;
+    fhandle *fh = NULL;
+    fh_map *fm = NULL;
+
     if (mw && (fh = fhandle_create(fn, FHM_DEFAULT)) &&
-        (fm = fhandle_mmap(fh, 0, fh->size)))
-    {
+        (fm = fhandle_mmap(fh, 0, fh->size))) {
         mw->fm = fm;
         mw->from_file = true;
-        mw->md = (metadata*)fm->addr;
+        mw->md = (metadata *) fm->addr;
 
         //TODO: version checks....
-        mw->md->body  = (data_chunk*)mw->md->raw_data;
-        char* ptr     = GET_URL(mw->md);
-        mw->md->url   = ptr;
+        mw->md->body = (data_chunk *) mw->md->raw_data;
+        char *ptr = GET_URL(mw->md);
 
-        ptr          += strlen(mw->md->url) + 1;
-        mw->md->fn    = ptr;
+        mw->md->url = ptr;
 
-        ptr          += strlen(mw->md->fn) + 1;
-        mw->md->mime  = ptr;
+        ptr += strlen(mw->md->url) + 1;
+        mw->md->fn = ptr;
 
-        ptr                += strlen(mw->md->mime) + 1;
-        mw->md->ht = NULL; //TODO: parse and initialize hash table.
+        ptr += strlen(mw->md->fn) + 1;
+        mw->md->mime = ptr;
+
+        ptr += strlen(mw->md->mime) + 1;
+        mw->md->ht = NULL;	//TODO: parse and initialize hash table.
         return true;
     }
 
-    if (fm)
-    {
+    if (fm) {
         fhandle_munmap(&fm);
     }
-    if (fh)
-    {
+    if (fh) {
         fhandle_destroy(&fh);
     }
 
     return NULL;
 }
 
-bool metadata_create_from_url(const char* url,
-                              const char* fn,
-                              uint64      size,
-                              int         nc,
-                              mget_slis*  lst,
-                              metadata** md)
+bool metadata_create_from_url(const char *url,
+                              const char *fn,
+                              uint64 size,
+                              int nc, mget_slis * lst, metadata ** md)
 {
-    data_chunk* dc = NULL;
-    if (!md || !chunk_split(0, size, &nc, &dc) || !dc)
-    {
-        PDEBUG ("return err.\n");
+    data_chunk *dc = NULL;
+
+    if (!md || !chunk_split(0, size, &nc, &dc) || !dc) {
+        PDEBUG("return err.\n");
         return false;
     }
 
-    uint16 ebl = PA(strlen(url), 4) + 512; // TODO: calculate real eb_length from lst.
-    size_t md_size = MH_SIZE() + (sizeof(data_chunk)*nc) + ebl;
+    uint16 ebl = PA(strlen(url), 4) + 512;	// TODO: calculate real eb_length from lst.
+    size_t md_size = MH_SIZE() + (sizeof(data_chunk) * nc) + ebl;
 
-    metadata* pmd = (metadata*)malloc(md_size);
-    if (pmd)
-    {
+    metadata *pmd = (metadata *) malloc(md_size);
+
+    if (pmd) {
         *md = pmd;
         memset(pmd, 0, md_size);
-        mh* hd = &pmd->hd;
-        sprintf(((char*) &hd->iden), "TMD");
+        mh *hd = &pmd->hd;
+
+        sprintf(((char *) &hd->iden), "TMD");
         hd->version = GET_VERSION();
         hd->package_size = size;
         hd->last_time = get_time_s();
@@ -106,19 +104,19 @@ bool metadata_create_from_url(const char* url,
         hd->eb_length = ebl;
         hd->acon = nc;
 
-        pmd->body = (data_chunk*)pmd->raw_data;
-        char* ptr = pmd->raw_data + CHUNK_SIZE(pmd);
-        pmd->url  = ptr;
-        if (url)
-        {
+        pmd->body = (data_chunk *) pmd->raw_data;
+        char *ptr = pmd->raw_data + CHUNK_SIZE(pmd);
+
+        pmd->url = ptr;
+        if (url) {
             sprintf(pmd->url, "%s", url);
         }
 
         ptr += strlen(pmd->url) + 1;
         pmd->fn = ptr;
-        if (fn)
-        {
-            char* tmp = get_basename(fn);
+        if (fn) {
+            char *tmp = get_basename(fn);
+
             sprintf(pmd->fn, "%s", tmp);
             free(tmp);
         }
@@ -126,11 +124,11 @@ bool metadata_create_from_url(const char* url,
         ptr += strlen(pmd->fn) + 1;
         pmd->mime = ptr;
         ptr += strlen(pmd->mime) + 1;
-        pmd->ht = NULL; // TODO: Initialize hash table based on ptr.
+        pmd->ht = NULL;		// TODO: Initialize hash table based on ptr.
 
-        for (int i = 0; i < nc; ++i)
-        {
-            data_chunk* p = dc+i;
+        for (int i = 0; i < nc; ++i) {
+            data_chunk *p = dc + i;
+
             pmd->body[i] = *p;
         }
 
@@ -138,18 +136,17 @@ bool metadata_create_from_url(const char* url,
     return true;
 }
 
-void associate_wrapper(metadata_wrapper* mw)
+void associate_wrapper(metadata_wrapper * mw)
 {
-    if (!mw || mw->from_file)
-    {
+    if (!mw || mw->from_file) {
         return;
     }
-
     // Dump metadata to fm
     // TODO: Check size and remap if necessary.
-    metadata* nmd   = (metadata*)mw->fm->addr;
-    metadata* omd   = mw->md;
-    nmd->hd  = omd->hd;
+    metadata *nmd = (metadata *) mw->fm->addr;
+    metadata *omd = mw->md;
+
+    nmd->hd = omd->hd;
     nmd->url = GET_URL(nmd);
     if (omd->url)
         sprintf(nmd->url, "%s", omd->url);
@@ -162,30 +159,27 @@ void associate_wrapper(metadata_wrapper* mw)
     else
         nmd->fn = NULL;
 
-    nmd->body = (data_chunk*)nmd->raw_data;
-    for (uint8 i = 0; i < mw->md->hd.nr_chunks; ++i)
-    {
-        nmd->body[i]  = mw->md->body[i];
+    nmd->body = (data_chunk *) nmd->raw_data;
+    for (uint8 i = 0; i < mw->md->hd.nr_chunks; ++i) {
+        nmd->body[i] = mw->md->body[i];
     }
 
     nmd->ht = omd->ht;
     omd->ht = NULL;
 
     mw->md = nmd;
-    mw->from_file  = true;
+    mw->from_file = true;
 }
 
-void metadata_destroy(metadata_wrapper* mw)
+void metadata_destroy(metadata_wrapper * mw)
 {
-    if (!mw)
-    {
+    if (!mw) {
         return;
     }
 
-    if (mw->from_file) // created from file, just close it.
+    if (mw->from_file)		// created from file, just close it.
     {
-        if (mw->md->hd.status == RS_SUCCEEDED)
-        {
+        if (mw->md->hd.status == RS_SUCCEEDED) {
             mw->fm->fh->auto_remove = true;
         }
         fhandle_munmap_close(&mw->fm);
@@ -193,107 +187,103 @@ void metadata_destroy(metadata_wrapper* mw)
     }
 
     assert(0);
-// TODO: Remove this ifdef!
+    // TODO: Remove this ifdef!
 #if 0
 
-// Dump metadata to fm, close fm, and free md.
+    // Dump metadata to fm, close fm, and free md.
     // TODO: Check size and remap if necessary.
-    metadata* nmd = (metadata*)mw->fm->addr;
-    metadata* omd = mw->md;
+    metadata *nmd = (metadata *) mw->fm->addr;
+    metadata *omd = mw->md;
+
     nmd->total_size = omd->total_size;
     nmd->nr_chunks = omd->nr_chunks;
     nmd->url_length = omd->url_length;
     nmd->url = GET_URL(nmd);
-    if (omd->url)
-    {
+    if (omd->url) {
         sprintf(nmd->url, "%s", omd->url);
     }
 
-    for (uint8 i = 0; i < mw->md->nr_chunks; ++i)
-    {
-        data_chunk* p = &mw->md->body[i];
+    for (uint8 i = 0; i < mw->md->nr_chunks; ++i) {
+        data_chunk *p = &mw->md->body[i];
+
         nmd->body[i] = mw->md->body[i];
     }
 
     fhandle_munmap_close(&mw->fm);
     free(mw->md);
     mw->md = NULL;
-#endif // End of #if 0
+#endif				// End of #if 0
 }
 
-void metadata_display(metadata* md)
+void metadata_display(metadata * md)
 {
     fprintf(stderr, "\nShowing metadata: %p\n", md);
-    if (!md)
-    {
+    if (!md) {
         fprintf(stderr, "Empty metadata!%s\n", "");
         return;
     }
 
     fprintf(stderr, "size: %08llX (%.2f)M, nc: %d,url: %p -- %s\n",
-            md->hd.package_size, (float)md->hd.package_size/(1*M), md->hd.nr_chunks,
-            md->url, md->url);
+            md->hd.package_size, (float) md->hd.package_size / (1 * M),
+            md->hd.nr_chunks, md->url, md->url);
 
     uint64 recv = 0;
-    for (uint8 i = 0; i < md->hd.nr_chunks; ++i)
-    {
-        data_chunk* cp = &md->body[i];
+
+    for (uint8 i = 0; i < md->hd.nr_chunks; ++i) {
+        data_chunk *cp = &md->body[i];
         uint64 chunk_recv = cp->cur_pos - cp->start_pos;
         uint64 chunk_size = cp->end_pos - cp->start_pos;
-        char* cs = strdup(stringify_size(chunk_size));
-        char* es = strdup(stringify_size(cp->end_pos));
+        char *cs = strdup(stringify_size(chunk_size));
+        char *es = strdup(stringify_size(cp->end_pos));
+
         recv += chunk_recv;
         fprintf(stderr,
                 "Chunk: %p -- (%s), start: %08llX, cur: %08llX, end: %08llX (%s) -- %.02f%%\n",
                 cp, cs, cp->start_pos, cp->cur_pos,
-                cp->end_pos, es, (float)(chunk_recv)/chunk_size * 100);
+                cp->end_pos, es, (float) (chunk_recv) / chunk_size * 100);
         free(cs);
         free(es);
     }
     fprintf(stderr, "%s finished...\n\n", stringify_size(recv));
 }
 
-bool chunk_split(uint64 start, uint64 size, int *num, data_chunk** dc)
+bool chunk_split(uint64 start, uint64 size, int *num, data_chunk ** dc)
 {
-    if (!size || !dc || !num)
-    {
+    if (!size || !dc || !num) {
         return false;
     }
 
-    if (*num <= 0)
-    {
+    if (*num <= 0) {
         *num = 1;
     }
 
     uint64 cs = size / *num;
-    if (cs <= MIN_CHUNK_SIZE)
-    {
+
+    if (cs <= MIN_CHUNK_SIZE) {
         cs = MIN_CHUNK_SIZE;
-    }
-    else
-    {
-        cs = ((uint64)1 << ((int)log2(cs / MIN_CHUNK_SIZE) + 1)) * MIN_CHUNK_SIZE;
+    } else {
+        cs = ((uint64) 1 << ((int) log2(cs / MIN_CHUNK_SIZE) + 1)) *
+             MIN_CHUNK_SIZE;
     }
 
     uint32 total_size = *num * sizeof(data_chunk);
-    *dc = (data_chunk*)malloc(total_size);
+
+    *dc = (data_chunk *) malloc(total_size);
     memset(*dc, 0, total_size);
-    data_chunk* dp = *dc;
-    for (int i = 0; i < *num; ++i)
-    {
-        dp               = *dc+i;
-        dp->start_pos    = i * cs;
-        dp->cur_pos      = i *   cs;
-        dp->end_pos      = dp->cur_pos + cs;
-        if (dp->end_pos >= size)
-        {
+    data_chunk *dp = *dc;
+
+    for (int i = 0; i < *num; ++i) {
+        dp = *dc + i;
+        dp->start_pos = i * cs;
+        dp->cur_pos = i * cs;
+        dp->end_pos = dp->cur_pos + cs;
+        if (dp->end_pos >= size) {
             dp->end_pos = size;
-            *num = i+1;
+            *num = i + 1;
             break;
         }
     }
-    PDEBUG ("results: chunk_size: %.02fM, nc: %d\n",
-            (float)cs/M, *num);
+    PDEBUG("results: chunk_size: %.02fM, nc: %d\n", (float) cs / M, *num);
 
     return true;
 }

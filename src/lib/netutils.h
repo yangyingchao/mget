@@ -1,3 +1,4 @@
+
 /** netutils.h --- utility and structure related to net
  *
  * Copyright (C) 2013 Yang,Ying-chao
@@ -29,33 +30,30 @@ extern "C" {
 
 #include "typedefs.h"
 
-typedef enum _url_protocol
-{
-    UP_HTTP = 0,
-    UP_HTTPS,
-    UP_FTP,
-    UP_INVALID
-} url_protocol;
+    typedef enum _url_protocol {
+	UP_HTTP = 0,
+	UP_HTTPS,
+	UP_FTP,
+	UP_INVALID
+    } url_protocol;
 
-typedef struct _url_info
-{
-    url_protocol eprotocol;
-    uint32       port;
-    char         protocol[8];
-    char         host[64];
-    char         sport[8];
-    char*         bname;
-    char*        uri;
-    char*        furl;                  /* full url.*/
-} url_info;
+    typedef struct _url_info {
+	url_protocol eprotocol;
+	uint32 port;
+	char protocol[8];
+	char host[64];
+	char sport[8];
+	char *bname;
+	char *uri;
+	char *furl;		/* full url. */
+    } url_info;
 
-bool parse_url(const char* url, url_info** ui);
-void url_info_copy(url_info*,url_info*);
-void url_info_display(url_info*);
-void url_info_destroy(url_info** ui);
+    bool parse_url(const char *url, url_info ** ui);
+    void url_info_copy(url_info *, url_info *);
+    void url_info_display(url_info *);
+    void url_info_destroy(url_info ** ui);
 
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* _NETUTILS_H_ */
+#endif				/* _NETUTILS_H_ */

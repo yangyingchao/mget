@@ -36,3 +36,4 @@ core.*
 /README.html
 /proj/mget.xcodeproj/project.xcworkspace/
 proj/mget.xcodeproj/xcuserdata/
+*~

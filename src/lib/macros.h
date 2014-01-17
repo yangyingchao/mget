@@ -1,3 +1,4 @@
+
 /** macros.h --- macros...
  *
  * Copyright (C) 2013 Yang,Ying-chao
@@ -41,4 +42,4 @@
 #define xrealloc(X, Y)       XREALLOC(X, Y)
 
 
-#endif /* _MACROS_H_ */
+#endif				/* _MACROS_H_ */

@@ -1,3 +1,4 @@
+
 /* Declarations for log.c.
    Copyright (C) 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006,
    2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
@@ -39,21 +40,21 @@ as that of the covered work.  */
 
 enum log_options { LOG_VERBOSE, LOG_NOTQUIET, LOG_NONVERBOSE, LOG_ALWAYS };
 
-void log_set_warc_log_fp (FILE *);
+void log_set_warc_log_fp(FILE *);
 
-void logprintf (enum log_options, const char *, ...);
-void debug_logprintf (const char *, ...);
-void logputs (enum log_options, const char *);
-void logflush (void);
-void log_set_flush (bool);
-bool log_set_save_context (bool);
+void logprintf(enum log_options, const char *, ...);
+void debug_logprintf(const char *, ...);
+void logputs(enum log_options, const char *);
+void logflush(void);
+void log_set_flush(bool);
+bool log_set_save_context(bool);
 
-void log_init (const char *, bool);
-void log_close (void);
-void log_cleanup (void);
-void log_request_redirect_output (const char *);
+void log_init(const char *, bool);
+void log_close(void);
+void log_cleanup(void);
+void log_request_redirect_output(const char *);
 
-const char *escnonprint (const char *);
-const char *escnonprint_uri (const char *);
+const char *escnonprint(const char *);
+const char *escnonprint_uri(const char *);
 
-#endif /* LOG_H */
+#endif				/* LOG_H */

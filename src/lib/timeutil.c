@@ -30,60 +30,54 @@
 uint32 get_time_ms()
 {
     struct timeval tv;
-    if (gettimeofday(&tv, NULL) == 1)
-    {
+
+    if (gettimeofday(&tv, NULL) == 1) {
         return 0;
     }
 
-    return (uint32)tv.tv_sec * 1000 + tv.tv_usec / 1000;
+    return (uint32) tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 
 uint32 get_time_s()
 {
-    return (uint32)time(NULL);
+    return (uint32) time(NULL);
 }
 
 #define MINUTE     (60)
 #define HOUR       (MINUTE*60)
 #define DAY       (HOUR*24)
 
-char* stringify_time(uint64 ts)
+char *stringify_time(uint64 ts)
 {
-    static char str_time[64] = {'\0'};
+    static char str_time[64] = { '\0' };
     memset(str_time, 0, 64);
 
-    if (ts < MINUTE)
-    {
+    if (ts < MINUTE) {
         sprintf(str_time, "%llu seconds", ts);
-    }
-    else if (ts < HOUR)
-    {
-        sprintf(str_time, "%.01f minutes", (double)ts/MINUTE);
-    }
-    else if (ts < DAY)
-    {
-        sprintf(str_time, "%.01f hours", (double)ts/HOUR);
-    }
-    else
-    {
-        sprintf(str_time, "%.01f days", (double)ts/DAY);
+    } else if (ts < HOUR) {
+        sprintf(str_time, "%.01f minutes", (double) ts / MINUTE);
+    } else if (ts < DAY) {
+        sprintf(str_time, "%.01f hours", (double) ts / HOUR);
+    } else {
+        sprintf(str_time, "%.01f days", (double) ts / DAY);
     }
     return str_time;
 }
 
 
-char* datetime_str(time_t t)
+char *datetime_str(time_t t)
 {
     static char output[32];
     struct tm *tm = localtime(&t);
+
     if (!tm)
-        abort ();
+        abort();
     if (!strftime(output, sizeof(output), "%Y-%m-%d %H:%M:%S", tm))
-        abort ();
+        abort();
     return strdup(output);
 }
 
-char* current_time_str()
+char *current_time_str()
 {
     return datetime_str(time(NULL));
 }

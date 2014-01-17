@@ -1,3 +1,4 @@
+
 /** connection.h --- interface of connectionet, used internally by libmget.
  *
  * Copyright (C) 2013 Yang,Ying-chao
@@ -29,44 +30,42 @@ extern "C" {
 
 #include "netutils.h"
 
-typedef struct _connection connection;
+    typedef struct _connection connection;
 
-typedef uint32 (*read_func) (connection*, char *, uint32, void *);
-typedef uint32 (*write_func) (connection*, char *, uint32, void *);
-typedef void (*close_func) (connection*, void *);
+    typedef uint32(*read_func) (connection *, char *, uint32, void *);
+    typedef uint32(*write_func) (connection *, char *, uint32, void *);
+    typedef void (*close_func) (connection *, void *);
 
 /** copied from wget .. */
-typedef struct _connection_impl {
-    read_func  reader;
-    write_func writer;
-} cipl;
+    typedef struct _connection_impl {
+	read_func reader;
+	write_func writer;
+    } cipl;
 
-typedef int (*connection_read_func)(connection*, void*);
-typedef int (*connection_write_func)(connection*, void*);
+    typedef int (*connection_read_func) (connection *, void *);
+    typedef int (*connection_write_func) (connection *, void *);
 
 
 // TODO: Hide sock, use transport_implementation above...
-struct _connection
-{
-    cipl ci; // returned by connection impl, should not be modified.
-    connection_read_func  rf;
-    connection_write_func wf;
-    void*           priv;
-};
+    struct _connection {
+	cipl ci;		// returned by connection impl, should not be modified.
+	connection_read_func rf;
+	connection_write_func wf;
+	void *priv;
+    };
 
-typedef struct _connection_group connection_group;
+    typedef struct _connection_group connection_group;
 
-connection_group* connection_group_create(bool* flag);
-void connection_group_destroy(connection_group*);
-void connection_add_to_group(connection_group*, connection*);
-int  connection_perform(connection_group* sock);
+    connection_group *connection_group_create(bool * flag);
+    void connection_group_destroy(connection_group *);
+    void connection_add_to_group(connection_group *, connection *);
+    int connection_perform(connection_group * sock);
 
-connection* connection_get(url_info* ui);
-void connection_put(connection* sock);
+    connection *connection_get(const url_info * ui);
+    void connection_put(connection * sock);
 
 
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* _MGET_SOCK_H_ */
+#endif				/* _MGET_SOCK_H_ */

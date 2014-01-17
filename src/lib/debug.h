@@ -1,3 +1,4 @@
+
 /** debug.h --- utility for debugging.
  *
  * Copyright (C) 2013 Yang,Ying-chao
@@ -44,6 +45,6 @@
     } while(0)
 #else
 #define PDEBUG(fmt, args...)
-#endif /* _DEBUG_H_ */
+#endif				/* _DEBUG_H_ */
 
 #endif
