@@ -117,9 +117,25 @@ uint64 get_remote_file_size_http(url_info * ui, connection * conn)
     PDEBUG("stat: %d, description: %s\n",
            stat, (char *) hash_table_entry_get(ht, "Status"));
 
+    int   num = 0;
+    char* ptr = NULL;
+
     switch (stat) {
         case 206:			// Ok, we can start download now.
         {
+            ptr = (char *) hash_table_entry_get(ht, "Content-Range");
+            if (!ptr) {
+                fprintf(stderr, "Content Range not returned!\n");
+                t = 0;
+                goto ret;
+            }
+
+            PDEBUG("Range:: %s\n", ptr);
+
+            uint64 s, e;
+            num = sscanf(ptr, "bytes %llu-%llu/%llu",
+                             &s, &e, &t);
+
             break;
         }
         case 302:			// Resource moved to other place.
@@ -139,6 +155,21 @@ uint64 get_remote_file_size_http(url_info * ui, connection * conn)
                     "Failed to get new location for status code: 302\n");
             break;
         }
+        case 200:
+        {
+            ptr = (char *) hash_table_entry_get(ht, "Content-Length");
+            if (!ptr) {
+                fprintf(stderr, "Content Length not returned!\n");
+                t = 0;
+                goto ret;
+            }
+
+            PDEBUG("Content-Length: %s\n", ptr);
+
+            num = sscanf(ptr, "%llu", &t);
+
+            break;
+        }
         default:
         {
             fprintf(stderr, "Not implemented for status code: %d\n", stat);
@@ -146,20 +177,6 @@ uint64 get_remote_file_size_http(url_info * ui, connection * conn)
             goto ret;
         }
     }
-
-    char *ptr = (char *) hash_table_entry_get(ht, "Content-Range");
-
-    if (!ptr) {
-        fprintf(stderr, "Content Range not returned!\n");
-        t = 0;
-        goto ret;
-    }
-
-    PDEBUG("Range:: %s\n", ptr);
-
-    uint64 s, e;
-    int num = sscanf(ptr, "bytes %llu-%llu/%llu",
-                     &s, &e, &t);
 
     if (!num) {
         fprintf(stderr, "Failed to parse string: %s\n", ptr);
@@ -209,7 +226,7 @@ int http_read_sock(connection * conn, void *priv)
             size_t ds = ptr - buf + 4;
             int r = dissect_header(buf, ds, &param->ht);
 
-            if (r != 206) {
+            if (r != 206 && r != 200) { /* Some server returns 200?? */
                 fprintf(stderr, "status code is %d!\n", r);
                 exit(1);
             }
