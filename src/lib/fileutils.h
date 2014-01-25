@@ -31,7 +31,7 @@ typedef struct _file_name {
     char *basen;
 } file_name;
 
-/** returns true if final directory is file, or false if final path is directory*/
+/** returns true if final path is file, or false if final path is directory*/
 bool get_full_path(const file_name *, char **);
 
 typedef struct _fhandle {

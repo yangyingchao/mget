@@ -1,4 +1,3 @@
-
 /** libmget.c --- implementation of libmget.
  *
  * Copyright (C) 2013 Yang,Ying-chao
@@ -35,48 +34,81 @@ typedef void (*request_processor) (url_info * ui, const char *dn, int nc,
 bool start_request(const char *url, const file_name * fn, int nc,
 		   download_progress_callback cb, bool * stop_flag)
 {
-    if (!url || *url == '\0' || !fn) {
-	PDEBUG("Invalid args...\n");
-	return false;		//@todo: add more checks...
+    url_info *ui    = NULL;
+    char     *fpath = NULL;
+    metadata_wrapper  mw;
+
+retry:
+    memset(&mw, 0, sizeof(mw));
+
+    if (url && !!parse_url(url, &ui)) {
+        fprintf(stderr, "Failed to parse given url: %s\n", url);
+        return false;
     }
-
-    url_info *ui = NULL;
-
-    if (!parse_url(url, &ui)) {
-	printf("Failed to parse URL: %s\n", url);
-	return false;
-    }
-
-    char *fpath = NULL;
 
     if (!get_full_path(fn, &fpath)) {
-	char *tmp = ZALLOC(char, strlen(fpath) + strlen(ui->bname) + 2);
+        if (!ui || !ui->bname) {
+            fprintf(stderr, "Failed parse url(%s) and output directory\n",
+                    url);
+            return false;
+        }
 
-	sprintf(tmp, "%s/%s", fpath, ui->bname);
-	FIF(fpath);
-	fpath = tmp;
+        char *tmp = ZALLOC(char, strlen(fpath) + strlen(ui->bname) + 2);
+        sprintf(tmp, "%s/%s", fpath, ui->bname);
+        FIF(fpath);
+        fpath = tmp;
     }
 
-    PDEBUG("ui: %p\n", ui);
+    if (!fpath) {
+        fprintf(stderr, "Failed to guess local file name!\n");
+        return false;
+    }
+
+    char tfn[256] = { '\0' };
+    sprintf(tfn, "%s.tmd", fpath);
+    if (file_existp(tfn) && metadata_create_from_file(tfn, &mw)) {
+        PDEBUG("metadta created from file: %s\n", tfn);
+
+        // Destroy url info and recreate using url stored in mw.
+        url_info_destroy(&ui);
+        if (!parse_url(mw.md->url, &ui)) {
+            fprintf(stderr, "Failed to parse stored url: %s.\n", mw.md->url);
+            if (url) {
+                fprintf(stderr, "Removing old metadata and retring...\n");
+                url_info_destroy(&ui);
+                goto retry;
+            }
+            fprintf(stderr, "Abort: no url provided...\n");
+            return false;
+        }
+    }
+    else {
+        fhandle *fh = fhandle_create(tfn, FHM_CREATE);
+
+        mw.fm = fhandle_mmap(fh, 0, MD_SIZE(mw.md));
+        mw.from_file = false;
+        memset(mw.fm->addr, 0, MD_SIZE(mw.md));
+    }
+
     url_info_display(ui);
     if (!ui) {
-	fprintf(stderr, "Failed to parse URL: %s\n", url);
-	return false;
+        fprintf(stderr, "Failed to parse URL: %s\n", url);
+        return false;
     }
     switch (ui->eprotocol) {
-    case UP_HTTP:
-    case UP_HTTPS:
-	{
-	    int ret = process_http_request(ui, fpath, nc, cb, stop_flag);
+        case UP_HTTP:
+        case UP_HTTPS:
+        {
+            int ret = process_http_request(ui, &mw, nc, cb, stop_flag);
 
-	    if (ret == 0) {
-		break;
-	    }
-	}
-    default:
-	{
-	    break;
-	}
+            if (ret == 0) {
+                break;
+            }
+        }
+        default:
+        {
+            break;
+        }
     }
 
     url_info_destroy(&ui);

@@ -102,9 +102,9 @@ typedef struct _metadata_wrapper {
 bool chunk_split(uint64 start, uint64 size, int *num, data_chunk ** dc);
 bool metadata_create_from_file(const char *fn, metadata_wrapper * mw);
 bool metadata_create_from_url(const char *url,
-			      const char *fn,
-			      uint64 size,
-			      int nc, mget_slis * lst, metadata ** md);
+                              const char *fn,
+                              uint64 size,
+                              int nc, mget_slis * lst, metadata ** md);
 void metadata_destroy(metadata_wrapper * mw);
 void metadata_display(metadata * md);
 void associate_wrapper(metadata_wrapper * mw);
