@@ -1,7 +1,6 @@
-
-/** mget_http.h --- interface of libmget using raw socket
+/** download_info.h --- information of downloading.
  *
- * Copyright (C) 2013 Yang,Ying-chao
+ * Copyright (C) 2014 Yang,Ying-chao
  *
  * Author: Yang,Ying-chao <yangyingchao@gmail.com>
  *
@@ -21,23 +20,24 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#ifndef _HTTP_H_
-#define _HTTP_H_
+#ifndef _DOWNLOAD_INFO_H_
+#define _DOWNLOAD_INFO_H_
 
-#include "netutils.h"
-#include "download_info.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-/**
- * @name process_http_request - Begin process http request.
- * @param ui -  url information, should not be NULL.
- * @param info -  information about metadata and file.
- * @param cb - Callback function to notify progress.
- * @param stop_flag - A flag used by http handler to check if need to stop.
- * @return int
- */
-int process_http_request(url_info * ui,
-                         download_info* info,
-                         void (*cb) (metadata * md),
-                         bool * stop_flag);
+#include "metadata.h"
 
-#endif				/* _HTTP_H_ */
+typedef struct _download_info
+{
+    metadata* md;
+    fh_map*   fm_md;
+    fh_map*   fm_file;
+} download_info;
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* _DOWNLOAD_INFO_H_ */

@@ -1,4 +1,3 @@
-
 /** metadata.h --- metadata of file, recording data of data.
  *
  * Copyright (C) 2013 Yang,Ying-chao
