@@ -112,19 +112,35 @@ void show_progress(metadata* md)
     }
 }
 
-void usage(int argc, char *argv[])
+void print_help()
 {
-    printf("Usage:\n\tTo download url and store to directory:"
-           "\t%s -d directory url..\n", argv[0]);
-    printf("or:\n\tTo show metadata of file:\n\t"
-           "%s -s file..\n", argv[0]);
+    static const char* help[] = {
+        "\nOptions:\n",
+        "\t-j:  max connections (should be smaller than 40).\n",
+        "\t-d:  set folder to store download data.\n",
+        "\t-o:  set file name to store download data."
+        "If not provided, mget will name it.\n",
+        "\t-r:  resume a previous download using stored metadata.\n",
+        "\t-h:  show this help.\n",
+        "\n",
+        NULL
+    };
+
+    printf ("Mget %s, non-interactive network retriever"
+            "with multiple connections\n", VERSION_STRING);
+
+    const char** ptr = help;
+    while (*ptr != NULL) {
+        printf ("%s", *ptr);
+        ptr++;
+    }
 }
 
 int main(int argc, char *argv[])
 {
 
     if (argc == 1) {
-        usage(argc, argv);
+        print_help();
         return 1;
     }
 
@@ -138,8 +154,13 @@ int main(int argc, char *argv[])
 
     memset(&fn, 0, sizeof(file_name));
 
-    while ((opt = getopt(argc, argv, "j:d:o:r:s")) != -1) {
+    while ((opt = getopt(argc, argv, "hj:d:o:r:s")) != -1) {
         switch (opt) {
+            case 'h':
+            {
+                print_help();
+                exit(0);
+            }
             case 'd':
             {
                 fn.dirn = strdup(optarg);
@@ -183,7 +204,7 @@ int main(int argc, char *argv[])
     target = optind <= argc ? argv[optind] : NULL;
 
     if (!resume && !target) {
-        usage(argc, argv);
+        print_help();
         exit(1);
     }
 
