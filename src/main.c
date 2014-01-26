@@ -24,10 +24,27 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include "debug.h"
 #include "libmget.h"
 #include "timeutil.h"
 #include <signal.h>
+
+#ifdef DEBUG
+#define PDEBUG(fmt, args...)                                            \
+    do {                                                                \
+        char msg[256] = {'\0'};                                         \
+        const char* file = __FILE__;                                    \
+        const char* ptr = file;                                         \
+        const char* sep = "/";                                          \
+        while ((ptr = strstr(file, sep)) != NULL) {                     \
+            file = ptr;                                                 \
+            file = ++ptr;                                               \
+        }                                                               \
+                                                                        \
+        sprintf(msg, "TDEBUG: - %s(%d)-%s\t: ",                         \
+                file, __LINE__,__FUNCTION__);                           \
+        fprintf(stderr, strcat(msg, fmt ), ##args);                     \
+        } while(0)
+#endif  /*End of if PDEBUG*/
 
 #define MAX_NC       40
 
@@ -42,7 +59,7 @@ void sigterm_handler(int signum)
     fprintf(stderr, "Saving temporary data...\n");
 }
 
-void show_progress(metadata * md)
+void show_progress(metadata* md)
 {
     static int    idx       = 0;
     static uint32 ts        = 0;
@@ -55,11 +72,11 @@ void show_progress(metadata * md)
                date, md->fn,
                stringify_time(md->hd.acc_time),
                (double) (md->hd.package_size) / K / md->hd.acc_time);
-        FIF(date);
+        free(date);
         return;
     }
 
-    int threshhold = 78 * md->hd.acon / md->hd.nr_chunks;
+    int threshhold = 78 * md->hd.acon / md->hd.nr_effective;
 
     if (idx < threshhold) {
         if (!ts) {
@@ -74,7 +91,7 @@ void show_progress(metadata * md)
         uint64      total = md->hd.package_size;
         uint64      recv  = 0;
 
-        for (int i = 0; i < md->hd.nr_chunks; ++i) {
+        for (int i = 0; i < md->hd.nr_effective; ++i) {
             recv += dp->cur_pos - dp->start_pos;
             dp++;
         }
@@ -165,13 +182,17 @@ int main(int argc, char *argv[])
     if (view_only) {
         if (file_existp(target)) {
             printf("showing tmd file: %s\n", target);
+// TODO: Remove this ifdef!
+#if 0
 
-            metadata_wrapper mw;
+metadata_wrapper mw;
 
             metadata_create_from_file(target, &mw);
             metadata_display(mw.md);
             metadata_destroy(&mw);
-        } else {
+#endif // End of #if 0
+
+} else {
             printf("File: %s not exists!\n", target);
         }
     } else {

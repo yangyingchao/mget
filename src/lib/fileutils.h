@@ -24,14 +24,9 @@
 #ifndef _FILEUTILS_H_
 #define _FILEUTILS_H_
 
-#include "typedefs.h"
+#include "libmget.h"
 
-typedef struct _file_name {
-    char *dirn;
-    char *basen;
-} file_name;
-
-/** returns true if final directory is file, or false if final path is directory*/
+/** returns true if final path is file, or false if final path is directory*/
 bool get_full_path(const file_name *, char **);
 
 typedef struct _fhandle {
@@ -57,10 +52,12 @@ typedef struct _fh_map {
 
 fh_map *fhandle_mmap(fhandle * fh, off_t offset, size_t length);
 void fhandle_munmap(fh_map ** fm);
-void fhandle_msync(fh_map * fm);
+void fhandle_msync(fh_map* fm);
 void fhandle_munmap_close(fh_map ** fm);
 char *get_basename(const char *fname);
-bool file_existp(const char *fn);
 void remove_file(const char *fn);
+
+fh_map* fm_create(const char* fn, size_t length);
+bool fm_remap(fh_map** fm, size_t new_length);
 
 #endif				/* _FILEUTILS_H_ */

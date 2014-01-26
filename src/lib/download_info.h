@@ -1,7 +1,6 @@
-
-/** libmget.h --- interface of libmget.
+/** dinfo.h --- information of downloading.
  *
- * Copyright (C) 2013 Yang,Ying-chao
+ * Copyright (C) 2014 Yang,Ying-chao
  *
  * Author: Yang,Ying-chao <yangyingchao@gmail.com>
  *
@@ -21,21 +20,35 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#ifndef _LIBMGET_H_
-#define _LIBMGET_H_
+#ifndef _DOWNLOAD_INFO_H_
+#define _DOWNLOAD_INFO_H_
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include "mget_metadata.h"
-#include "mget_utils.h"
+#include "netutils.h"
+#include "fileutils.h"
 
-typedef struct _file_name {
-    char *dirn;
-    char *basen;
-} file_name;
+typedef struct _dinfo
+{
+    url_info* ui;
+    metadata* md;
+    fh_map*   fm_md;
+    fh_map*   fm_file;
+} dinfo;
 
-// dp stands for download_progress
-typedef void (*dp_callback) (metadata * md);
+bool dinfo_create(const char *url, const file_name* fn, int nc, dinfo** info);
+void dinfo_destroy(dinfo** info);
+bool dinfo_ready(dinfo* info);
 
-bool start_request(const char *url, const file_name * fn, int nc,
-                   dp_callback cb, bool * stop_flag);
+bool dinfo_update_metadata(uint64 size, dinfo* info);
 
+void dinfo_sync(dinfo* info);
+
+#ifdef __cplusplus
+}
 #endif
+
+#endif /* _DOWNLOAD_INFO_H_ */

@@ -22,7 +22,7 @@
 
 #include "data_utlis.h"
 #include <stdlib.h>
-#include "debug.h"
+#include "log.h"
 #include <string.h>
 
 mget_slis *mget_slis_append(mget_slis * l, void *data, free_func f)

@@ -28,7 +28,7 @@
 // extern "C" {
 // #endif
 
-#include "typedefs.h"
+#include "mget_types.h"
 
 bool ssl_init();
 

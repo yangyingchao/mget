@@ -28,7 +28,7 @@
 extern "C" {
 #endif
 
-#include "typedefs.h"
+#include "mget_types.h"
 
     uint32 get_time_ms();
     uint32 get_time_s();

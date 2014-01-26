@@ -24,8 +24,9 @@ if(NOT HAVE_EPOLL)
 endif(NOT HAVE_EPOLL)
 
 configure_file(mget_config.h.in mget_config.h)
-add_library(mget SHARED libmget.c metadata.c fileutils.c
-  http.c connection.c  timeutil.c  data_utlis.c netutils.c gnutls.c log.c)
+
+file(GLOB SOURCES "*.c")
+add_library(mget SHARED ${SOURCES})
 
 target_link_libraries(mget m)
 install(
@@ -34,9 +35,6 @@ install(
   DESTINATION "/usr/lib")
 
 #TODO: install header files....
-
-add_executable(ctest ctest.c)
-target_link_libraries(ctest curl mget)
 
 if (GNUTLS_FOUND)
   include_directories(${GNUTLS_INCLUDE_DIR})

@@ -1,4 +1,3 @@
-
 /** data_utlis.h --- generic data structures
  *
  * Copyright (C) 2013 Yang,Ying-chao
@@ -24,12 +23,13 @@
 #ifndef _DATA_UTLIS_H_
 #define _DATA_UTLIS_H_
 
-// #ifdef __cplusplus
-// extern "C" {
-// #endif
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#include "typedefs.h"
+#include "mget_types.h"
 #include "macros.h"
+#include "mget_utils.h"
 
 typedef void (*free_func) (void *);
 
@@ -116,17 +116,8 @@ char *rstrip(char *str);
 
 #define GET_HASH_ENTRY(T, H, K)       ((T*)hash_table_entry_get(H, K))
 
-
-#define K       (1 << 10)
-#define M       (1 << 20)
-#define G       (1 << 30)
-#define T       (1 << 40)
-
-// user should copy this tring after it returns!
-const char *stringify_size(uint64 sz);
-
-// #ifdef __cplusplus
-// }
-// #endif
+#ifdef __cplusplus
+}
+#endif
 
 #endif				/* _DATA_UTLIS_H_ */

@@ -24,9 +24,19 @@
 #ifndef _HTTP_H_
 #define _HTTP_H_
 
-#include "netutils.h"
-#include "metadata.h"
-int process_http_request(url_info * ui, const char *dp, int nc,
-			 void (*cb) (metadata * md), bool * stop_flag);
+#include "libmget.h"
+#include "download_info.h"
+
+/**
+ * @name process_http_request - Begin process http request.
+ * @param ui -  url information, should not be NULL.
+ * @param info -  information about metadata and file.
+ * @param cb - Callback function to notify progress.
+ * @param stop_flag - A flag used by http handler to check if need to stop.
+ * @return int
+ */
+int process_http_request(dinfo* info,
+                         dp_callback cb,
+                         bool * stop_flag);
 
 #endif				/* _HTTP_H_ */

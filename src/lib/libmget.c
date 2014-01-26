@@ -1,4 +1,3 @@
-
 /** libmget.c --- implementation of libmget.
  *
  * Copyright (C) 2013 Yang,Ying-chao
@@ -21,11 +20,10 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#include "libmget.h"
 #include "macros.h"
 #include <stdio.h>
 #include <strings.h>
-#include "debug.h"
+#include "log.h"
 #include "http.h"
 
 typedef void (*request_processor) (url_info * ui, const char *dn, int nc,
@@ -33,52 +31,34 @@ typedef void (*request_processor) (url_info * ui, const char *dn, int nc,
 				   bool * stop_flag);
 
 bool start_request(const char *url, const file_name * fn, int nc,
-		   download_progress_callback cb, bool * stop_flag)
+                   dp_callback cb, bool * stop_flag)
 {
-    if (!url || *url == '\0' || !fn) {
-	PDEBUG("Invalid args...\n");
-	return false;		//@todo: add more checks...
+    dinfo* info = NULL;
+    bool   ret  = dinfo_create(url, fn, nc, &info);
+    if (!ret)
+    {
+        fprintf(stderr, "Failed to create download info\n");
+        return ret;
     }
 
-    url_info *ui = NULL;
+    url_info_display(info->ui);
+    switch (info->ui->eprotocol) {
+        case UP_HTTP:
+        case UP_HTTPS:
+        {
+            int ret = process_http_request(info, cb, stop_flag);
 
-    if (!parse_url(url, &ui)) {
-	printf("Failed to parse URL: %s\n", url);
-	return false;
+            if (ret == 0) {
+                break;
+            }
+        }
+        default:
+        {
+            break;
+        }
     }
 
-    char *fpath = NULL;
+    dinfo_destroy(&info);
 
-    if (!get_full_path(fn, &fpath)) {
-	char *tmp = ZALLOC(char, strlen(fpath) + strlen(ui->bname) + 2);
-
-	sprintf(tmp, "%s/%s", fpath, ui->bname);
-	FIF(fpath);
-	fpath = tmp;
-    }
-
-    PDEBUG("ui: %p\n", ui);
-    url_info_display(ui);
-    if (!ui) {
-	fprintf(stderr, "Failed to parse URL: %s\n", url);
-	return false;
-    }
-    switch (ui->eprotocol) {
-    case UP_HTTP:
-    case UP_HTTPS:
-	{
-	    int ret = process_http_request(ui, fpath, nc, cb, stop_flag);
-
-	    if (ret == 0) {
-		break;
-	    }
-	}
-    default:
-	{
-	    break;
-	}
-    }
-
-    url_info_destroy(&ui);
-    return true;
+    return ret;
 }
