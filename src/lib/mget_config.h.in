@@ -33,4 +33,7 @@
 #cmakedefine HAVE_EPOLL
 #cmakedefine HAVE_GNUTLS
 
+#define VERSION_STRING       "@VERSION_MAJOR@.@VERSION_MINOR@.@VERSION_PATCH@"
+
+
 #endif /* _MGET_CONFIG_H_ */

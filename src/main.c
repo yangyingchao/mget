@@ -112,19 +112,35 @@ void show_progress(metadata* md)
     }
 }
 
-void usage(int argc, char *argv[])
+void print_help()
 {
-    printf("Usage:\n\tTo download url and store to directory:"
-           "\t%s -d directory url..\n", argv[0]);
-    printf("or:\n\tTo show metadata of file:\n\t"
-           "%s -s file..\n", argv[0]);
+    static const char* help[] = {
+        "\nOptions:\n",
+        "\t-j:  max connections (should be smaller than 40).\n",
+        "\t-d:  set folder to store download data.\n",
+        "\t-o:  set file name to store download data."
+        "If not provided, mget will name it.\n",
+        "\t-r:  resume a previous download using stored metadata.\n",
+        "\t-h:  show this help.\n",
+        "\n",
+        NULL
+    };
+
+    printf ("Mget %s, non-interactive network retriever"
+            "with multiple connections\n", VERSION_STRING);
+
+    const char** ptr = help;
+    while (*ptr != NULL) {
+        printf ("%s", *ptr);
+        ptr++;
+    }
 }
 
 int main(int argc, char *argv[])
 {
 
     if (argc == 1) {
-        usage(argc, argv);
+        print_help();
         return 1;
     }
 
@@ -133,11 +149,18 @@ int main(int argc, char *argv[])
     int  nc        = 5;                 // default number of connections.
 
     file_name fn;
+    char *target = NULL;
+    bool resume = false;
 
     memset(&fn, 0, sizeof(file_name));
 
-    while ((opt = getopt(argc, argv, "j:d:o:s")) != -1) {
+    while ((opt = getopt(argc, argv, "hj:d:o:r:s")) != -1) {
         switch (opt) {
+            case 'h':
+            {
+                print_help();
+                exit(0);
+            }
             case 'd':
             {
                 fn.dirn = strdup(optarg);
@@ -165,6 +188,12 @@ int main(int argc, char *argv[])
                 fn.basen = strdup(optarg);
                 break;
             }
+            case 'r': // resume downloading
+            {
+                fn.basen = strdup(optarg);
+                resume = true;
+                break;
+            }
             default:
             {
                 break;
@@ -172,33 +201,39 @@ int main(int argc, char *argv[])
         }
     }
 
-    char *target = optind <= argc ? argv[optind] : NULL;
+    target = optind <= argc ? argv[optind] : NULL;
 
-    if (!target) {
-        usage(argc, argv);
+    if (!resume && !target) {
+        print_help();
         exit(1);
     }
 
     if (view_only) {
         if (file_existp(target)) {
-            printf("showing tmd file: %s\n", target);
-// TODO: Remove this ifdef!
+            printf("showing tmd file: %s, TBD...\n", target);
+            // TODO: Remove this ifdef!
 #if 0
 
-metadata_wrapper mw;
+            metadata_wrapper mw;
 
             metadata_create_from_file(target, &mw);
             metadata_display(mw.md);
             metadata_destroy(&mw);
 #endif // End of #if 0
 
-} else {
+        } else {
             printf("File: %s not exists!\n", target);
         }
     } else {
-        printf("downloading file: %s, saving to %s/%s\n", target,
-               fn.dirn ? fn.dirn : (fn.basen ? "" : "."),
-               fn.basen ? fn.basen : "");
+        if (!resume)  {
+            printf("downloading file: %s, saving to %s/%s\n", target,
+                   fn.dirn ? fn.dirn : (fn.basen ? "" : "."),
+                   fn.basen ? fn.basen : "");
+        }
+        else  {
+            printf ("Resume download for file: %s\n", fn.basen);
+        }
+
         struct sigaction act;
 
         act.sa_handler   = sigterm_handler;
