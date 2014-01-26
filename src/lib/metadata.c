@@ -46,6 +46,8 @@ bool metadata_create_from_file(const char *fn, metadata** md, fh_map** fm_md)
 
     if ((fh = fhandle_create(fn, FHM_DEFAULT)) &&
         (fm = fhandle_mmap(fh, 0, fh->size))) {
+        PDEBUG ("A\n");
+
         *fm_md = fm;
         metadata* pmd = (metadata *) fm->addr;
         *md = pmd;
@@ -66,6 +68,8 @@ bool metadata_create_from_file(const char *fn, metadata** md, fh_map** fm_md)
         /* pmd->ht = NULL;	//TODO: parse and initialize hash table. */
         return true;
     }
+    PDEBUG ("B\n");
+
 
     if (fm) {
         fhandle_munmap(&fm);

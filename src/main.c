@@ -133,10 +133,12 @@ int main(int argc, char *argv[])
     int  nc        = 5;                 // default number of connections.
 
     file_name fn;
+    char *target = NULL;
+    bool resume = false;
 
     memset(&fn, 0, sizeof(file_name));
 
-    while ((opt = getopt(argc, argv, "j:d:o:s")) != -1) {
+    while ((opt = getopt(argc, argv, "j:d:o:r:s")) != -1) {
         switch (opt) {
             case 'd':
             {
@@ -165,6 +167,12 @@ int main(int argc, char *argv[])
                 fn.basen = strdup(optarg);
                 break;
             }
+            case 'r': // resume downloading
+            {
+                fn.basen = strdup(optarg);
+                resume = true;
+                break;
+            }
             default:
             {
                 break;
@@ -172,33 +180,39 @@ int main(int argc, char *argv[])
         }
     }
 
-    char *target = optind <= argc ? argv[optind] : NULL;
+    target = optind <= argc ? argv[optind] : NULL;
 
-    if (!target) {
+    if (!resume && !target) {
         usage(argc, argv);
         exit(1);
     }
 
     if (view_only) {
         if (file_existp(target)) {
-            printf("showing tmd file: %s\n", target);
-// TODO: Remove this ifdef!
+            printf("showing tmd file: %s, TBD...\n", target);
+            // TODO: Remove this ifdef!
 #if 0
 
-metadata_wrapper mw;
+            metadata_wrapper mw;
 
             metadata_create_from_file(target, &mw);
             metadata_display(mw.md);
             metadata_destroy(&mw);
 #endif // End of #if 0
 
-} else {
+        } else {
             printf("File: %s not exists!\n", target);
         }
     } else {
-        printf("downloading file: %s, saving to %s/%s\n", target,
-               fn.dirn ? fn.dirn : (fn.basen ? "" : "."),
-               fn.basen ? fn.basen : "");
+        if (!resume)  {
+            printf("downloading file: %s, saving to %s/%s\n", target,
+                   fn.dirn ? fn.dirn : (fn.basen ? "" : "."),
+                   fn.basen ? fn.basen : "");
+        }
+        else  {
+            printf ("Resume download for file: %s\n", fn.basen);
+        }
+
         struct sigaction act;
 
         act.sa_handler   = sigterm_handler;

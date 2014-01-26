@@ -87,7 +87,7 @@ void fhandle_destroy(fhandle ** fh)
 
 fh_map *fhandle_mmap(fhandle * fh, off_t offset, size_t length)
 {
-    if (!fh || fh->fd == -1 || !length) {
+    if (!fh || fh->fd == -1) {
         return NULL;
     }
 
@@ -113,8 +113,13 @@ fh_map *fhandle_mmap(fhandle * fh, off_t offset, size_t length)
         }
     }
 
-    PDEBUG("file %s mapped to addr: %p, length: %lX(%s)\n",
-           fh->fn, fm->addr, size, stringify_size(size));
+    if (fm) {
+        PDEBUG("file %s mapped to addr: %p, length: %lX(%s)\n",
+               fh->fn, fm->addr, size, stringify_size(size));
+    }
+    else  {
+        PDEBUG ("FM is null!\n");
+    }
 
     return fm;
 }
@@ -228,6 +233,8 @@ bool get_full_path(const file_name * fn, char **final)
         strcat(*final, fn->basen);
         ret = true;
     }
+
+    PDEBUG ("final: %s\n", *final);
 
 ret:
     return ret;

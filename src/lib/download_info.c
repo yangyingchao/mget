@@ -65,7 +65,8 @@ bool dinfo_create(const char *url, const file_name * fn, int nc, dinfo** info)
     }
 
     if (url && !parse_url(url, &ui)) {
-        fprintf(stderr, "Failed to parse given url: %s, try loading local metadata\n",
+        fprintf(stderr,
+                "Failed to parse given url: %s, try loading local metadata\n",
                 url);
     }
 
@@ -88,8 +89,11 @@ bool dinfo_create(const char *url, const file_name * fn, int nc, dinfo** info)
 
     char tfn[256] = { '\0' };
     sprintf(tfn, "%s.tmd", fpath);
+
+    PDEBUG ("Metadata: %s\n", tfn);
+
     if (file_existp(tfn) &&
-        !metadata_create_from_file(tfn, &dInfo->md, &dInfo->fm_md)) {
+        metadata_create_from_file(tfn, &dInfo->md, &dInfo->fm_md)) {
         PDEBUG("DInfo created from file: %s\n", tfn);
 
         // Destroy url info and recreate using url stored in mw.
@@ -112,6 +116,10 @@ bool dinfo_create(const char *url, const file_name * fn, int nc, dinfo** info)
         }
     }
     else {
+        if (!url) {
+            fprintf(stderr, "Failed to get TMD file and url is empty!\n");
+            goto free;
+        }
 
         // TODO: remove this magic number...
         //       space reserved by this magic number should be filled by extra
@@ -169,9 +177,6 @@ bool dinfo_create(const char *url, const file_name * fn, int nc, dinfo** info)
         ret = true;
         goto out;
     }
-
-    PDEBUG ("A\n");
-
 
 free:
     FIF(dInfo);
