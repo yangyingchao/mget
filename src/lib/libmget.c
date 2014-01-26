@@ -62,6 +62,3 @@ bool start_request(const char *url, const file_name * fn, int nc,
 
     return ret;
 }
-
-char* get_version()
-{}

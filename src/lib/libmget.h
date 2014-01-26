@@ -36,9 +36,16 @@ typedef struct _file_name {
 // dp stands for download_progress
 typedef void (*dp_callback) (metadata * md);
 
+/**
+ * @name start_request - start processing request.
+ * @param url - Character url to be retrieved.
+ * @param fn -  structer to specify where to save download data.
+ * @param nc - Number of connections.
+ * @param cb -  callback to report downloading progress.
+ * @param stop_flag - Flag to control when to stop.
+ * @return bool
+ */
 bool start_request(const char *url, const file_name * fn, int nc,
                    dp_callback cb, bool * stop_flag);
-
-char* get_version();
 
 #endif
