@@ -23,9 +23,9 @@
 
 #include "connection.h"
 #include "data_utlis.h"
-#include "debug.h"
+#include "log.h"
 #include "mget_config.h"
-#include "typedefs.h"
+#include "mget_types.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
@@ -208,7 +208,7 @@ connection *connection_get(const url_info * ui)
 
         if (rp != NULL) {
             addr->addr = rp;
-            if (!hash_table_insert(g_addr_cache, ui->host, addr)) {
+            if (!hash_table_insert(g_addr_cache, (char*)ui->host, addr)) {
                 addr_entry_destroy(addr);
                 fprintf(stderr, "Failed to insert cache: %s\n", ui->host);
             }

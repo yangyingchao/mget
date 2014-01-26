@@ -1,4 +1,4 @@
-/** download_info.h --- information of downloading.
+/** dinfo.h --- information of downloading.
  *
  * Copyright (C) 2014 Yang,Ying-chao
  *
@@ -27,14 +27,25 @@
 extern "C" {
 #endif
 
-#include "metadata.h"
+#include "mget_metadata.h"
+#include "netutils.h"
+#include "fileutils.h"
 
-typedef struct _download_info
+typedef struct _dinfo
 {
+    url_info* ui;
     metadata* md;
     fh_map*   fm_md;
     fh_map*   fm_file;
-} download_info;
+} dinfo;
+
+bool dinfo_create(const char *url, const file_name* fn, int nc, dinfo** info);
+void dinfo_destroy(dinfo** info);
+bool dinfo_ready(dinfo* info);
+
+bool dinfo_update_metadata(uint64 size, dinfo* info);
+
+void dinfo_sync(dinfo* info);
 
 #ifdef __cplusplus
 }

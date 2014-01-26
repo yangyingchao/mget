@@ -1,4 +1,4 @@
-/** typedefs.h --- definition of types
+/** mget_types.h --- definition of types
  *
  * Copyright (C) 2013 Yang,Ying-chao
  *

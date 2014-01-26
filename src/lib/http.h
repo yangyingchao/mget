@@ -24,7 +24,7 @@
 #ifndef _HTTP_H_
 #define _HTTP_H_
 
-#include "netutils.h"
+#include "libmget.h"
 #include "download_info.h"
 
 /**
@@ -35,9 +35,8 @@
  * @param stop_flag - A flag used by http handler to check if need to stop.
  * @return int
  */
-int process_http_request(url_info * ui,
-                         download_info* info,
-                         void (*cb) (metadata * md),
+int process_http_request(dinfo* info,
+                         dp_callback cb,
                          bool * stop_flag);
 
 #endif				/* _HTTP_H_ */

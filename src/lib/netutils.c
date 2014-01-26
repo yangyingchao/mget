@@ -24,7 +24,7 @@
 #include "netutils.h"
 #include <stdio.h>
 #include "macros.h"
-#include "debug.h"
+#include "log.h"
 #include "fileutils.h"
 
 #define DEFAULT_HTTP_PORT         80

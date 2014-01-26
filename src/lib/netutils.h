@@ -28,7 +28,7 @@
 extern "C" {
 #endif
 
-#include "typedefs.h"
+#include "mget_types.h"
 
 typedef enum _url_protocol {
 	UP_HTTP = 0,

@@ -26,39 +26,44 @@
 #include <math.h>
 #include <string.h>
 #include <assert.h>
-#include "debug.h"
+#include "log.h"
 #include "timeutil.h"
 #include <stdio.h>
+#include "mget_config.h"
 
 #define MIN_CHUNK_SIZE   (64*K)
 
 #define SHOW_CHUNK(p)    PDEBUG ("%p, cur_pos: %08llX, end_pos: %08llX\n",p,p->cur_pos, p->end_pos)
 
-bool metadata_create_from_file(const char *fn, metadata_wrapper * mw)
+bool metadata_create_from_file(const char *fn, metadata** md, fh_map** fm_md)
 {
-    fhandle *fh = NULL;
-    fh_map *fm = NULL;
+    bool     ret = false;
+    fhandle *fh  = NULL;
+    fh_map  *fm  = NULL;
 
-    if (mw && (fh = fhandle_create(fn, FHM_DEFAULT)) &&
+    if (!fn || !md ||!fm_md)
+        goto ret;
+
+    if ((fh = fhandle_create(fn, FHM_DEFAULT)) &&
         (fm = fhandle_mmap(fh, 0, fh->size))) {
-        mw->fm = fm;
-        mw->from_file = true;
-        mw->md = (metadata *) fm->addr;
+        *fm_md = fm;
+        metadata* pmd = (metadata *) fm->addr;
+        *md = pmd;
 
         //TODO: version checks....
-        mw->md->body = (data_chunk *) mw->md->raw_data;
-        char *ptr = GET_URL(mw->md);
+        pmd->body = (data_chunk *) pmd->raw_data;
+        char *ptr = GET_URL(pmd);
 
-        mw->md->url = ptr;
+        pmd->url = ptr;
 
-        ptr += strlen(mw->md->url) + 1;
-        mw->md->fn = ptr;
+        ptr += strlen(pmd->url) + 1;
+        pmd->fn = ptr;
 
-        ptr += strlen(mw->md->fn) + 1;
-        mw->md->mime = ptr;
+        ptr += strlen(pmd->fn) + 1;
+        pmd->mime = ptr;
 
-        ptr += strlen(mw->md->mime) + 1;
-        mw->md->ht = NULL;	//TODO: parse and initialize hash table.
+        /* ptr += strlen(pmd->mime) + 1; */
+        /* pmd->ht = NULL;	//TODO: parse and initialize hash table. */
         return true;
     }
 
@@ -69,13 +74,16 @@ bool metadata_create_from_file(const char *fn, metadata_wrapper * mw)
         fhandle_destroy(&fh);
     }
 
-    return NULL;
+ret:
+    return ret;
 }
 
-bool metadata_create_from_url(const char *url,
-                              const char *fn,
+bool  metadata_create_from_url(const char* url,
+                              const char* fn,
                               uint64 size,
-                              int nc, mget_slis * lst, metadata ** md)
+                              int nc,
+                              mget_slis* lst,
+                              metadata** md)
 {
     data_chunk *dc = NULL;
 
@@ -95,14 +103,15 @@ bool metadata_create_from_url(const char *url,
         mh *hd = &pmd->hd;
 
         sprintf(((char *) &hd->iden), "TMD");
-        hd->version = GET_VERSION();
+        hd->version      = GET_VERSION();
         hd->package_size = size;
-        hd->last_time = get_time_s();
-        hd->acc_time = 0;
-        hd->status = RS_INIT;
-        hd->nr_chunks = nc;
-        hd->eb_length = ebl;
-        hd->acon = nc;
+        hd->last_time    = get_time_s();
+        hd->acc_time     = 0;
+        hd->status       = RS_INIT;
+        hd->nr_user      = nc;
+        hd->nr_effective = 0;
+        hd->eb_length    = ebl;
+        hd->acon         = nc;
 
         pmd->body = (data_chunk *) pmd->raw_data;
         char *ptr = pmd->raw_data + CHUNK_SIZE(pmd);
@@ -123,52 +132,16 @@ bool metadata_create_from_url(const char *url,
 
         ptr += strlen(pmd->fn) + 1;
         pmd->mime = ptr;
-        ptr += strlen(pmd->mime) + 1;
-        pmd->ht = NULL;		// TODO: Initialize hash table based on ptr.
+
+        /* ptr += strlen(pmd->mime) + 1; */
+        /* pmd->ht = NULL;		// TODO: Initialize hash table based on ptr. */
 
         for (int i = 0; i < nc; ++i) {
             data_chunk *p = dc + i;
-
             pmd->body[i] = *p;
         }
-
     }
     return true;
-}
-
-void associate_wrapper(metadata_wrapper * mw)
-{
-    if (!mw || mw->from_file) {
-        return;
-    }
-    // Dump metadata to fm
-    // TODO: Check size and remap if necessary.
-    metadata *nmd = (metadata *) mw->fm->addr;
-    metadata *omd = mw->md;
-
-    nmd->hd = omd->hd;
-    nmd->url = GET_URL(nmd);
-    if (omd->url)
-        sprintf(nmd->url, "%s", omd->url);
-    else
-        nmd->url = NULL;
-
-    nmd->fn = GET_FN(nmd);
-    if (omd->fn)
-        sprintf(nmd->fn, "%s", omd->fn);
-    else
-        nmd->fn = NULL;
-
-    nmd->body = (data_chunk *) nmd->raw_data;
-    for (uint8 i = 0; i < mw->md->hd.nr_chunks; ++i) {
-        nmd->body[i] = mw->md->body[i];
-    }
-
-    nmd->ht = omd->ht;
-    omd->ht = NULL;
-
-    mw->md = nmd;
-    mw->from_file = true;
 }
 
 void metadata_destroy(metadata_wrapper * mw)
@@ -225,11 +198,11 @@ void metadata_display(metadata * md)
 
     fprintf(stderr, "size: %08llX (%.2f)M, nc: %d,url: %p -- %s\n",
             md->hd.package_size, (float) md->hd.package_size / (1 * M),
-            md->hd.nr_chunks, md->url, md->url);
+            md->hd.nr_effective, md->url, md->url);
 
     uint64 recv = 0;
 
-    for (uint8 i = 0; i < md->hd.nr_chunks; ++i) {
+    for (uint8 i = 0; i < md->hd.nr_effective; ++i) {
         data_chunk *cp = &md->body[i];
         uint64 chunk_recv = cp->cur_pos - cp->start_pos;
         uint64 chunk_size = cp->end_pos - cp->start_pos;
@@ -286,4 +259,9 @@ bool chunk_split(uint64 start, uint64 size, int *num, data_chunk ** dc)
     PDEBUG("results: chunk_size: %.02fM, nc: %d\n", (float) cs / M, *num);
 
     return true;
+}
+
+metadata* metadata_create_empty()
+{
+    return NULL;
 }

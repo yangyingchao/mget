@@ -30,7 +30,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <string.h>
-#include "debug.h"
+#include "log.h"
 #include <libgen.h>
 #include "data_utlis.h"
 #define FM_RWUSR       (S_IRUSR|S_IWUSR)
@@ -231,4 +231,25 @@ bool get_full_path(const file_name * fn, char **final)
 
 ret:
     return ret;
+}
+
+fh_map* fm_create(const char* fn, size_t length)
+{
+    fhandle *fh = fhandle_create(fn, FHM_CREATE);
+    fh_map *fm = fh ? fhandle_mmap(fh, 0, length ? length : 1) : NULL;
+    if (fm)
+        return fm;
+
+    fhandle_destroy(&fh);
+    return NULL;
+}
+
+bool fm_remap(fh_map** fm, size_t nl)
+{
+    if (!fm)
+        return false;
+    fhandle* fh = (*fm)->fh;
+    fhandle_munmap(fm);
+    *fm = fhandle_mmap(fh, 0, nl ? nl : 1);
+    return true;
 }

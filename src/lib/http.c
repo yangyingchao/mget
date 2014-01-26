@@ -21,19 +21,22 @@
  */
 #include "http.h"
 #include "connection.h"
-#include "debug.h"
+#include "log.h"
 #include "timeutil.h"
 #include <unistd.h>
 #include <errno.h>
+#include "data_utlis.h"
+#include "metadata.h"
 
-static char *generate_request_header(const char *method, url_info * uri,
-                                     uint64 start_pos, uint64 end_pos)
+#define DEFAULT_HTTP_CONNECTIONS 5
+#define BUF_SIZE                 4096
+
+
+static inline char *generate_request_header(const char *method, url_info * uri,
+                                            uint64 start_pos, uint64 end_pos)
 {
-    assert(uri->uri);
-
-    char buffer[4096];
-
-    memset(buffer, 0, 2096);
+    static char buffer[BUF_SIZE];
+    memset(buffer, 0, BUF_SIZE);
 
     sprintf(buffer,
             "%s %s HTTP/1.1\r\nHost: %s\r\nAccept: *\r\nRange: bytes=%llu-%llu\r\n\r\n",
@@ -94,11 +97,11 @@ int dissect_header(const char *buffer, size_t length, hash_table ** ht)
     return stat;
 }
 
-uint64 get_remote_file_size_http(url_info * ui, connection * conn)
+uint64 get_remote_file_size_http(url_info* ui, connection* conn)
 {
     uint64 t = 0;
 
-    if (!conn) {
+    if (!conn || !ui) {
         return 0;
     }
 
@@ -108,11 +111,11 @@ uint64 get_remote_file_size_http(url_info * ui, connection * conn)
     free(hd);
 
     char buffer[4096];
-
     memset(buffer, 0, 4096);
-    size_t rd = conn->ci.reader(conn, buffer, 4096, NULL);
-    hash_table *ht = NULL;
-    int stat = dissect_header(buffer, rd, &ht);
+
+    size_t      rd   = conn->ci.reader(conn, buffer, 4096, NULL);
+    hash_table *ht   = NULL;
+    int         stat = dissect_header(buffer, rd, &ht);
 
     PDEBUG("stat: %d, description: %s\n",
            stat, (char *) hash_table_entry_get(ht, "Status"));
@@ -241,7 +244,6 @@ int http_read_sock(connection * conn, void *priv)
             free(mm);
 
             size_t length = rd - ds;
-
             if (length) {
                 memcpy(addr, ptr, length);
                 dp->cur_pos += length;
@@ -301,30 +303,22 @@ int http_write_sock(connection * conn, void *priv)
     return written;
 }
 
-int process_http_request(url_info * ui, const char *fn, int nc,
-                         void (*cb) (metadata * md), bool * stop_flag)
+int process_http_request(dinfo* info, dp_callback cb, bool * stop_flag)
 {
     PDEBUG("enter\n");
 
     connection *conn = NULL;
-    metadata_wrapper mw;
+    url_info*   ui   = info ? info->ui : NULL;
+    if (dinfo_ready(info))
+        goto start;
 
-    char tfn[256] = { '\0' };
-    sprintf(tfn, "%s.tmd", fn);
-    if (file_existp(tfn) && metadata_create_from_file(tfn, &mw)) {
-        PDEBUG("metadta created from file: %s\n", tfn);
-        goto l1;
-    }
-
-    remove_file(tfn);
-
-    conn = connection_get(ui);
+    conn = connection_get(info->ui);
     if (!conn) {
         fprintf(stderr, "Failed to get socket!\n");
         return -1;
     }
 
-    uint64 total_size = get_remote_file_size_http(ui, conn);
+    uint64 total_size = get_remote_file_size_http(info->ui, conn);
 
     if (!total_size) {
         fprintf(stderr, "Can't get remote file size: %s\n", ui->furl);
@@ -333,42 +327,40 @@ int process_http_request(url_info * ui, const char *fn, int nc,
 
     PDEBUG("total_size: %llu\n", total_size);
 
+    /*
+      If it goes here, means metadata is not ready, get nc (number of connections)
+      from download_info, and recreate metadata.
+     */
 
-    mget_slis *lst = NULL;	//TODO: fill this lst.
-
-    if (!metadata_create_from_url(ui->furl, fn, total_size, nc, lst, &mw.md)){
+    int nc = info->md ? info->md->hd.nr_user : DEFAULT_HTTP_CONNECTIONS;
+    if (!dinfo_update_metadata(total_size, info)) {
+        fprintf(stderr, "Failed to create metadata from url: %s\n", ui->furl);
         return -1;
     }
 
     PDEBUG("metadata created from url: %s\n", ui->furl);
 
-    fhandle *fh = fhandle_create(tfn, FHM_CREATE);
+    /* fhandle *fh = fhandle_create(tfn, FHM_CREATE); */
 
-    mw.fm = fhandle_mmap(fh, 0, MD_SIZE(mw.md));
-    mw.from_file = false;
-    memset(mw.fm->addr, 0, MD_SIZE(mw.md));
+    /* mw.fm = fhandle_mmap(fh, 0, MD_SIZE(mw.md)); */
+    /* mw.from_file = false; */
+    /* memset(mw.fm->addr, 0, MD_SIZE(mw.md)); */
 
-    associate_wrapper(&mw);
+    /* associate_wrapper(&mw); */
 
-l1:
-    metadata_display(mw.md);
-    fhandle_msync(mw.fm);
-    if (mw.md->hd.status == RS_SUCCEEDED) {
+start: ;
+    metadata* md = info->md;
+    metadata_display(md);
+
+    dinfo_sync(info);
+
+    if (md->hd.status == RS_SUCCEEDED) {
         goto ret;
     }
 
-    mw.md->hd.status = RS_STARTED;
+    md->hd.status = RS_STARTED;
     if (cb) {
-        (*cb) (mw.md);
-    }
-
-    fhandle *fh2 = fhandle_create(fn, FHM_CREATE);
-    fh_map *fm2 = fhandle_mmap(fh2, 0, mw.md->hd.package_size);
-
-    if (!fh2 || !fm2) {
-        PDEBUG("Failed to create mapping!\n");
-        // TODO: cleanup...
-        return -1;
+        (*cb) (md);
     }
 
     connection_group *sg = connection_group_create(stop_flag);
@@ -378,12 +370,10 @@ l1:
         return -1;
     }
 
-    PDEBUG("conn = %p\n", conn);
-
     bool need_request = false;
 
-    for (int i = 0; i < mw.md->hd.nr_chunks; ++i) {
-        data_chunk *dp = &mw.md->body[i];
+    for (int i = 0; i < md->hd.nr_effective; ++i) {
+        data_chunk *dp = &md->body[i];
 
         if (dp->cur_pos >= dp->end_pos) {
             continue;
@@ -401,10 +391,10 @@ l1:
 
         so_param *param = ZALLOC1(so_param);
 
-        param->addr = fm2->addr;
-        param->dp = mw.md->body + i;
+        param->addr = info->fm_file->addr;
+        param->dp = md->body + i;
         param->ui = ui;
-        param->md = mw.md;
+        param->md = md;
         param->cb = cb;
 
         conn->rf = http_read_sock;
@@ -416,21 +406,20 @@ l1:
     }
 
     if (!need_request) {
-        mw.md->hd.status = RS_SUCCEEDED;
+        md->hd.status = RS_SUCCEEDED;
         goto ret;
     }
 
     PDEBUG("Performing...\n");
     int ret = connection_perform(sg);
-
     PDEBUG("ret = %d\n", ret);
 
-    fhandle_munmap_close(&fm2);
+    dinfo_sync(info);
 
-    data_chunk *dp = mw.md->body;
+    data_chunk *dp = md->body;
     bool finished = true;
 
-    for (int i = 0; i < CHUNK_NUM(mw.md); ++i) {
+    for (int i = 0; i < CHUNK_NUM(md); ++i) {
         if (dp->cur_pos < dp->end_pos) {
             finished = false;
             break;
@@ -439,24 +428,19 @@ l1:
     }
 
     if (finished) {
-        mw.md->hd.status = RS_SUCCEEDED;
+        md->hd.status = RS_SUCCEEDED;
     } else {
-        mw.md->hd.status = RS_STOPPED;
+        md->hd.status = RS_STOPPED;
     }
 
-    mw.md->hd.acc_time += get_time_s() - mw.md->hd.last_time;
+    md->hd.acc_time += get_time_s() - md->hd.last_time;
 
 ret:
-
-    metadata_display(mw.md);
+    metadata_display(md);
     if (cb) {
-        (*cb) (mw.md);
-    }
-    if (mw.md->hd.status == RS_SUCCEEDED) {
-        remove_file(mw.fm->fh->fn);
+        (*cb) (md);
     }
 
-    metadata_destroy(&mw);
     PDEBUG("stopped.\n");
     return 0;
 }
