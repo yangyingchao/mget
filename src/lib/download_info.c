@@ -42,11 +42,17 @@ void dinfo_destroy(dinfo** info)
     if (!info || !(*info))
         return;
 
-    url_info_destroy(&(*info)->ui);
-    if ((*info)->md->hd.status == RS_SUCCEEDED)  {
-        remove_file((*info)->fm_md->fh->fn);
-    }
+    bool remove_package  = (*info)->md->hd.package_size == 0;
+    bool remove_metadata = remove_package || \
+                           (*info)->md->hd.status == RS_SUCCEEDED;
 
+    if (remove_metadata)
+        remove_file((*info)->fm_md->fh->fn);
+
+    if (remove_package)
+        remove_file((*info)->fm_file->fh->fn);
+
+    url_info_destroy(&(*info)->ui);
     fhandle_munmap_close(&(*info)->fm_md);
     fhandle_munmap_close(&(*info)->fm_file);
     FIFZ(info);

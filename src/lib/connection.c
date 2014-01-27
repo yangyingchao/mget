@@ -172,9 +172,8 @@ connection *connection_get(const url_info * ui)
         conn->addr = addr->addr;
         conn->sock = socket(conn->addr->ai_family, conn->addr->ai_socktype,
                             conn->addr->ai_protocol);
-        if (connect
-            (conn->sock, conn->addr->ai_addr,
-             conn->addr->ai_addrlen) == -1) {
+        if (connect (conn->sock, conn->addr->ai_addr,
+                     conn->addr->ai_addrlen) == -1) {
             perror("Failed to connect");
             goto err;
         }
@@ -187,6 +186,7 @@ connection *connection_get(const url_info * ui)
         hints.ai_socktype = SOCK_STREAM;
         hints.ai_flags = 0;
         hints.ai_protocol = 0;
+        logprintf(LOG_ALWAYS, "Resolving host: %s ...\n", ui->host);
         int ret = getaddrinfo(ui->host, ui->sport, &hints, &addr->infos);
 
         if (ret)
@@ -194,8 +194,7 @@ connection *connection_get(const url_info * ui)
         address *rp = NULL;
 
         for (rp = addr->infos; rp != NULL; rp = rp->ai_next) {
-            conn->sock =
-                    socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+            conn->sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
             if (conn->sock == -1) {
                 continue;
             }

@@ -364,7 +364,11 @@ static bool
 log_vprintf_internal(struct logvprintf_state *state, const char *fmt,
                      va_list args)
 {
-    char smallmsg[128];
+    vprintf(fmt, args);
+// TODO: Remove this ifdef!
+#if 0
+
+char smallmsg[128];
     char *write_ptr = smallmsg;
     int available_size = sizeof(smallmsg);
     int numwritten;
@@ -431,6 +435,7 @@ flush:
         logflush();
     else
         needs_flushing = true;
+#endif // End of #if 0
     return true;
 }
 

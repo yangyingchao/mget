@@ -26,10 +26,6 @@
 #include "log.h"
 #include "http.h"
 
-typedef void (*request_processor) (url_info * ui, const char *dn, int nc,
-				   void (*cb) (metadata * md),
-				   bool * stop_flag);
-
 bool start_request(const char *url, const file_name * fn, int nc,
                    dp_callback cb, bool * stop_flag)
 {
