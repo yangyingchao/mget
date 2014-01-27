@@ -24,8 +24,8 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include "libmget.h"
-#include "timeutil.h"
+#include "lib/libmget.h"
+#include "lib/mget_utils.h"
 #include <signal.h>
 
 #ifdef DEBUG

@@ -27,7 +27,7 @@
 #include <string.h>
 #include <assert.h>
 #include "log.h"
-#include "timeutil.h"
+#include "mget_utils.h"
 #include <stdio.h>
 #include "mget_config.h"
 

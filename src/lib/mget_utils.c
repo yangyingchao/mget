@@ -20,7 +20,7 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#include "timeutil.h"
+#include "mget_utils.h"
 #include <stdio.h>
 #include <time.h>
 #include <string.h>

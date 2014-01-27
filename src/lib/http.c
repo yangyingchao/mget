@@ -22,11 +22,11 @@
 #include "http.h"
 #include "connection.h"
 #include "log.h"
-#include "timeutil.h"
 #include <unistd.h>
 #include <errno.h>
 #include "data_utlis.h"
 #include "metadata.h"
+#include "mget_utils.h"
 
 #define DEFAULT_HTTP_CONNECTIONS 5
 #define BUF_SIZE                 4096

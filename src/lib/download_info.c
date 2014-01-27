@@ -25,7 +25,7 @@
 #include "log.h"
 #include "metadata.h"
 #include "mget_config.h"
-#include "timeutil.h"
+#include "mget_utils.h"
 
 bool dinfo_create_from_file(const char* fn, dinfo* info)
 {

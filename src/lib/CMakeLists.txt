@@ -32,7 +32,13 @@ target_link_libraries(mget m)
 install(
   TARGETS mget
   LIBRARY
-  DESTINATION "/usr/lib")
+  DESTINATION "lib")
+
+file(GLOB PUB_HEADERS "*mget*.h")
+install(
+  FILES ${PUB_HEADERS}
+  DESTINATION "include/libmget/"
+  )
 
 #TODO: install header files....
 
