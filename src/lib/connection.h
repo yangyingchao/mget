@@ -30,42 +30,52 @@ extern "C" {
 
 #include "netutils.h"
 
-    typedef struct _connection connection;
+typedef struct _connection connection;
 
-    typedef uint32(*read_func) (connection *, char *, uint32, void *);
-    typedef uint32(*write_func) (connection *, char *, uint32, void *);
-    typedef void (*close_func) (connection *, void *);
+typedef uint32(*read_func) (connection *, char *, uint32, void *);
+typedef uint32(*write_func) (connection *, char *, uint32, void *);
+typedef void (*close_func) (connection *, void *);
 
 /** copied from wget .. */
-    typedef struct _connection_impl {
+typedef struct _connection_impl {
 	read_func reader;
 	write_func writer;
-    } cipl;
+} cipl;
 
-    typedef int (*connection_read_func) (connection *, void *);
-    typedef int (*connection_write_func) (connection *, void *);
+typedef int (*connection_read_func) (connection *, void *);
+typedef int (*connection_write_func) (connection *, void *);
 
 
 // TODO: Hide sock, use transport_implementation above...
-    struct _connection {
+struct _connection {
 	cipl ci;		// returned by connection impl, should not be modified.
 	connection_read_func rf;
 	connection_write_func wf;
 	void *priv;
-    };
+};
 
-    typedef struct _connection_group connection_group;
+typedef struct _connection_group connection_group;
 
-    connection_group *connection_group_create(bool * flag);
-    void connection_group_destroy(connection_group *);
-    void connection_add_to_group(connection_group *, connection *);
-    int connection_perform(connection_group * sock);
+connection_group *connection_group_create(bool * flag);
+void connection_group_destroy(connection_group *);
+void connection_add_to_group(connection_group *, connection *);
 
-    connection *connection_get(const url_info * ui);
-    void connection_put(connection * sock);
+/*! Processing multiple connectsion.
+
+  @param group group of connections.
+
+  @return 0 if finished successfully, or -1 if failed for some reason, or
+          return remained connections if no error occur but processing
+          stopped by user.
+*/
+int connection_perform(connection_group* group);
+
+connection *connection_get(const url_info * ui);
+void connection_put(connection * sock);
 
 
 #ifdef __cplusplus
 }
 #endif
+
 #endif				/* _MGET_SOCK_H_ */

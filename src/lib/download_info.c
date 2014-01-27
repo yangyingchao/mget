@@ -210,6 +210,7 @@ bool dinfo_update_metadata(uint64 size, dinfo* info)
         return false;
     }
 
+    hd->package_size = size;
     hd->nr_effective = nc;
     hd->acon         = nc;
 

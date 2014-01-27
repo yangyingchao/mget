@@ -261,30 +261,21 @@ void connection_put(connection * sock)
     FIF(CONN2CONNP(sock));
 }
 
-int connection_perform(connection_group * group)
-{
-    PDEBUG("enter, sg: %p\n", group);
-
-    int cnt = group->cnt;
-    PDEBUG("total socket: %d\n", cnt);
-
-    if (!cnt)
-        return -1;
-
 #ifdef HAVE_EPOLL
+static inline int do_perform_epoll(connection_group* group)
+{
+    int cnt = group->cnt;
     int epl = epoll_create(cnt);
     if (epl == -1) {
         perror("epool_create");
-        exit(EXIT_FAILURE);
+        return -1;
     }
 
     struct epoll_event *events = ZALLOC(struct epoll_event, cnt);
 
     //TODO: Add sockets to Epoll
     connection_list *p = group->lst;
-
     PDEBUG("p: %p, next: %p\n", p, p->next);
-
     while (p && p->conn) {
         PDEBUG("p: %p, next: %p\n", p, p->next);
         connection_p *conn = (connection_p *) p->conn;
@@ -308,7 +299,6 @@ int connection_perform(connection_group * group)
     PDEBUG("%p: %d\n", group->cflag, *group->cflag);
     while (!(*(group->cflag))) {
         nfds = epoll_wait(epl, events, cnt, 1000);	// set timeout to 1 second.
-
         if (nfds == -1) {
             perror("epoll_pwait");
             break;
@@ -324,17 +314,13 @@ int connection_perform(connection_group * group)
             int ret = 0;
             bool need_mod = false;
 
-            if (events[i].events & EPOLLOUT)	// Ready to send..
-            {
-                ret =
-                        pconn->conn.wf((connection *) pconn, pconn->conn.priv);
+            if (events[i].events & EPOLLOUT) {// Ready to send..
+                ret = pconn->conn.wf((connection *) pconn, pconn->conn.priv);
                 need_mod = true;
             }
 
-            if (events[i].events & EPOLLIN)	// Ready to read..
-            {
-                ret =
-                        pconn->conn.rf((connection *) pconn, pconn->conn.priv);
+            if (events[i].events & EPOLLIN) { // Ready to read..
+                ret = pconn->conn.rf((connection *) pconn, pconn->conn.priv);
             }
 
             if (ret <= 0) {
@@ -361,102 +347,133 @@ int connection_perform(connection_group * group)
                 epoll_ctl(epl, EPOLL_CTL_MOD, pconn->sock, &ev);
             }
         }
-#else
-        fd_set rfds;
-        FD_ZERO(&rfds);
-        fd_set wfds;
-        FD_ZERO(&wfds);
-        int maxfd = 0;
 
-        //TODO: Add sockets to Epoll
+        if (cnt == 0) {
+            break;
+        }
+
+        if (*(group->cflag)) {
+            fprintf(stderr, "Stop because control_flag set to 1!!!\n");
+            break;
+        }
+    }
+
+    return cnt;
+}
+
+#else
+
+static inline int do_perform_select(connection_group* group)
+{
+    int    maxfd = 0;
+    int    cnt   = group->cnt;
+
+    fd_set rfds;
+    FD_ZERO(&rfds);
+    fd_set wfds;
+    FD_ZERO(&wfds);
+
+    connection_list *p = group->lst;
+    PDEBUG("p: %p, next: %p\n", p, p->next);
+    while (p && p->conn) {
+        PDEBUG("p: %p, next: %p\n", p, p->next);
+        connection_p *conn = (connection_p *) p->conn;
+
+        if ((conn->sock != 0) && conn->conn.rf && conn->conn.wf) {
+            fcntl(conn->sock, F_SETFD, O_NONBLOCK);
+            FD_SET(conn->sock, &wfds);
+            if (maxfd < conn->sock) {
+                maxfd = conn->sock;
+            }
+        }
+        p = (connection_list *) p->next;
+    }
+
+    maxfd++;
+
+    int nfds = 0;
+
+    PDEBUG("%p: %d\n", group->cflag, *group->cflag);
+    struct timeval tv;
+
+    while (!(*(group->cflag))) {
+        tv.tv_sec = 1;
+        tv.tv_usec = 0;
+        nfds = select(maxfd, &rfds, &wfds, NULL, &tv);
+
+        if (nfds == -1) {
+            perror("select fail:");
+            break;
+        }
+
+        if (nfds == 0) {
+            fprintf(stderr, "time out ....\n");
+        }
+
         connection_list *p = group->lst;
 
-        PDEBUG("p: %p, next: %p\n", p, p->next);
-
         while (p && p->conn) {
-            PDEBUG("p: %p, next: %p\n", p, p->next);
-            connection_p *conn = (connection_p *) p->conn;
+            connection_p *pconn = (connection_p *) p->conn;
+            int ret = 0;
 
-            if ((conn->sock != 0) && conn->conn.rf && conn->conn.wf) {
-                fcntl(conn->sock, F_SETFD, O_NONBLOCK);
-                FD_SET(conn->sock, &wfds);
-                if (maxfd < conn->sock) {
-                    maxfd = conn->sock;
-                }
-            }
-            p = (connection_list *) p->next;
-        }
-
-        maxfd++;
-
-        int nfds = 0;
-
-        PDEBUG("%p: %d\n", group->cflag, *group->cflag);
-        struct timeval tv;
-
-        while (!(*(group->cflag))) {
-            tv.tv_sec = 1;
-            tv.tv_usec = 0;
-            nfds = select(maxfd, &rfds, &wfds, NULL, &tv);
-
-            if (nfds == -1) {
-                perror("select fail:");
-                break;
-            }
-
-            if (nfds == 0) {
-                fprintf(stderr, "time out ....\n");
-            }
-
-            connection_list *p = group->lst;
-
-            while (p && p->conn) {
-                connection_p *pconn = (connection_p *) p->conn;
-                int ret = 0;
-
-                if (FD_ISSET(pconn->sock, &wfds)) {
-                    ret =
-                            pconn->conn.wf((connection *) pconn, pconn->conn.priv);
-                    if (ret > 0) {
-                        FD_CLR(pconn->sock, &wfds);
-                        FD_SET(pconn->sock, &rfds);
-                    }
-                }
-
-                else if (FD_ISSET(pconn->sock, &rfds)) {
-                    ret =
-                            pconn->conn.rf((connection *) pconn, pconn->conn.priv);
-                    if (ret && ret != -1) {
-                        FD_SET(pconn->sock, &rfds);
-                    } else {
-                        PDEBUG("remove socket: %d, ret: %d...\n", pconn->sock,
-                               ret);
-                        FD_CLR(pconn->sock, &rfds);
-                        /* close(pconn->sock); */
-                        cnt--;
-                        PDEBUG("remaining sockets: %d\n", cnt);
-                        pconn->active = false;
-                    }
-                }
-
-                else if (pconn->active) {
+            if (FD_ISSET(pconn->sock, &wfds)) {
+                ret = pconn->conn.wf((connection *) pconn, pconn->conn.priv);
+                if (ret > 0) {
+                    FD_CLR(pconn->sock, &wfds);
                     FD_SET(pconn->sock, &rfds);
                 }
+            }
+            else if (FD_ISSET(pconn->sock, &rfds)) {
+                ret = pconn->conn.rf((connection *) pconn, pconn->conn.priv);
+                if (ret && ret != -1) {
+                    FD_SET(pconn->sock, &rfds);
+                } else {
+                    PDEBUG("remove socket: %d, ret: %d...\n", pconn->sock,
+                           ret);
+                    FD_CLR(pconn->sock, &rfds);
+                    /* close(pconn->sock); */
+                    cnt--;
+                    PDEBUG("remaining sockets: %d\n", cnt);
+                    pconn->active = false;
+                }
+            }
+            else if (pconn->active) {
+                FD_SET(pconn->sock, &rfds);
+            }
 
-                p = (connection_list *) p->next;
-            }
-#endif
-            if (cnt == 0) {
-                break;
-            }
-
-            if (*(group->cflag)) {
-                fprintf(stderr, "Stop because control_flag set to 1!!!\n");
-                break;
-            }
+            p = (connection_list *) p->next;
+        }
+        /* #endif */
+        if (cnt == 0) {
+            break;
         }
 
-    return 0;
+        if (*(group->cflag)) {
+            fprintf(stderr, "Stop because control_flag set to 1!!!\n");
+            break;
+        }
+    }
+    return cnt;
+}
+#endif
+
+int connection_perform(connection_group* group)
+{
+    PDEBUG("enter, sg: %p\n", group);
+
+    int cnt = group->cnt;
+    PDEBUG("total socket: %d\n", cnt);
+
+    if (!cnt)
+        return -1;
+
+#ifdef HAVE_EPOLL
+    cnt = do_perform_epoll(group);
+#else
+    cnt = do_perform_select(group);
+#endif
+
+    return cnt;
 }
 
 

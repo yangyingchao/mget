@@ -28,6 +28,10 @@
 #include "mget_utils.h"
 #include "mget_config.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct _file_name {
     char *dirn;
     char *basen;
@@ -47,5 +51,9 @@ typedef void (*dp_callback) (metadata * md);
  */
 bool start_request(const char *url, const file_name * fn, int nc,
                    dp_callback cb, bool * stop_flag);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
