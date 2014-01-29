@@ -270,13 +270,15 @@ int http_read_sock(connection * conn, void *priv)
         fprintf(stderr, "read returns %d\n", rd);
         if (errno != EAGAIN) {
             fprintf(stderr, "read returns %d: %s\n", rd, strerror(errno));
+            rd = COF_AGAIN;
         }
     }
 
     if (dp->cur_pos >= dp->end_pos) {
         PDEBUG("Finished chunk: %p\n", dp);
-        rd = 0;			// Mark as completed.
+        rd = COF_FINISHED;
     } else if (!rd) {
+        rd = COF_CLOSED;
         PDEBUG("retuned zero: dp: %p : %llX -- %llX\n",
                dp, dp->cur_pos, dp->end_pos);
     }

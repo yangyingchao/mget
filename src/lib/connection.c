@@ -320,9 +320,9 @@ static inline int do_perform_epoll(connection_group* group)
         }
 
         for (int i = 0; i < nfds; ++i) {
-            connection_p *pconn = (connection_p *) events[i].data.ptr;
-            int ret = 0;
-            bool need_mod = false;
+            connection_p *pconn    = (connection_p *) events[i].data.ptr;
+            int           ret      = 0;
+            bool          need_mod = false;
 
             if (events[i].events & EPOLLOUT) {// Ready to send..
                 ret = pconn->conn.wf((connection *) pconn, pconn->conn.priv);
@@ -333,8 +333,15 @@ static inline int do_perform_epoll(connection_group* group)
                 ret = pconn->conn.rf((connection *) pconn, pconn->conn.priv);
             }
 
-            if (ret <= 0) {
-                if (ret == 0 || errno != EAGAIN) {
+            switch (ret)
+            {
+                case COF_CLOSED:
+                {
+                    pconn->closed = true;
+                }
+                case COF_FAILED:
+                case COF_FINISHED:
+                {
                     PDEBUG("remove socket...\n");
                     struct epoll_event ev;
 
@@ -348,13 +355,19 @@ static inline int do_perform_epoll(connection_group* group)
                     /* close(pconn->sock); */
                     cnt--;
                     PDEBUG("remaining sockets: %d\n", cnt);
+                    break;
                 }
-            } else if (need_mod) {
-                struct epoll_event ev;
-
-                ev.events = EPOLLIN;
-                ev.data.ptr = pconn;
-                epoll_ctl(epl, EPOLL_CTL_MOD, pconn->sock, &ev);
+                case COF_AGAIN:
+                default:
+                {
+                    if (need_mod) {
+                        struct epoll_event ev;
+                        ev.events = EPOLLIN;
+                        ev.data.ptr = pconn;
+                        epoll_ctl(epl, EPOLL_CTL_MOD, pconn->sock, &ev);
+                    }
+                    break;
+                }
             }
         }
 
@@ -435,16 +448,31 @@ static inline int do_perform_select(connection_group* group)
             }
             else if (FD_ISSET(pconn->sock, &rfds)) {
                 ret = pconn->conn.rf((connection *) pconn, pconn->conn.priv);
-                if (ret && ret != -1) {
-                    FD_SET(pconn->sock, &rfds);
-                } else {
-                    PDEBUG("remove socket: %d, ret: %d...\n",
-                           pconn->sock, ret);
-                    FD_CLR(pconn->sock, &rfds);
-                    /* close(pconn->sock); */
-                    cnt--;
-                    PDEBUG("remaining sockets: %d\n", cnt);
-                    pconn->active = false;
+                switch (ret)
+                {
+                    case COF_CLOSED:
+                    {
+                        pconn->closed = true;
+                    }
+                    case COF_FAILED:
+                    case COF_FINISHED:
+                    {
+                        PDEBUG("remove socket: %d, ret: %d...\n",
+                               pconn->sock, ret);
+                        FD_CLR(pconn->sock, &rfds);
+                        /* close(pconn->sock); */
+                        cnt--;
+                        PDEBUG("remaining sockets: %d\n", cnt);
+                        pconn->active = false;
+                        pconn->busy   = false;
+                        break;
+                    }
+                    case COF_AGAIN:
+                    default:
+                    {
+                        FD_SET(pconn->sock, &rfds);
+                        break;
+                    }
                 }
             }
             else if (pconn->active) {
@@ -456,6 +484,12 @@ static inline int do_perform_select(connection_group* group)
 
         if (cnt == 0) {
             break;
+        } else if (cnt < group->cnt / 2) { // half of connections are free, reschedule.
+            static bool rescheduled = false;
+            if (!rescheduled) {
+                PDEBUG ("TODO: implement reschduling...\n");
+                rescheduled = true;
+            }
         }
 
         if (*(group->cflag)) {
