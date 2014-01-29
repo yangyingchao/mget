@@ -1,4 +1,3 @@
-
 /** connection.h --- interface of connectionet, used internally by libmget.
  *
  * Copyright (C) 2013 Yang,Ying-chao

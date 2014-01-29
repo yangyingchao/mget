@@ -208,10 +208,14 @@ int http_read_sock(connection * conn, void *priv)
         return -1;
     }
     //todo: Ensure we read all data stored in this connection.
-    so_param *param = (so_param *) priv;
-    data_chunk *dp = (data_chunk *) param->dp;
-    void *addr = param->addr + dp->cur_pos;
+    so_param   *param = (so_param *) priv;
+    data_chunk *dp    = (data_chunk *) param->dp;
 
+    if (dp->cur_pos >= dp->end_pos)  {
+        return 0;
+    }
+
+    void *addr = param->addr + dp->cur_pos;
     if (!param->header_finished) {
         char buf[4096] = { '\0' };
         memset(buf, 0, 4096);
@@ -227,7 +231,7 @@ int http_read_sock(connection * conn, void *priv)
             }
 
             size_t ds = ptr - buf + 4;
-            int r = dissect_header(buf, ds, &param->ht);
+            int    r  = dissect_header(buf, ds, &param->ht);
 
             if (r != 206 && r != 200) { /* Some server returns 200?? */
                 fprintf(stderr, "status code is %d!\n", r);
@@ -237,11 +241,6 @@ int http_read_sock(connection * conn, void *priv)
             ptr += 4;		// adjust to the tail of "\r\n\r\n"
 
             param->header_finished = true;
-
-            char *mm = ZALLOC(char, ds + 1);
-
-            strncpy(mm, buf, ds);
-            free(mm);
 
             size_t length = rd - ds;
             if (length) {
@@ -253,10 +252,10 @@ int http_read_sock(connection * conn, void *priv)
 
     int rd;
 
-    do
+    do {
         rd = conn->ci.reader(conn, param->addr + dp->cur_pos,
                              dp->end_pos - dp->cur_pos, NULL);
-    while (rd == -1 && errno == EINTR);
+    } while (rd == -1 && errno == EINTR);
     if (rd > 0) {
         dp->cur_pos += rd;
         if (param->cb) {
@@ -264,9 +263,8 @@ int http_read_sock(connection * conn, void *priv)
         }
     } else if (rd == 0) {
         fprintf(stderr, "socket: closed..\n");
-        PDEBUG("Read returns 0: showing chunk: \n");
-
-        PDEBUG("retuned zero: dp: %p : %llX -- %llX\n",
+        PDEBUG("Read returns 0: showing chunk: "
+               "retuned zero: dp: %p : %llX -- %llX\n",
                dp, dp->cur_pos, dp->end_pos);
     } else {
         fprintf(stderr, "read returns %d\n", rd);
@@ -294,9 +292,8 @@ int http_write_sock(connection * conn, void *priv)
     }
 
     so_param *cp = (so_param *) priv;
-
-    char *hd = generate_request_header("GET", cp->ui, cp->dp->cur_pos,
-                                       cp->dp->end_pos);
+    char     *hd = generate_request_header("GET", cp->ui, cp->dp->cur_pos,
+                                           cp->dp->end_pos);
     size_t written = conn->ci.writer(conn, hd, strlen(hd), NULL);
 
     free(hd);

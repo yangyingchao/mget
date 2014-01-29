@@ -1,4 +1,3 @@
-
 /** mget_sock.c --- implementation of mget_sock
  *
  * Copyright (C) 2013 Yang,Ying-chao
@@ -51,21 +50,22 @@ typedef enum _connection_feature {
 
 
 typedef struct _addr_entry {
-    address *addr;		// don't release ti.
-    address *infos;		// should be freed.
-    uint32 feature;
+    address *addr;                      // don't release ti.
+    address *infos;                     // should be freed.
+    uint32   feature;
 } addr_entry;
 
 typedef struct _connection_p {
     connection conn;
 
-    int sock;
-    char *host;
+    int      sock;
+    char    *host;
     address *addr;
-    bool connected;
-    bool active;
-    void *priv;
-    /* bool   busy; */
+    void    *priv;
+    bool     connected;
+    bool     active;
+    bool     closed;
+    bool   busy;
     /* uint32 atime; */
 } connection_p;
 
@@ -101,9 +101,20 @@ static uint32 tcp_connection_read(connection * conn, char *buf,
     if (pconn && pconn->sock && buf) {
         uint32 rd = (uint32) read(pconn->sock, buf, size);
 
-        if ((!rd && errno != EAGAIN) || rd == -1) {
-            PDEBUG("rd: %lu\n", rd);
+        if (rd == -1) {
+            if (errno == EAGAIN) { // nothing to read, normal if non-blocking
+                ;
+            }
+            else  {
+                PDEBUG ("Read connection: %p returns -1.\n", pconn);
+            }
         }
+        else if (!rd)  {
+            PDEBUG ("Read connection: %p returns 0, connection closed...\n",
+                    pconn);
+            pconn->closed = true;
+        }
+
         return rd;
     }
 
@@ -427,8 +438,8 @@ static inline int do_perform_select(connection_group* group)
                 if (ret && ret != -1) {
                     FD_SET(pconn->sock, &rfds);
                 } else {
-                    PDEBUG("remove socket: %d, ret: %d...\n", pconn->sock,
-                           ret);
+                    PDEBUG("remove socket: %d, ret: %d...\n",
+                           pconn->sock, ret);
                     FD_CLR(pconn->sock, &rfds);
                     /* close(pconn->sock); */
                     cnt--;
@@ -442,7 +453,7 @@ static inline int do_perform_select(connection_group* group)
 
             p = (connection_list *) p->next;
         }
-        /* #endif */
+
         if (cnt == 0) {
             break;
         }
