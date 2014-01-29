@@ -44,6 +44,8 @@
                 file, __LINE__,__FUNCTION__);                           \
         fprintf(stderr, strcat(msg, fmt ), ##args);                     \
         } while(0)
+#else
+#define PDEBUG(fmt, args...)
 #endif  /*End of if PDEBUG*/
 
 #define MAX_NC       40

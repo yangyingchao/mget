@@ -525,31 +525,28 @@ void logprintf(enum log_options o, const char *fmt, ...)
     while (!done);
 }
 
-#ifdef ENABLE_DEBUG
 
 /* The same as logprintf(), but does anything only if opt.debug is
    true.  */
 void debug_logprintf(const char *fmt, ...)
 {
-    if (opt.debug) {
-        va_list args;
-        struct logvprintf_state lpstate;
-        bool done;
+    va_list args;
+    struct logvprintf_state lpstate;
+    bool done;
 
-        check_redirect_output();
-        if (inhibit_logging)
-            return;
+    check_redirect_output();
+    if (inhibit_logging)
+        return;
 
-        XZERO(lpstate);
-        do {
-            va_start(args, fmt);
-            done = log_vprintf_internal(&lpstate, fmt, args);
-            va_end(args);
-        }
-        while (!done);
+    XZERO(lpstate);
+    do {
+        va_start(args, fmt);
+        done = log_vprintf_internal(&lpstate, fmt, args);
+        va_end(args);
     }
+    while (!done);
 }
-#endif				/* ENABLE_DEBUG */
+
 
 /* Open FILE and set up a logging stream.  If FILE cannot be opened,
    exit with status of 1.  */
