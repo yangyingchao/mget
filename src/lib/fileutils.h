@@ -61,3 +61,16 @@ fh_map* fm_create(const char* fn, size_t length);
 bool fm_remap(fh_map** fm, size_t new_length);
 
 #endif				/* _FILEUTILS_H_ */
+
+/*
+ * Editor modelines
+ *
+ * Local Variables:
+ * c-basic-offset: 4
+ * tab-width: 4
+ * indent-tabs-mode: nil
+ * fill-column: 78
+ * End:
+ *
+ * vim: set noet ts=4 sw=4:
+ */

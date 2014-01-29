@@ -515,3 +515,16 @@ void connection_add_to_group(connection_group * group, connection * sock)
     PDEBUG("Socket: %p added to group: %p, current count: %d\n",
            sock, group, group->cnt);
 }
+
+/*
+ * Editor modelines
+ *
+ * Local Variables:
+ * c-basic-offset: 4
+ * tab-width: 4
+ * indent-tabs-mode: nil
+ * fill-column: 78
+ * End:
+ *
+ * vim: set noet ts=4 sw=4:
+ */

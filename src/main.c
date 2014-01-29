@@ -250,3 +250,16 @@ int main(int argc, char *argv[])
 
     return 0;
 }
+
+/*
+ * Editor modelines
+ *
+ * Local Variables:
+ * c-basic-offset: 4
+ * tab-width: 4
+ * indent-tabs-mode: nil
+ * fill-column: 78
+ * End:
+ *
+ * vim: set noet ts=4 sw=4:
+ */

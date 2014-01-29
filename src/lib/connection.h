@@ -79,3 +79,16 @@ void connection_put(connection * sock);
 #endif
 
 #endif				/* _MGET_SOCK_H_ */
+
+/*
+ * Editor modelines
+ *
+ * Local Variables:
+ * c-basic-offset: 4
+ * tab-width: 4
+ * indent-tabs-mode: nil
+ * fill-column: 78
+ * End:
+ *
+ * vim: set noet ts=4 sw=4:
+ */
