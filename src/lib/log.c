@@ -570,11 +570,7 @@ void log_init(const char *file, bool appendp)
            easier on the user.  */
         logfp = stderr;
 
-        if (1
-#ifdef HAVE_ISATTY
-            && isatty(fileno(logfp))
-#endif
-            ) {
+        if (isatty(fileno(logfp))) {
             /* If the output is a TTY, enable save context, i.e. store
                the most recent several messages ("context") and dump
                them to a log file in case SIGHUP or SIGUSR1 is received

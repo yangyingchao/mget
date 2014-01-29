@@ -78,3 +78,4 @@ const char *escnonprint_uri(const char *);
 
 
 #endif				/* LOG_H */
+
