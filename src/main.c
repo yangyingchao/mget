@@ -103,7 +103,7 @@ void show_progress(metadata* md)
         uint32 c_time    = get_time_ms();
 
         fprintf(stderr,
-                "Progress: received %s in %.02f seconds, %.02f percent, %s/s\n",
+                "Progress: received %s in %.02f seconds, %.02f percent, %s/s\r",
                 s2, (double) (c_time - ts) / 1000,
                 (double) recv / total * 100,
                 stringify_size((size_t)((double) (diff_size) * 1000 / (c_time - ts))));
