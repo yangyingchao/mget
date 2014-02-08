@@ -23,6 +23,8 @@
 #ifndef _MGET_CONFIG_H_
 #define _MGET_CONFIG_H_
 
+/* NOTE: Don't modify! created by cmake automatically! */
+
 #define VERSION_MAJOR       @VERSION_MAJOR@
 #define VERSION_MINOR       @VERSION_MINOR@
 #define VERSION_PATCH       @VERSION_PATCH@

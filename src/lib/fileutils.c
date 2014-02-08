@@ -260,3 +260,16 @@ bool fm_remap(fh_map** fm, size_t nl)
     *fm = fhandle_mmap(fh, 0, nl ? nl : 1);
     return true;
 }
+
+/*
+ * Editor modelines
+ *
+ * Local Variables:
+ * c-basic-offset: 4
+ * tab-width: 4
+ * indent-tabs-mode: nil
+ * fill-column: 78
+ * End:
+ *
+ * vim: set noet ts=4 sw=4:
+ */

@@ -27,7 +27,7 @@
 #include <string.h>
 #include <assert.h>
 #include "log.h"
-#include "timeutil.h"
+#include "mget_utils.h"
 #include <stdio.h>
 #include "mget_config.h"
 
@@ -269,3 +269,16 @@ metadata* metadata_create_empty()
 {
     return NULL;
 }
+
+/*
+ * Editor modelines
+ *
+ * Local Variables:
+ * c-basic-offset: 4
+ * tab-width: 4
+ * indent-tabs-mode: nil
+ * fill-column: 78
+ * End:
+ *
+ * vim: set noet ts=4 sw=4:
+ */

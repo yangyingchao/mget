@@ -20,7 +20,7 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#include "timeutil.h"
+#include "mget_utils.h"
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
@@ -81,3 +81,16 @@ char *current_time_str()
 {
     return datetime_str(time(NULL));
 }
+
+/*
+ * Editor modelines
+ *
+ * Local Variables:
+ * c-basic-offset: 4
+ * tab-width: 4
+ * indent-tabs-mode: nil
+ * fill-column: 78
+ * End:
+ *
+ * vim: set noet ts=4 sw=4:
+ */

@@ -39,7 +39,8 @@ as that of the covered work.  */
 #include <stdbool.h>
 #include <assert.h>
 
-enum log_options { LOG_VERBOSE, LOG_NOTQUIET, LOG_NONVERBOSE, LOG_ALWAYS };
+enum log_options { LOG_DEBUG, LOG_VERBOSE, LOG_NOTQUIET, LOG_NONVERBOSE,
+                   LOG_ALWAYS };
 
 void log_set_warc_log_fp(FILE *);
 
@@ -61,15 +62,8 @@ const char *escnonprint_uri(const char *);
 #ifdef DEBUG
 #define PDEBUG(fmt, args...)                                            \
     do {                                                                \
-        const char* file = __FILE__;                                    \
-        const char* xxxptr = file;                                      \
-        const char* sep = "/";                                          \
-        while ((xxxptr = strstr(file, sep)) != NULL) {                  \
-            file = xxxptr;                                              \
-            file = ++xxxptr;                                            \
-        }                                                               \
-                                                                        \
-        fprintf(stderr, "TDEBUG: - %s(%d)-%s: ",file, __LINE__,__FUNCTION__); \
+        fprintf(stderr, "mget: - %s(%d)-%s: ",                          \
+                __FILE__, __LINE__,__FUNCTION__);                       \
         fprintf(stderr, fmt, ##args);                                   \
     } while(0)
 #else
@@ -78,3 +72,17 @@ const char *escnonprint_uri(const char *);
 
 
 #endif				/* LOG_H */
+
+
+/*
+ * Editor modelines
+ *
+ * Local Variables:
+ * c-basic-offset: 4
+ * tab-width: 4
+ * indent-tabs-mode: nil
+ * fill-column: 78
+ * End:
+ *
+ * vim: set noet ts=4 sw=4:
+ */

@@ -24,8 +24,8 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include "libmget.h"
-#include "timeutil.h"
+#include "lib/libmget.h"
+#include "lib/mget_utils.h"
 #include <signal.h>
 
 #ifdef DEBUG
@@ -44,6 +44,8 @@
                 file, __LINE__,__FUNCTION__);                           \
         fprintf(stderr, strcat(msg, fmt ), ##args);                     \
         } while(0)
+#else
+#define PDEBUG(fmt, args...)
 #endif  /*End of if PDEBUG*/
 
 #define MAX_NC       40
@@ -249,3 +251,16 @@ int main(int argc, char *argv[])
 
     return 0;
 }
+
+/*
+ * Editor modelines
+ *
+ * Local Variables:
+ * c-basic-offset: 4
+ * tab-width: 4
+ * indent-tabs-mode: nil
+ * fill-column: 78
+ * End:
+ *
+ * vim: set noet ts=4 sw=4:
+ */

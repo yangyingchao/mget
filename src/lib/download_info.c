@@ -25,7 +25,7 @@
 #include "log.h"
 #include "metadata.h"
 #include "mget_config.h"
-#include "timeutil.h"
+#include "mget_utils.h"
 
 bool dinfo_create_from_file(const char* fn, dinfo* info)
 {
@@ -238,3 +238,16 @@ void dinfo_sync(dinfo* info)
         fhandle_msync(info->fm_file);
     }
 }
+
+/*
+ * Editor modelines
+ *
+ * Local Variables:
+ * c-basic-offset: 4
+ * tab-width: 4
+ * indent-tabs-mode: nil
+ * fill-column: 78
+ * End:
+ *
+ * vim: set noet ts=4 sw=4:
+ */

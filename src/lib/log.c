@@ -525,31 +525,28 @@ void logprintf(enum log_options o, const char *fmt, ...)
     while (!done);
 }
 
-#ifdef ENABLE_DEBUG
 
 /* The same as logprintf(), but does anything only if opt.debug is
    true.  */
 void debug_logprintf(const char *fmt, ...)
 {
-    if (opt.debug) {
-        va_list args;
-        struct logvprintf_state lpstate;
-        bool done;
+    va_list args;
+    struct logvprintf_state lpstate;
+    bool done;
 
-        check_redirect_output();
-        if (inhibit_logging)
-            return;
+    check_redirect_output();
+    if (inhibit_logging)
+        return;
 
-        XZERO(lpstate);
-        do {
-            va_start(args, fmt);
-            done = log_vprintf_internal(&lpstate, fmt, args);
-            va_end(args);
-        }
-        while (!done);
+    XZERO(lpstate);
+    do {
+        va_start(args, fmt);
+        done = log_vprintf_internal(&lpstate, fmt, args);
+        va_end(args);
     }
+    while (!done);
 }
-#endif				/* ENABLE_DEBUG */
+
 
 /* Open FILE and set up a logging stream.  If FILE cannot be opened,
    exit with status of 1.  */
@@ -570,11 +567,7 @@ void log_init(const char *file, bool appendp)
            easier on the user.  */
         logfp = stderr;
 
-        if (1
-#ifdef HAVE_ISATTY
-            && isatty(fileno(logfp))
-#endif
-            ) {
+        if (isatty(fileno(logfp))) {
             /* If the output is a TTY, enable save context, i.e. store
                the most recent several messages ("context") and dump
                them to a log file in case SIGHUP or SIGUSR1 is received
@@ -885,3 +878,16 @@ void log_request_redirect_output(const char *signal_name)
         redirect_request = RR_REQUESTED;
     redirect_request_signal_name = signal_name;
 }
+
+/*
+ * Editor modelines
+ *
+ * Local Variables:
+ * c-basic-offset: 4
+ * tab-width: 4
+ * indent-tabs-mode: nil
+ * fill-column: 78
+ * End:
+ *
+ * vim: set noet ts=4 sw=4:
+ */

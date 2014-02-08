@@ -1,4 +1,3 @@
-
 /** connection.h --- interface of connectionet, used internally by libmget.
  *
  * Copyright (C) 2013 Yang,Ying-chao
@@ -36,14 +35,20 @@ typedef uint32(*read_func) (connection *, char *, uint32, void *);
 typedef uint32(*write_func) (connection *, char *, uint32, void *);
 typedef void (*close_func) (connection *, void *);
 
-/** copied from wget .. */
 typedef struct _connection_impl {
 	read_func reader;
 	write_func writer;
 } cipl;
 
+
 typedef int (*connection_read_func) (connection *, void *);
 typedef int (*connection_write_func) (connection *, void *);
+
+#define COF_FAILED       -1 // Connection Operation Failed
+#define COF_AGAIN        -2 // No data, try again.
+#define COF_FINISHED     -3 // Connection Operation Finished
+#define COF_CLOSED        0 // Connection was closed.
+#define COF_SUCCESS(X)       ((X)>0)
 
 
 // TODO: Hide sock, use transport_implementation above...
@@ -79,3 +84,16 @@ void connection_put(connection * sock);
 #endif
 
 #endif				/* _MGET_SOCK_H_ */
+
+/*
+ * Editor modelines
+ *
+ * Local Variables:
+ * c-basic-offset: 4
+ * tab-width: 4
+ * indent-tabs-mode: nil
+ * fill-column: 78
+ * End:
+ *
+ * vim: set noet ts=4 sw=4:
+ */

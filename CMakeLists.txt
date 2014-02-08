@@ -14,10 +14,7 @@ if(DLOG)
 ADD_DEFINITIONS("-DDEBUG")
 endif(DLOG)
 
-if(MSOCK)
-  set(TRY_MSOCK 1)
-endif(MSOCK)
-
+# set(CMAKE_INSTALL_PREFIX "/usr")
 
 # uninstall target
 configure_file(
