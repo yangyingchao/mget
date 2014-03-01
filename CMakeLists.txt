@@ -14,7 +14,7 @@ if(DLOG)
 ADD_DEFINITIONS("-DDEBUG")
 endif(DLOG)
 
-# set(CMAKE_INSTALL_PREFIX "/usr")
+set(CMAKE_INSTALL_PREFIX "/usr")
 
 # uninstall target
 configure_file(

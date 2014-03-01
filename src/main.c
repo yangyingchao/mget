@@ -98,18 +98,19 @@ void show_progress(metadata* md)
         }
 
         uint64 diff_size = recv - last_recv;
-        char *s2 = strdup(stringify_size(diff_size));
+        uint64 remain    = total - recv;
         uint32 c_time    = get_time_ms();
+        uint64 bps       = (uint64)((double) (diff_size) * 1000 / (c_time - ts));
 
         fprintf(stderr,
-                "] Received %s in %.02f seconds, %.02f percent, %s/s\r",
-                s2, (double) (c_time - ts) / 1000,
+                "] %.02f percent finished, speed: %s/s, eta: %s\r",
                 (double) recv / total * 100,
-                stringify_size((size_t)((double) (diff_size) * 1000 / (c_time - ts))));
+                stringify_size(bps),
+                stringify_time((total-recv)/bps));
+
         idx       = 0;
         last_recv = recv;
         ts        = c_time;
-        free(s2);
     }
 }
 
