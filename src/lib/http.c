@@ -262,12 +262,11 @@ int http_read_sock(connection * conn, void *priv)
             (*(param->cb)) (param->md);
         }
     } else if (rd == 0) {
-        fprintf(stderr, "socket: closed..\n");
         PDEBUG("Read returns 0: showing chunk: "
                "retuned zero: dp: %p : %llX -- %llX\n",
                dp, dp->cur_pos, dp->end_pos);
     } else {
-        fprintf(stderr, "read returns %d\n", rd);
+        PDEBUG("read returns %d\n", rd);
         if (errno != EAGAIN) {
             fprintf(stderr, "read returns %d: %s\n", rd, strerror(errno));
             rd = COF_AGAIN;
