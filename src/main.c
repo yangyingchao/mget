@@ -120,6 +120,7 @@ void print_help()
 {
     static const char* help[] = {
         "\nOptions:\n",
+        "\t-v:  show version of mget.\n",
         "\t-j:  max connections (should be smaller than 40).\n",
         "\t-d:  set folder to store download data.\n",
         "\t-o:  set file name to store download data."
@@ -130,7 +131,7 @@ void print_help()
         NULL
     };
 
-    printf ("Mget %s, non-interactive network retriever"
+    printf ("Mget %s, non-interactive network retriever "
             "with multiple connections\n", VERSION_STRING);
 
     const char** ptr = help;
@@ -158,7 +159,7 @@ int main(int argc, char *argv[])
 
     memset(&fn, 0, sizeof(file_name));
 
-    while ((opt = getopt(argc, argv, "hj:d:o:r:s")) != -1) {
+    while ((opt = getopt(argc, argv, "hj:d:o:r:sv")) != -1) {
         switch (opt) {
             case 'h':
             {
@@ -196,6 +197,12 @@ int main(int argc, char *argv[])
             {
                 fn.basen = strdup(optarg);
                 resume = true;
+                break;
+            }
+            case 'v':
+            {
+                printf("mget version: %s\n", VERSION_STRING);
+                return 0;
                 break;
             }
             default:
