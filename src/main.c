@@ -55,6 +55,8 @@
 
 bool control_byte = false;
 
+static const int MAX_RETRY_TIMES = 3;
+
 void sigterm_handler(int signum)
 {
     control_byte = true;
@@ -247,7 +249,20 @@ int main(int argc, char *argv[])
         PDEBUG("ret = %d\n", ret);
 
         signal(SIGINT, sigterm_handler);
-        start_request(target, &fn, nc, show_progress, &control_byte);
+
+        int retry_time = 0;
+        bool result = true;
+        while (retry_time++ < MAX_RETRY_TIMES && !control_byte) {
+            if ((result = start_request(target, &fn, nc, show_progress, &control_byte))) {
+                break;
+            }
+        }
+
+        if (!result) {
+            printf ("Failed to download from: %s after %d times retry...\n",
+                    target, MAX_RETRY_TIMES);
+            return 1;
+        }
     }
 
     return 0;
