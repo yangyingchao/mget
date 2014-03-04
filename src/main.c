@@ -55,6 +55,8 @@
 
 bool control_byte = false;
 
+static const int MAX_RETRY_TIMES = 3;
+
 void sigterm_handler(int signum)
 {
     control_byte = true;
@@ -98,18 +100,19 @@ void show_progress(metadata* md)
         }
 
         uint64 diff_size = recv - last_recv;
-        char *s2 = strdup(stringify_size(diff_size));
+        uint64 remain    = total - recv;
         uint32 c_time    = get_time_ms();
+        uint64 bps       = (uint64)((double) (diff_size) * 1000 / (c_time - ts));
 
         fprintf(stderr,
-                "] Received %s in %.02f seconds, %.02f percent, %s/s\r",
-                s2, (double) (c_time - ts) / 1000,
+                "] %.02f percent finished, speed: %s/s, eta: %s\r",
                 (double) recv / total * 100,
-                stringify_size((size_t)((double) (diff_size) * 1000 / (c_time - ts))));
+                stringify_size(bps),
+                stringify_time((total-recv)/bps));
+
         idx       = 0;
         last_recv = recv;
         ts        = c_time;
-        free(s2);
     }
 }
 
@@ -117,6 +120,7 @@ void print_help()
 {
     static const char* help[] = {
         "\nOptions:\n",
+        "\t-v:  show version of mget.\n",
         "\t-j:  max connections (should be smaller than 40).\n",
         "\t-d:  set folder to store download data.\n",
         "\t-o:  set file name to store download data."
@@ -127,7 +131,7 @@ void print_help()
         NULL
     };
 
-    printf ("Mget %s, non-interactive network retriever"
+    printf ("Mget %s, non-interactive network retriever "
             "with multiple connections\n", VERSION_STRING);
 
     const char** ptr = help;
@@ -155,7 +159,7 @@ int main(int argc, char *argv[])
 
     memset(&fn, 0, sizeof(file_name));
 
-    while ((opt = getopt(argc, argv, "hj:d:o:r:s")) != -1) {
+    while ((opt = getopt(argc, argv, "hj:d:o:r:sv")) != -1) {
         switch (opt) {
             case 'h':
             {
@@ -193,6 +197,12 @@ int main(int argc, char *argv[])
             {
                 fn.basen = strdup(optarg);
                 resume = true;
+                break;
+            }
+            case 'v':
+            {
+                printf("mget version: %s\n", VERSION_STRING);
+                return 0;
                 break;
             }
             default:
@@ -246,7 +256,20 @@ int main(int argc, char *argv[])
         PDEBUG("ret = %d\n", ret);
 
         signal(SIGINT, sigterm_handler);
-        start_request(target, &fn, nc, show_progress, &control_byte);
+
+        int retry_time = 0;
+        bool result = true;
+        while (retry_time++ < MAX_RETRY_TIMES && !control_byte) {
+            if ((result = start_request(target, &fn, nc, show_progress, &control_byte))) {
+                break;
+            }
+        }
+
+        if (!result) {
+            printf ("Failed to download from: %s after %d times retry...\n",
+                    target, MAX_RETRY_TIMES);
+            return 1;
+        }
     }
 
     return 0;

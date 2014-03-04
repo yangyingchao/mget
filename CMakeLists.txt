@@ -3,18 +3,13 @@ cmake_minimum_required(VERSION 2.6)
 
 option (DLOG
   "Enable debug..."
-  ON)
-
-option (MSOCK
-  "Try use raw sock instead of libcurl.."
-  ON)
-
+  OFF)
 
 if(DLOG)
 ADD_DEFINITIONS("-DDEBUG")
 endif(DLOG)
 
-# set(CMAKE_INSTALL_PREFIX "/usr")
+set(CMAKE_INSTALL_PREFIX "/usr")
 
 # uninstall target
 configure_file(

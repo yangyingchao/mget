@@ -315,7 +315,7 @@ static inline int do_perform_epoll(connection_group* group)
         }
 
         if (nfds == 0) {
-            fprintf(stderr, "time out ....\n");
+            // fprintf(stderr, "time out ....\n");
             continue;
         }
 
