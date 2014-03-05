@@ -37,3 +37,4 @@ core.*
 /proj/mget.xcodeproj/project.xcworkspace/
 proj/mget.xcodeproj/xcuserdata/
 *~
+/src/ui/gtk/gmget
