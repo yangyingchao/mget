@@ -109,6 +109,7 @@ void show_progress(metadata* md)
                 (double) recv / total * 100,
                 stringify_size(bps),
                 stringify_time((total-recv)/bps));
+        fprintf(stderr, "\n");
 
         idx       = 0;
         last_recv = recv;
