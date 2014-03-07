@@ -2,7 +2,24 @@
 
 void  on_window_destroy(GtkWidget* object, gpointer user_data)
 {
+    gtk_widget_destroy(object);
     gtk_main_quit();
+ }
+
+void on_btn_add_clicked(GtkButton *button,
+                        gpointer   user_data)
+{
+    printf ("hello!\n");
+    GtkWidget* dlg = (GtkWidget*)user_data;
+    gtk_widget_show_all (dlg);
+}
+
+void on_btn_download_cancel_clicked(GtkButton *button,
+                                    gpointer   user_data)
+{
+    printf ("hello!\n");
+    GtkWidget* dlg = (GtkWidget*)user_data;
+    gtk_widget_hide (dlg);
 }
 
 int main(int argc, char *argv[])
@@ -17,7 +34,8 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    GtkWidget* window = GTK_WIDGET(gtk_builder_get_object(builder, "MainWindow"));
+    GtkWidget* window = GTK_WIDGET(gtk_builder_get_object(builder,
+                                                          "MainWindow"));
     if (!window)
     {
         printf ("Failed to get window!\n");
