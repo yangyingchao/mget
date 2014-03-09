@@ -28,7 +28,7 @@ extern "C" {
 #endif
 
 #include "mget_types.h"
-#include "macros.h"
+#include "mget_macros.h"
 #include "mget_utils.h"
 
 typedef void (*free_func) (void *);

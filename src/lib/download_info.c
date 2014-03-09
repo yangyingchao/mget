@@ -21,7 +21,7 @@
  */
 
 #include "download_info.h"
-#include "macros.h"
+#include "mget_macros.h"
 #include "log.h"
 #include "metadata.h"
 #include "mget_config.h"

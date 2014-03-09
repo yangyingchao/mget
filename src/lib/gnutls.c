@@ -21,7 +21,7 @@
  */
 
 #include "log.h"
-#include "macros.h"
+#include "mget_macros.h"
 #include "ssl.h"
 #include <arpa/inet.h>
 #include <dirent.h>

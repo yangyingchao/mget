@@ -23,7 +23,7 @@
 
 #include "netutils.h"
 #include <stdio.h>
-#include "macros.h"
+#include "mget_macros.h"
 #include "log.h"
 #include "fileutils.h"
 

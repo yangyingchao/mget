@@ -20,7 +20,7 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#include "macros.h"
+#include "mget_macros.h"
 #include <stdio.h>
 #include <strings.h>
 #include "log.h"

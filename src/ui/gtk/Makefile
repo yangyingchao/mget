@@ -1,2 +1,2 @@
 all:
-	gcc gmget.c -o gmget `pkg-config --cflags --libs gtk+-3.0`  -export-dynamic
+	gcc -std=c99 gmget.c -o gmget -lmget `pkg-config --cflags --libs gtk+-3.0`  -export-dynamic

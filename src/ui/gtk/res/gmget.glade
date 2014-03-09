@@ -8,6 +8,7 @@
     <property name="default_height">600</property>
     <property name="hide_titlebar_when_maximized">True</property>
     <property name="icon">icon_small.png</property>
+    <signal name="destroy" handler="on_MainWindow_destroy" swapped="no"/>
     <child>
       <object class="GtkBox" id="box1">
         <property name="visible">True</property>
@@ -76,6 +77,7 @@
                         <property name="can_focus">False</property>
                         <property name="use_underline">True</property>
                         <property name="use_stock">True</property>
+                        <signal name="activate" handler="gtk_main_quit" swapped="no"/>
                       </object>
                     </child>
                   </object>
@@ -288,35 +290,62 @@
                   <object class="GtkTreeView" id="treeview2">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
-                    <property name="model">liststore1</property>
+                    <property name="model">liststore_tasks</property>
                     <property name="enable_grid_lines">both</property>
                     <child internal-child="selection">
                       <object class="GtkTreeSelection" id="treeview-selection2"/>
                     </child>
                     <child>
+                      <object class="GtkTreeViewColumn" id="col_status">
+                        <property name="min_width">48</property>
+                        <property name="max_width">48</property>
+                        <property name="title" translatable="yes">Status</property>
+                        <child>
+                          <object class="GtkCellRendererPixbuf" id="cellrendererpixbuf2"/>
+                          <attributes>
+                            <attribute name="pixbuf">0</attribute>
+                          </attributes>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
                       <object class="GtkTreeViewColumn" id="col_name">
                         <property name="resizable">True</property>
                         <property name="min_width">160</property>
-                        <property name="title" translatable="yes">FileName</property>
+                        <property name="title" translatable="yes">Name</property>
                         <child>
                           <object class="GtkCellRendererText" id="cellrenderertext1">
                             <property name="placeholder_text">...</property>
                           </object>
                           <attributes>
-                            <attribute name="text">0</attribute>
+                            <attribute name="text">1</attribute>
                           </attributes>
                         </child>
                       </object>
                     </child>
                     <child>
                       <object class="GtkTreeViewColumn" id="col_size">
-                        <property name="title" translatable="yes">FileSize</property>
+                        <property name="resizable">True</property>
+                        <property name="title" translatable="yes">Size</property>
                         <child>
                           <object class="GtkCellRendererText" id="cellrenderertext2">
                             <property name="placeholder_text">Unknown..</property>
                           </object>
                           <attributes>
-                            <attribute name="text">1</attribute>
+                            <attribute name="text">2</attribute>
+                          </attributes>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkTreeViewColumn" id="col_percentage">
+                        <property name="resizable">True</property>
+                        <property name="title" translatable="yes">Progress</property>
+                        <child>
+                          <object class="GtkCellRendererProgress" id="cellrendererprogress1"/>
+                          <attributes>
+                            <attribute name="text">3</attribute>
+                            <attribute name="value">3</attribute>
                           </attributes>
                         </child>
                       </object>
@@ -367,13 +396,14 @@
       </object>
     </child>
   </object>
+  <object class="GtkIconFactory" id="iconfactory1"/>
   <object class="GtkDialog" id="dlg_new_task">
     <property name="can_focus">False</property>
     <property name="border_width">5</property>
     <property name="title" translatable="yes">Add Task</property>
     <property name="modal">True</property>
     <property name="window_position">center</property>
-    <property name="default_width">800</property>
+    <property name="default_width">400</property>
     <property name="default_height">260</property>
     <property name="type_hint">dialog</property>
     <child internal-child="vbox">
@@ -391,6 +421,7 @@
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
+                <signal name="clicked" handler="on_btn_download_confirm_clicked" object="dlg_new_task" swapped="no"/>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -471,6 +502,8 @@
                 <property name="can_focus">True</property>
                 <property name="hexpand">True</property>
                 <property name="invisible_char">●</property>
+                <property name="width_chars">0</property>
+                <property name="shadow_type">out</property>
                 <property name="input_purpose">url</property>
               </object>
               <packing>
@@ -481,7 +514,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkEntry" id="entry1">
+              <object class="GtkEntry" id="entry_filename">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="hexpand">True</property>
@@ -495,7 +528,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkEntry" id="entry2">
+              <object class="GtkEntry" id="entry_dir">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="hexpand">True</property>
@@ -516,6 +549,8 @@
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
+                <property name="halign">end</property>
+                <property name="valign">center</property>
                 <property name="use_stock">True</property>
                 <property name="always_show_image">True</property>
               </object>
@@ -533,6 +568,8 @@
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
                 <property name="double_buffered">False</property>
+                <property name="halign">end</property>
+                <property name="valign">center</property>
                 <property name="use_stock">True</property>
                 <property name="always_show_image">True</property>
               </object>
@@ -557,17 +594,23 @@
       <action-widget response="0">btn_download_cancel</action-widget>
     </action-widgets>
   </object>
-  <object class="GtkListStore" id="liststore1">
+  <object class="GtkListStore" id="liststore_tasks">
     <columns>
-      <!-- column-name FileName -->
+      <!-- column-name GdkPixbuf1 -->
+      <column type="GdkPixbuf"/>
+      <!-- column-name Name -->
       <column type="gchararray"/>
       <!-- column-name Size -->
       <column type="gchararray"/>
+      <!-- column-name gdouble1 -->
+      <column type="gdouble"/>
     </columns>
     <data>
       <row>
-        <col id="0" translatable="yes">test.zip</col>
-        <col id="1" translatable="yes">100.5 M</col>
+        <col id="0"/>
+        <col id="1" translatable="yes">Test.Zip</col>
+        <col id="2" translatable="yes">100.00MB</col>
+        <col id="3">56.299999999999997</col>
       </row>
     </data>
   </object>
