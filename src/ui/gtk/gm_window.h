@@ -39,11 +39,15 @@ extern "C" {
 typedef struct _GmWindow       GmWindow;
 typedef struct _GmWindowClass  GmWindowClass;
 typedef struct _GmWindowPriv   GmWindowPriv;
+typedef struct _GmApp GmApp;
+
+#define G_GET_WIDGET(B, T, N) (T*)(gtk_builder_get_object((B), N))
+
 
 typedef enum
 {
-    GM_OPEN_LINK_NEW_WINDOW = 1 << 0,
-    GM_OPEN_LINK_NEW_TAB    = 1 << 1
+    GM_UPDATE_PROGRESS_NEW_WINDOW = 1 << 0,
+    GM_UPDATE_PROGRESS_NEW_TAB    = 1 << 1
 } GmOpenLinkFlags;
 
 struct _GmWindow {
@@ -55,7 +59,7 @@ struct _GmWindowClass {
     GtkApplicationWindowClass parent_class;
 
     /* Signals */
-    void (*open_link) (GmWindow        *window,
+    void (*update_progress) (GmWindow        *window,
                        const char      *location,
                        GmOpenLinkFlags  flags);
 };

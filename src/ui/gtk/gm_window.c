@@ -29,7 +29,8 @@
 #define TAB_WIDTH_N_CHARS 15
 
 struct _GmWindowPriv {
-    GtkWidget      *main_box;
+    GtkBox      *main_box;
+    GtkBuilder* builder;
 };
 
 enum {
@@ -65,35 +66,36 @@ gm_window_init (GmWindow *window)
 
     gtk_window_set_hide_titlebar_when_maximized (GTK_WINDOW (window), TRUE);
 
-    priv->selected_search_link = NULL;
+    /* priv->selected_search_link = NULL; */
 
-    /* handle settings */
-    priv->settings = gm_settings_get ();
-    priv->fonts_changed_id = g_signal_connect (priv->settings,
-                                               "fonts-changed",
-                                               G_CALLBACK (settings_fonts_changed_cb),
-                                               window);
+    /* /\* handle settings *\/ */
+    /* priv->settings = gm_settings_get (); */
+    /* priv->fonts_changed_id = g_signal_connect (priv->settings, */
+    /*                                            "fonts-changed", */
+    /*                                            G_CALLBACK (settings_fonts_changed_cb), */
+    /*                                            window); */
 
     /* Setup builder */
     priv->builder = gtk_builder_new ();
-    if (!gtk_builder_add_from_resource (priv->builder, "/org/gnome/devhelp/devhelp.ui", &error)) {
+    /* if (!gtk_builder_add_from_resource (priv->builder,  "/org/gnome/devhelp/devhelp.ui", &error)) */
+    if (!gtk_builder_add_from_file (priv->builder,  "res/gmget.glade", &error))
+    {
         g_error ("Cannot add resource to builder: %s", error ? error->message : "unknown error");
         g_clear_error (&error);
     }
 
     priv->main_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
-    gtk_widget_show (priv->main_box);
+    /* gtk_widget_show (priv->main_box); */
 
-    gtk_container_add (GTK_CONTAINER (window), priv->main_box);
-
+    gtk_container_add (GTK_CONTAINER (window), G_GET_WIDGET(priv->builder, GtkWidget, "MainWindow"));
     g_signal_connect (window,
-                      "open-link",
+                      "update-progress",
                       G_CALLBACK (window_update_progress_cb),
                       window);
 
-    g_action_map_add_action_entries (G_ACTION_MAP (window),
-                                     win_entries, G_N_ELEMENTS (win_entries),
-                                     window);
+    /* g_action_map_add_action_entries (G_ACTION_MAP (window), */
+    /*                                  win_entries, G_N_ELEMENTS (win_entries), */
+    /*                                  window); */
 
     accel_group = gtk_accel_group_new ();
     gtk_window_add_accel_group (GTK_WINDOW (window), accel_group);
@@ -104,14 +106,14 @@ dispose (GObject *object)
 {
 	GmWindow *self = GM_WINDOW (object);
 
-    if (self->priv->fonts_changed_id) {
-        if (self->priv->settings && g_signal_handler_is_connected (self->priv->settings, self->priv->fonts_changed_id))
-            g_signal_handler_disconnect (self->priv->settings, self->priv->fonts_changed_id);
-        self->priv->fonts_changed_id = 0;
-    }
+    /* if (self->priv->fonts_changed_id) { */
+    /*     if (self->priv->settings && g_signal_handler_is_connected (self->priv->settings, self->priv->fonts_changed_id)) */
+    /*         g_signal_handler_disconnect (self->priv->settings, self->priv->fonts_changed_id); */
+    /*     self->priv->fonts_changed_id = 0; */
+    /* } */
 
-    g_clear_object (&self->priv->settings);
-    g_clear_object (&self->priv->builder);
+    /* g_clear_object (&self->priv->settings); */
+    /* g_clear_object (&self->priv->builder); */
 
 	/* Chain up to the parent class */
 	G_OBJECT_CLASS (gm_window_parent_class)->dispose (object);
@@ -125,7 +127,7 @@ gm_window_class_init (GmWindowClass *klass)
     object_class->dispose = dispose;
 
     signals[UPDATE_PROGRESS] =
-            g_signal_new ("open-link",
+            g_signal_new ("update-progress",
                           G_TYPE_FROM_CLASS (klass),
                           G_SIGNAL_RUN_LAST,
                           G_STRUCT_OFFSET (GmWindowClass, update_progress),
@@ -134,7 +136,7 @@ gm_window_class_init (GmWindowClass *klass)
                           G_TYPE_NONE,
                           2,
                           G_TYPE_STRING,
-                          GM_TYPE_UPDATE_PROGRESS_FLAGS);
+                          G_TYPE_DOUBLE);
 }
 
 GtkWidget *
@@ -148,21 +150,21 @@ gm_window_new (GmApp *application)
 
     gtk_window_set_application (GTK_WINDOW (window), GTK_APPLICATION (application));
 
-    window_populate (window);
+    /* window_populate (window); */
 
     gtk_window_set_icon_name (GTK_WINDOW (window), "devhelp");
 
-    g_signal_connect (window, "configure-event",
-                      G_CALLBACK (window_configure_event_cb),
-                      window);
+    /* g_signal_connect (window, "configure-event", */
+    /*                   G_CALLBACK (window_configure_event_cb), */
+    /*                   window); */
 
-    gm_util_window_settings_restore (
-        GTK_WINDOW (window),
-        gm_settings_peek_window_settings (priv->settings), TRUE);
+    /* gm_util_window_settings_restore ( */
+    /*     GTK_WINDOW (window), */
+    /*     gm_settings_peek_window_settings (priv->settings), TRUE); */
 
-    g_settings_bind (gm_settings_peek_paned_settings (priv->settings),
-                     "position", G_OBJECT (priv->hpaned),
-                     "position", G_SETTINGS_BIND_DEFAULT);
+    /* g_settings_bind (gm_settings_peek_paned_settings (priv->settings), */
+    /*                  "position", G_OBJECT (priv->hpaned), */
+    /*                  "position", G_SETTINGS_BIND_DEFAULT); */
 
     return GTK_WIDGET (window);
 }

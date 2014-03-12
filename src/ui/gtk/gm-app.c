@@ -32,6 +32,8 @@ typedef struct _GmBookManager
 
 struct _GmAppPrivate {
     GmBookManager *book_manager;
+    GtkBuilder* window_builder;
+    GtkBuilder* menu_builder;
 };
 
 G_DEFINE_TYPE (GmApp, gm_app, GTK_TYPE_APPLICATION);
@@ -52,9 +54,9 @@ gm_app_peek_first_window (GmApp *self)
     for (l = gtk_application_get_windows (GTK_APPLICATION (self));
          l;
          l = g_list_next (l)) {
-        if (GM_IS_WINDOW (l->data)) {
-            return GTK_WINDOW (l->data);
-        }
+        /* if (GM_IS_WINDOW (l->data)) { */
+        /*     return GTK_WINDOW (l->data); */
+        /* } */
     }
 
     /* Create a new window */
@@ -72,9 +74,9 @@ gm_app_peek_assistant (GmApp *self)
     for (l = gtk_application_get_windows (GTK_APPLICATION (self));
          l;
          l = g_list_next (l)) {
-        if (GM_IS_ASSISTANT (l->data)) {
-            return GTK_WINDOW (l->data);
-        }
+        /* if (GM_IS_ASSISTANT (l->data)) { */
+        /*     return GTK_WINDOW (l->data); */
+        /* } */
     }
 
     return NULL;
@@ -136,7 +138,7 @@ preferences_cb (GSimpleAction *action,
                 GVariant      *parameter,
                 gpointer       user_data)
 {
-    gm_preferences_show_dialog ();
+    /* gm_preferences_show_dialog (); */
 }
 
 static void
@@ -160,7 +162,7 @@ about_cb (GSimpleAction *action,
      * for transliteration only) */
     gtk_show_about_dialog (NULL,
                            "name", _("Gmget"),
-                           "version", PACKAGE_VERSION,
+                           "version", "1.1",
                            "comments", _("A developers' help browser for GNOME"),
                            "authors", authors,
                            "documenters", documenters,
@@ -168,9 +170,9 @@ about_cb (GSimpleAction *action,
                            (strcmp (translator_credits, "translator_credits") != 0 ?
                             translator_credits :
                             NULL),
-                           "website", PACKAGE_URL,
+                           "website", "http://aaa",
                            "website-label", _("Gmget Website"),
-                           "logo-icon-name", PACKAGE_TARNAME,
+                           "logo-icon-name", "CCCC",
                            NULL);
 }
 
@@ -206,7 +208,7 @@ search_cb (GSimpleAction *action,
         return;
     }
 
-    gm_window_search (GM_WINDOW (window), str);
+    /* gm_window_search (GM_WINDOW (window), str); */
     gtk_window_present (window);
 }
 
@@ -215,25 +217,25 @@ search_assistant_cb (GSimpleAction *action,
                      GVariant      *parameter,
                      gpointer       user_data)
 {
-    GmApp *self = GM_APP (user_data);
-    GtkWindow *assistant;
-    const gchar *str;
+    /* GmApp *self = GM_APP (user_data); */
+    /* GtkWindow *assistant; */
+    /* const gchar *str; */
 
-    str = g_variant_get_string (parameter, NULL);
-    if (str[0] == '\0') {
-        g_warning ("Cannot look for keyword in Search Assistant: "
-                   "No keyword given");
-        return;
-    }
+    /* str = g_variant_get_string (parameter, NULL); */
+    /* if (str[0] == '\0') { */
+    /*     g_warning ("Cannot look for keyword in Search Assistant: " */
+    /*                "No keyword given"); */
+    /*     return; */
+    /* } */
 
-    /* Look for an already registered assistant */
-    assistant = gm_app_peek_assistant (self);
-    if (!assistant) {
-        assistant = GTK_WINDOW (gm_assistant_new (self));
-        gtk_application_add_window (GTK_APPLICATION (self), assistant);
-    }
+    /* /\* Look for an already registered assistant *\/ */
+    /* assistant = gm_app_peek_assistant (self); */
+    /* if (!assistant) { */
+    /*     assistant = GTK_WINDOW (gm_assistant_new (self)); */
+    /*     gtk_application_add_window (GTK_APPLICATION (self), assistant); */
+    /* } */
 
-    gm_assistant_search (GM_ASSISTANT (assistant), str);
+    /* gm_assistant_search (GM_ASSISTANT (assistant), str); */
 }
 
 static void
@@ -293,21 +295,11 @@ setup_accelerators (GmApp *self)
 static void
 setup_menu (GmApp *self)
 {
-    GtkBuilder *builder;
     GMenuModel *model;
     GError *error = NULL;
-
-    builder = gtk_builder_new ();
-
-    if (!gtk_builder_add_from_resource (builder, "/org/gnome/gmget/gmget.ui", &error)) {
-        g_error ("%s",error ? error->message : "unknown error");
-        g_clear_error (&error);
-    }
-
-    model = G_MENU_MODEL (gtk_builder_get_object (builder, "app-menu"));
+    model = G_MENU_MODEL (gtk_builder_get_object (
+                              self->priv->menu_builder, "app-menu"));
     gtk_application_set_app_menu (GTK_APPLICATION (self), model);
-
-    g_object_unref (builder);
 }
 
 static void
@@ -317,6 +309,19 @@ startup (GApplication *application)
 
     /* Chain up parent's startup */
     G_APPLICATION_CLASS (gm_app_parent_class)->startup (application);
+
+    GError        *error = NULL;
+    self->priv->window_builder = gtk_builder_new();
+    self->priv->menu_builder = gtk_builder_new();
+    if (!gtk_builder_add_from_file (self->priv->window_builder,
+                                    "res/gmget.glade", &error) ||
+        !gtk_builder_add_from_file (self->priv->menu_builder,
+                                    "res/menu.ui", &error))
+    {
+        g_error ("Cannot add resource to builder: %s",
+                 error ? error->message : "unknown error");
+        g_clear_error (&error);
+    }
 
     /* Setup actions */
     setup_actions (self);
@@ -329,8 +334,8 @@ startup (GApplication *application)
 
     /* Load the book manager */
     g_assert (self->priv->book_manager == NULL);
-    self->priv->book_manager = gm_book_manager_new ();
-    gm_book_manager_populate (self->priv->book_manager);
+    self->priv->book_manager = NULL;//gm_book_manager_new ();
+    /* gm_book_manager_populate (self->priv->book_manager); */
 }
 
 /******************************************************************************/
