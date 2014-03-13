@@ -60,8 +60,8 @@ struct _GmWindowClass {
 
     /* Signals */
     void (*update_progress) (GmWindow        *window,
-                       const char      *location,
-                       GmOpenLinkFlags  flags);
+                             const char      *location,
+                             GmOpenLinkFlags  flags);
 };
 
 GType      gm_window_get_type     (void) G_GNUC_CONST;

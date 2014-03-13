@@ -23,6 +23,7 @@
 #include <glib/gi18n.h>
 
 #include "gm-app.h"
+#include "gm_window.h"
 
 typedef struct _GmBookManager
 {
@@ -32,7 +33,6 @@ typedef struct _GmBookManager
 
 struct _GmAppPrivate {
     GmBookManager *book_manager;
-    GtkBuilder* window_builder;
     GtkBuilder* menu_builder;
 };
 
@@ -311,11 +311,8 @@ startup (GApplication *application)
     G_APPLICATION_CLASS (gm_app_parent_class)->startup (application);
 
     GError        *error = NULL;
-    self->priv->window_builder = gtk_builder_new();
     self->priv->menu_builder = gtk_builder_new();
-    if (!gtk_builder_add_from_file (self->priv->window_builder,
-                                    "res/gmget.glade", &error) ||
-        !gtk_builder_add_from_file (self->priv->menu_builder,
+    if (!gtk_builder_add_from_file (self->priv->menu_builder,
                                     "res/menu.ui", &error))
     {
         g_error ("Cannot add resource to builder: %s",
@@ -344,8 +341,6 @@ GmApp *
 gm_app_new (void)
 {
     GmApp *application;
-
-    g_type_init ();
 
     /* i18n: Please don't translate "Gmget" (it's marked as translatable
      * for transliteration only) */
