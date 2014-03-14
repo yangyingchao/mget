@@ -42,6 +42,7 @@ struct _GmWindowPriv {
     GtkWidget*  main_box;
     GtkBuilder* builder;
     GmNewTaskDlg new_task_dialog;
+    GtkListStore* store_tasks;
 };
 
 enum {
@@ -104,9 +105,12 @@ void on_btn_download_confirm_clicked(GtkButton *button,
     {
         goto out;
     }
+    gmget_request* g_request = ZALLOC1(gmget_request);
+
+    g_request->request.url = g_strdup(url);
     gtk_entry_set_text (dlg->entry_url, "");
 
-    gmget_request* g_request = ZALLOC1(gmget_request);
+    g_request->window = window;
     const gchar* dir = gtk_entry_get_text(dlg->entry_dir);
     if (dir && strlen(dir))
     {
@@ -124,6 +128,7 @@ void on_btn_download_confirm_clicked(GtkButton *button,
     bool v = false;
     GtkListStore* store_tasks = G_GET_WIDGET(window->priv->builder,
                                              GtkListStore, "liststore_tasks");
+    window->priv->store_tasks = store_tasks;
     GtkTreeIter* iter = &(g_request->iter);
     gtk_list_store_append(store_tasks, iter);
     gtk_list_store_set(store_tasks, iter, 1, url, 2, "Unkown",
@@ -131,7 +136,7 @@ void on_btn_download_confirm_clicked(GtkButton *button,
     /* int r = start_request(url, &g_request->request.fn, nc, update_progress, &v); */
     /* printf ("r = %d\n", r); */
 
-    pthread_t tid = start_request_thread(g_request);
+    pthread_t* tid = start_request_thread(g_request);
     //@todo:
     // 1. Make hash table to store request.
     // 2. Start threads to handle g_request.
@@ -142,10 +147,24 @@ out:
 
 
 static void
-window_update_progress_cb (GmWindow *window,
+window_update_progress_cb (void       *window,
                            const char *location,
-                           GmOpenLinkFlags flags)
+                           gpointer    user_data,
+                           double      percentage,
+                           const char* speed,
+                           const char* eta)
 {
+    fprintf(stderr, "URL: %s, ptr: %p, progress: %lf\n",
+            location, user_data, percentage);
+    GmWindow* g_window = (GmWindow*)window;
+    gtk_list_store_set(g_window->priv->store_tasks,
+                       (GtkTreeIter*)user_data,
+                       1, location,
+                       2, "Unkown",
+                       3, percentage,
+                       4, speed,
+                       5, eta,
+                       -1);
 }
 
 static void
@@ -239,9 +258,12 @@ gm_window_class_init (GmWindowClass *klass)
                           NULL, NULL,
                           g_cclosure_marshal_generic,
                           G_TYPE_NONE,
-                          2,
+                          5,
                           G_TYPE_STRING,
-                          G_TYPE_DOUBLE);
+                          G_TYPE_POINTER,
+                          G_TYPE_DOUBLE,
+                          G_TYPE_STRING,
+                          G_TYPE_STRING);
 }
 
 GtkWidget *

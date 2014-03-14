@@ -21,35 +21,22 @@
  */
 
 #include "mget_thread.h"
+#include <libmget/mget_macros.h>
 #include <stdlib.h>
 
-void update_progress(metadata* md)
+void update_progress(metadata* md, void* user_data)
 {
-    static int    idx       = 0;
-    static uint32 ts        = 0;
-    static uint64 last_recv = 0;
-
-    if (md->hd.status == RS_SUCCEEDED) {
-        char *date = current_time_str();
-
-        printf("%s - %s saved in %s [%.02fKB/s] ...\n",
-               date, md->fn,
-               stringify_time(md->hd.acc_time),
-               (double) (md->hd.package_size) / K / md->hd.acc_time);
-        free(date);
-        return;
-    }
-
+    gmget_request* req = (gmget_request*)user_data;
     int threshhold = 78 * md->hd.acon / md->hd.nr_effective;
-    if (idx < threshhold) {
-        if (!ts) {
-            ts = get_time_ms();
-            fprintf(stderr, ".");
-        } else if ((get_time_ms() - ts) > 1000 / threshhold * idx) {
-            fprintf(stderr, ".");
-            idx++;
+    if (req->sts.idx < threshhold) {
+        if (!req->sts.ts) {
+            req->sts.ts = get_time_ms();
         }
-    } else {
+        else if ((get_time_ms() - req->sts.ts) > 1000 / threshhold * req->sts.idx) {
+            req->sts.idx++;
+        }
+    } else
+    {
         data_chunk *dp    = md->body;
         uint64      total = md->hd.package_size;
         uint64      recv  = 0;
@@ -59,10 +46,18 @@ void update_progress(metadata* md)
             dp++;
         }
 
-        uint64 diff_size = recv - last_recv;
+        uint64 diff_size = recv - req->sts.last_recv;
         uint64 remain    = total - recv;
         uint32 c_time    = get_time_ms();
-        uint64 bps       = (uint64)((double) (diff_size) * 1000 / (c_time - ts));
+        uint64 bps       = (uint64)((double) (diff_size) * 1000 / (c_time - req->sts.ts));
+
+        g_signal_emit_by_name(req->window, "update-progress",
+                              /* md->url, */
+                              md->fn,
+                              &req->iter,
+                              (double) recv / total * 100,
+                              stringify_size(bps),
+                              stringify_time((total-recv)/bps));
 
         fprintf(stderr,
                 "] %.02f percent finished, speed: %s/s, eta: %s\r",
@@ -71,10 +66,24 @@ void update_progress(metadata* md)
                 stringify_time((total-recv)/bps));
         fprintf(stderr, "\n");
 
-        idx       = 0;
-        last_recv = recv;
-        ts        = c_time;
+        req->sts.idx       = 0;
+        req->sts.last_recv = recv;
+        req->sts.ts        = c_time;
     }
+}
+
+static void* worker_thread(void* param)
+{
+    gmget_request* request = (gmget_request*) param;
+    fprintf(stderr, "url: %s\n",request->request.url);
+    int r = start_request(request->request.url,
+                          &request->request.fn,
+                          request->request.nc,
+                          update_progress,
+                          &request->request.flag,
+                          param);
+    printf ("r = %d\n", r);
+    return NULL;
 }
 
 /*
@@ -82,7 +91,16 @@ void update_progress(metadata* md)
   1. create thread.
   2. in the call back, it will emit "update-progress" signal.
  */
-pthread_t start_request_thread(gmget_request* request)
+pthread_t* start_request_thread(gmget_request* request)
 {
-    return 0;
+    pthread_t* tid = ZALLOC1(pthread_t);
+
+    int ret = pthread_create(tid, NULL, worker_thread, request);
+    if (ret)
+    {
+        return tid;
+    }
+
+    free(tid);
+    return NULL;
 }

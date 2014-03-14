@@ -59,9 +59,12 @@ struct _GmWindowClass {
     GtkApplicationWindowClass parent_class;
 
     /* Signals */
-    void (*update_progress) (GmWindow        *window,
-                             const char      *location,
-                             GmOpenLinkFlags  flags);
+    void (*update_progress) (void       *window,
+                             const char *location,
+                             gpointer    user_data,
+                             double percentage,
+                             const char* speed,
+                             const char* eta);
 };
 
 GType      gm_window_get_type     (void) G_GNUC_CONST;

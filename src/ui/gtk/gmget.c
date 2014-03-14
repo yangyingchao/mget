@@ -140,6 +140,7 @@ void on_btn_download_confirm_clicked(GtkButton *button,
     //@todo:
     // 1. Make hash table to store request.
     // 2. Start threads to handle g_request.
+    
 
 out:
     gtk_widget_hide (dlg);

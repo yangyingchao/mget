@@ -360,6 +360,10 @@
       <column type="gchararray"/>
       <!-- column-name gdouble1 -->
       <column type="gdouble"/>
+      <!-- column-name speed -->
+      <column type="gchararray"/>
+      <!-- column-name eta -->
+      <column type="gchararray"/>
     </columns>
     <data>
       <row>
@@ -367,6 +371,8 @@
         <col id="1" translatable="yes">Test.Zip</col>
         <col id="2" translatable="yes">100.00MB</col>
         <col id="3">56.299999999999997</col>
+        <col id="4" translatable="yes">1.0MB/s</col>
+        <col id="5" translatable="yes">100Sec</col>
       </row>
     </data>
   </object>
@@ -549,6 +555,28 @@
                       <attributes>
                         <attribute name="text">3</attribute>
                         <attribute name="value">3</attribute>
+                      </attributes>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkTreeViewColumn" id="col_download_speed">
+                    <property name="title" translatable="yes">Speed</property>
+                    <child>
+                      <object class="GtkCellRendererText" id="cellrenderertext4"/>
+                      <attributes>
+                        <attribute name="text">4</attribute>
+                      </attributes>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkTreeViewColumn" id="col_eta">
+                    <property name="title" translatable="yes">Eta</property>
+                    <child>
+                      <object class="GtkCellRendererText" id="cellrenderertext5"/>
+                      <attributes>
+                        <attribute name="text">5</attribute>
                       </attributes>
                     </child>
                   </object>
