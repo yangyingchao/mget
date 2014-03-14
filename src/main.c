@@ -63,7 +63,7 @@ void sigterm_handler(int signum)
     fprintf(stderr, "Saving temporary data...\n");
 }
 
-void show_progress(metadata* md)
+void show_progress(metadata* md, void* user_data)
 {
     static int    idx       = 0;
     static uint32 ts        = 0;
@@ -261,7 +261,8 @@ int main(int argc, char *argv[])
         int retry_time = 0;
         bool result = true;
         while (retry_time++ < MAX_RETRY_TIMES && !control_byte) {
-            if ((result = start_request(target, &fn, nc, show_progress, &control_byte))) {
+            if ((result = start_request(target, &fn, nc, show_progress,
+                                        &control_byte, NULL))) {
                 break;
             }
         }
