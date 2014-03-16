@@ -40,6 +40,12 @@ typedef struct _file_name {
 // dp stands for download_progress
 typedef void (*dp_callback) (metadata * md, void* user_data);
 
+typedef struct _mget_callbacks
+{
+    void (*status_callback)();
+    void (*progress_callback)();
+} mget_callbacks;
+
 /**
  * @name start_request - start processing request.
  * @param url - Character url to be retrieved.

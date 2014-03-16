@@ -33,21 +33,21 @@ static gboolean  option_quit;
 static gboolean  option_version;
 
 static GOptionEntry options[] = {
-    { "new-window", 'n',
-      0, G_OPTION_ARG_NONE, &option_new_window,
-      N_("Opens a new Devhelp window"),
-      NULL
-    },
-    { "search", 's',
-      0, G_OPTION_ARG_STRING, &option_search,
-      N_("Search for a keyword"),
-      N_("KEYWORD")
-    },
-    { "search-assistant", 'a',
-      0, G_OPTION_ARG_STRING, &option_search_assistant,
-      N_("Search and display any hit in the assistant window"),
-      N_("KEYWORD")
-    },
+    /* { "new-window", 'n', */
+    /*   0, G_OPTION_ARG_NONE, &option_new_window, */
+    /*   N_("Opens a new Devhelp window"), */
+    /*   NULL */
+    /* }, */
+    /* { "search", 's', */
+    /*   0, G_OPTION_ARG_STRING, &option_search, */
+    /*   N_("Search for a keyword"), */
+    /*   N_("KEYWORD") */
+    /* }, */
+    /* { "search-assistant", 'a', */
+    /*   0, G_OPTION_ARG_STRING, &option_search_assistant, */
+    /*   N_("Search and display any hit in the assistant window"), */
+    /*   N_("KEYWORD") */
+    /* }, */
     { "version", 'v',
       0, G_OPTION_ARG_NONE, &option_version,
       N_("Display the version and exit"),
@@ -55,7 +55,7 @@ static GOptionEntry options[] = {
     },
     { "quit", 'q',
       0, G_OPTION_ARG_NONE, &option_quit,
-      N_("Quit any running Devhelp"),
+      N_("Quit Gmget"),
       NULL
     },
     { NULL }
@@ -127,7 +127,7 @@ if (option_version) {
 
     /* Try to register the application... */
     if (!g_application_register (G_APPLICATION (application), NULL, &error)) {
-        g_printerr ("Couldn't register Devhelp instance: '%s'\n",
+        g_printerr ("Couldn't register GMget instance: '%s'\n",
                     error ? error->message : "");
         g_object_unref (application);
         return EXIT_FAILURE;

@@ -21,6 +21,8 @@
  */
 
 
+#define _GNU_SOURCE         /* See feature_test_macros(7) */
+#include <stdio.h>
 #include <string.h>
 #include <math.h>
 #include <gdk/gdkkeysyms.h>
@@ -29,6 +31,8 @@
 #include <libmget/mget_macros.h>
 
 #define TAB_WIDTH_N_CHARS 15
+
+extern const char* default_dir;
 
 typedef struct _GmNewTaskDlg
 {
@@ -91,10 +95,8 @@ void on_btn_download_cancel_clicked(GtkButton *button,
 void on_btn_download_confirm_clicked(GtkButton *button,
                                      gpointer   user_data)
 {
-    fprintf (stderr, "Aaa\n");
     if (!user_data)
     {
-        printf ("Aaa0\n");
         return;
     }
 
@@ -115,6 +117,10 @@ void on_btn_download_confirm_clicked(GtkButton *button,
     if (dir && strlen(dir))
     {
         g_request->request.fn.dirn = g_strdup(dir);
+    }
+    else if (!access(default_dir, F_OK))
+    {
+        g_request->request.fn.dirn = g_strdup(default_dir);
     }
     gtk_entry_set_text (dlg->entry_dir, "");
 
@@ -149,6 +155,8 @@ out:
 static void
 window_update_progress_cb (void       *window,
                            const char *location,
+                           const char  *name,
+                           const char  *size,
                            gpointer    user_data,
                            double      percentage,
                            const char* speed,
@@ -157,14 +165,17 @@ window_update_progress_cb (void       *window,
     fprintf(stderr, "URL: %s, ptr: %p, progress: %lf\n",
             location, user_data, percentage);
     GmWindow* g_window = (GmWindow*)window;
+    char* Bps = NULL;
+    asprintf(&Bps, "%s/s", speed);
     gtk_list_store_set(g_window->priv->store_tasks,
                        (GtkTreeIter*)user_data,
-                       1, location,
-                       2, "Unkown",
+                       1, name,
+                       2, size,
                        3, percentage,
-                       4, speed,
+                       4, Bps,
                        5, eta,
                        -1);
+    free(Bps);
 }
 
 static void
@@ -258,7 +269,9 @@ gm_window_class_init (GmWindowClass *klass)
                           NULL, NULL,
                           g_cclosure_marshal_generic,
                           G_TYPE_NONE,
-                          5,
+                          7,
+                          G_TYPE_STRING,
+                          G_TYPE_STRING,
                           G_TYPE_STRING,
                           G_TYPE_POINTER,
                           G_TYPE_DOUBLE,
@@ -279,7 +292,9 @@ gm_window_new (GmApp *application)
 
     /* window_populate (window); */
 
-    gtk_window_set_icon_name (GTK_WINDOW (window), "devhelp");
+    /* gtk_window_set_icon_name (GTK_WINDOW (window), "gmget"); */
+    /* gtk_window_set_default_icon_from_file (GTK_WINDOW (window),"/mnt/data/Work/mget/src/ui/gtk/res/gmget.png"); */
+
 
     /* g_signal_connect (window, "configure-event", */
     /*                   G_CALLBACK (window_configure_event_cb), */

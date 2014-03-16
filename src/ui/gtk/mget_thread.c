@@ -20,23 +20,25 @@
  * Boston, MA 02110-1301, USA.
  */
 
+#define _BSD_SOURCE
 #include "mget_thread.h"
 #include <libmget/mget_macros.h>
 #include <stdlib.h>
+#include <string.h>
 
 void update_progress(metadata* md, void* user_data)
 {
     gmget_request* req = (gmget_request*)user_data;
     int threshhold = 78 * md->hd.acon / md->hd.nr_effective;
-    if (req->sts.idx < threshhold) {
+    if (req->sts.idx < threshhold && md->hd.status == RS_STARTED) {
         if (!req->sts.ts) {
             req->sts.ts = get_time_ms();
         }
         else if ((get_time_ms() - req->sts.ts) > 1000 / threshhold * req->sts.idx) {
             req->sts.idx++;
         }
-    } else
-    {
+    }
+    else {
         data_chunk *dp    = md->body;
         uint64      total = md->hd.package_size;
         uint64      recv  = 0;
@@ -51,9 +53,11 @@ void update_progress(metadata* md, void* user_data)
         uint32 c_time    = get_time_ms();
         uint64 bps       = (uint64)((double) (diff_size) * 1000 / (c_time - req->sts.ts));
 
+        char* sz = strdup(stringify_size(total));
         g_signal_emit_by_name(req->window, "update-progress",
-                              /* md->url, */
+                              md->url,
                               md->fn,
+                              sz,
                               &req->iter,
                               (double) recv / total * 100,
                               stringify_size(bps),
@@ -65,7 +69,7 @@ void update_progress(metadata* md, void* user_data)
                 stringify_size(bps),
                 stringify_time((total-recv)/bps));
         fprintf(stderr, "\n");
-
+        free(sz);
         req->sts.idx       = 0;
         req->sts.last_recv = recv;
         req->sts.ts        = c_time;

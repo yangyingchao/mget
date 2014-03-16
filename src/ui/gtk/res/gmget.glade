@@ -1,158 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Generated with glade 3.16.1 -->
 <interface>
-  <requires lib="gtk+" version="3.0"/>
+  <requires lib="gtk+" version="3.8"/>
   <object class="GtkIconFactory" id="iconfactory1"/>
-  <object class="GtkMenuBar" id="app-menu1">
-    <property name="visible">True</property>
-    <property name="can_focus">False</property>
-    <child>
-      <object class="GtkMenuItem" id="menuitem5">
-        <property name="visible">True</property>
-        <property name="can_focus">False</property>
-        <property name="label" translatable="yes">文件(_F)</property>
-        <property name="use_underline">True</property>
-        <child type="submenu">
-          <object class="GtkMenu" id="menu4">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <child>
-              <object class="GtkImageMenuItem" id="imagemenuitem11">
-                <property name="label">gtk-new</property>
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="use_underline">True</property>
-                <property name="use_stock">True</property>
-              </object>
-            </child>
-            <child>
-              <object class="GtkImageMenuItem" id="imagemenuitem12">
-                <property name="label">gtk-open</property>
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="use_underline">True</property>
-                <property name="use_stock">True</property>
-              </object>
-            </child>
-            <child>
-              <object class="GtkImageMenuItem" id="imagemenuitem13">
-                <property name="label">gtk-save</property>
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="use_underline">True</property>
-                <property name="use_stock">True</property>
-              </object>
-            </child>
-            <child>
-              <object class="GtkImageMenuItem" id="imagemenuitem14">
-                <property name="label">gtk-save-as</property>
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="use_underline">True</property>
-                <property name="use_stock">True</property>
-              </object>
-            </child>
-            <child>
-              <object class="GtkSeparatorMenuItem" id="separatormenuitem2">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-              </object>
-            </child>
-            <child>
-              <object class="GtkImageMenuItem" id="imagemenuitem15">
-                <property name="label">gtk-quit</property>
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="use_underline">True</property>
-                <property name="use_stock">True</property>
-              </object>
-            </child>
-          </object>
-        </child>
-      </object>
-    </child>
-    <child>
-      <object class="GtkMenuItem" id="menuitem6">
-        <property name="visible">True</property>
-        <property name="can_focus">False</property>
-        <property name="label" translatable="yes">编辑(_E)</property>
-        <property name="use_underline">True</property>
-        <child type="submenu">
-          <object class="GtkMenu" id="menu5">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <child>
-              <object class="GtkImageMenuItem" id="imagemenuitem16">
-                <property name="label">gtk-cut</property>
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="use_underline">True</property>
-                <property name="use_stock">True</property>
-              </object>
-            </child>
-            <child>
-              <object class="GtkImageMenuItem" id="imagemenuitem17">
-                <property name="label">gtk-copy</property>
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="use_underline">True</property>
-                <property name="use_stock">True</property>
-              </object>
-            </child>
-            <child>
-              <object class="GtkImageMenuItem" id="imagemenuitem18">
-                <property name="label">gtk-paste</property>
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="use_underline">True</property>
-                <property name="use_stock">True</property>
-              </object>
-            </child>
-            <child>
-              <object class="GtkImageMenuItem" id="imagemenuitem19">
-                <property name="label">gtk-delete</property>
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="use_underline">True</property>
-                <property name="use_stock">True</property>
-              </object>
-            </child>
-          </object>
-        </child>
-      </object>
-    </child>
-    <child>
-      <object class="GtkMenuItem" id="menuitem7">
-        <property name="visible">True</property>
-        <property name="can_focus">False</property>
-        <property name="label" translatable="yes">视图(_V)</property>
-        <property name="use_underline">True</property>
-      </object>
-    </child>
-    <child>
-      <object class="GtkMenuItem" id="menuitem8">
-        <property name="visible">True</property>
-        <property name="can_focus">False</property>
-        <property name="label" translatable="yes">帮助(_H)</property>
-        <property name="use_underline">True</property>
-        <child type="submenu">
-          <object class="GtkMenu" id="menu6">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <child>
-              <object class="GtkImageMenuItem" id="imagemenuitem20">
-                <property name="label">gtk-about</property>
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="use_underline">True</property>
-                <property name="use_stock">True</property>
-              </object>
-            </child>
-          </object>
-        </child>
-      </object>
-    </child>
-  </object>
   <object class="GtkDialog" id="dlg_new_task">
     <property name="can_focus">False</property>
     <property name="border_width">5</property>
@@ -365,17 +215,8 @@
       <!-- column-name eta -->
       <column type="gchararray"/>
     </columns>
-    <data>
-      <row>
-        <col id="0"/>
-        <col id="1" translatable="yes">Test.Zip</col>
-        <col id="2" translatable="yes">100.00MB</col>
-        <col id="3">56.299999999999997</col>
-        <col id="4" translatable="yes">1.0MB/s</col>
-        <col id="5" translatable="yes">100Sec</col>
-      </row>
-    </data>
   </object>
+  <object class="GtkTextBuffer" id="textbuffer1"/>
   <object class="GtkTreeStore" id="treestore1">
     <columns>
       <!-- column-name GdkPixbuf1 -->
@@ -473,6 +314,7 @@
             </child>
             <child>
               <object class="GtkTreeViewColumn" id="treeviewcolumn1">
+                <property name="resizable">True</property>
                 <property name="title" translatable="yes">Task Management</property>
                 <child>
                   <object class="GtkCellRendererPixbuf" id="cellrendererpixbuf1"/>
@@ -492,13 +334,17 @@
           <object class="GtkPaned" id="paned2">
             <property name="visible">True</property>
             <property name="can_focus">True</property>
+            <property name="hexpand">True</property>
+            <property name="vexpand">True</property>
             <property name="orientation">vertical</property>
-            <property name="position">77</property>
+            <property name="position">450</property>
             <property name="position_set">True</property>
             <child>
               <object class="GtkTreeView" id="treeview2">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
+                <property name="hexpand">True</property>
+                <property name="vexpand">True</property>
                 <property name="model">liststore_tasks</property>
                 <property name="enable_grid_lines">both</property>
                 <child internal-child="selection">
@@ -506,9 +352,10 @@
                 </child>
                 <child>
                   <object class="GtkTreeViewColumn" id="col_status">
-                    <property name="min_width">48</property>
-                    <property name="max_width">48</property>
+                    <property name="min_width">50</property>
+                    <property name="max_width">50</property>
                     <property name="title" translatable="yes">Status</property>
+                    <property name="clickable">True</property>
                     <child>
                       <object class="GtkCellRendererPixbuf" id="cellrendererpixbuf2"/>
                       <attributes>
@@ -591,7 +438,11 @@
               <object class="GtkTextView" id="textview1">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
+                <property name="margin_top">3</property>
+                <property name="hexpand">False</property>
+                <property name="vexpand">False</property>
                 <property name="editable">False</property>
+                <property name="buffer">textbuffer1</property>
               </object>
               <packing>
                 <property name="resize">True</property>

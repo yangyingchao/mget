@@ -30,11 +30,12 @@ typedef struct _GmBookManager
     int a;
 } GmBookManager;
 
-
 struct _GmAppPrivate {
     GmBookManager *book_manager;
     GtkBuilder* menu_builder;
 };
+
+const char* default_dir = "/tmp/";
 
 G_DEFINE_TYPE (GmApp, gm_app, GTK_TYPE_APPLICATION);
 
@@ -147,12 +148,7 @@ about_cb (GSimpleAction *action,
           gpointer       user_data)
 {
     const gchar  *authors[] = {
-        "Mikael Hallendal <micke@imendio.com>",
-        "Richard Hult <richard@imendio.com>",
-        "Johan Dahlin <johan@gnome.org>",
-        "Ross Burton <ross@burtonini.com>",
-        "Aleksander Morgado <aleksander@lanedo.com>",
-        "Thomas Bechtold <toabctl@gnome.org>",
+        "Tubo <yangyingchao@gnome.org>",
         NULL
     };
     const gchar **documenters = NULL;
@@ -163,16 +159,16 @@ about_cb (GSimpleAction *action,
     gtk_show_about_dialog (NULL,
                            "name", _("Gmget"),
                            "version", "1.1",
-                           "comments", _("A developers' help browser for GNOME"),
+                           "comments", _("GTK front end for mget"),
                            "authors", authors,
                            "documenters", documenters,
                            "translator-credits",
                            (strcmp (translator_credits, "translator_credits") != 0 ?
                             translator_credits :
                             NULL),
-                           "website", "http://aaa",
+                           "website", "https://github.com/yangyingchao/mget",
                            "website-label", _("Gmget Website"),
-                           "logo-icon-name", "CCCC",
+                           "logo-icon-name", "gmget",
                            NULL);
 }
 
@@ -345,7 +341,9 @@ gm_app_new (void)
     /* i18n: Please don't translate "Gmget" (it's marked as translatable
      * for transliteration only) */
     g_set_application_name (_("Gmget"));
-    gtk_window_set_default_icon_name ("gmget");
+    /* gtk_window_set_default_icon_name ("gmget"); */
+    gtk_window_set_default_icon_from_file ("/mnt/data/Work/mget/src/ui/gtk/res/gmget.png",NULL);
+
 
     application = g_object_new (GM_TYPE_APP,
                                 "application-id",   "org.gnome.Gmget",

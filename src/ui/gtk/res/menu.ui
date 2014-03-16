@@ -39,7 +39,7 @@
     </section>
     <section>
       <item>
-        <attribute name="label" translatable="yes">About Devhelp</attribute>
+        <attribute name="label" translatable="yes">About GMget</attribute>
         <attribute name="action">app.about</attribute>
       </item>
       <item>
