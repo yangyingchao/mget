@@ -35,7 +35,7 @@ struct _GmAppPrivate {
     GtkBuilder* menu_builder;
 };
 
-const char* default_dir = "/tmp/";
+const char* default_dir = "/home/yyc/tmp/";
 
 G_DEFINE_TYPE (GmApp, gm_app, GTK_TYPE_APPLICATION);
 
@@ -179,6 +179,7 @@ quit_cb (GSimpleAction *action,
 {
     GmApp *self = GM_APP (user_data);
     GList *l;
+    fprintf(stderr, "quit...\n");
 
     /* Remove all windows registered in the application */
     while ((l = gtk_application_get_windows (GTK_APPLICATION (self)))) {

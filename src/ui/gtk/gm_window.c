@@ -47,12 +47,45 @@ struct _GmWindowPriv {
     GtkBuilder* builder;
     GmNewTaskDlg new_task_dialog;
     GtkListStore* store_tasks;
+    GList* request_list;
 };
 
 enum {
     UPDATE_PROGRESS,
     LAST_SIGNAL
 };
+
+
+void pause_request(gpointer data, gpointer user_data)
+{
+    PDEBUG ("data: %p\n", data);
+
+    gmget_request* req = (gmget_request*)data;
+    if (req)
+    {
+        req->request.flag = true;
+        (*(gint*)user_data)++;
+    }
+}
+
+void  on_box1_destroy (GtkWidget *widget,
+                           gpointer   user_data)
+{
+    if (!user_data)
+    {
+        return;
+    }
+
+    GmWindow* window = (GmWindow*) user_data;
+    gint counter = 0;
+    g_list_foreach(window->priv->request_list, pause_request, &counter);
+    if (counter)
+    {
+        sleep(3);
+    }
+    sync();
+}
+
 
 static gint signals[LAST_SIGNAL] = { 0 };
 
@@ -70,6 +103,46 @@ G_DEFINE_TYPE (GmWindow, gm_window, GTK_TYPE_APPLICATION_WINDOW);
 #define G_SHOW(X)  gtk_widget_show_all ((GtkWidget*)(X));
 #define G_HIDE(X)  gtk_widget_hide ((GtkWidget*)(X));
 
+
+void on_btn_settings_clicked(GtkButton *button,
+                             gpointer   user_data)
+{
+    if (!user_data)
+    {
+        return;
+    }
+
+    GmWindow* window = (GmWindow*)user_data;
+    GtkWidget* dlg = G_GET_WIDGET(window->priv->builder, GtkWidget,
+                                  "dlg_settings");
+    if (dlg)
+    {
+        G_SHOW(dlg);
+    }
+}
+
+void on_btn_setting_ok_clicked(GtkButton *button,
+                               gpointer   user_data)
+{
+    if (!user_data)
+    {
+        return;
+    }
+
+    GmWindow* window = (GmWindow*)user_data;
+    GtkWidget* dlg = G_GET_WIDGET(window->priv->builder, GtkWidget,
+                                  "dlg_settings");
+    if (dlg)
+    {
+        G_HIDE(dlg);
+    }
+}
+
+void on_btn_setting_cancel_clicked(GtkButton *button,
+                                   gpointer   user_data)
+{
+    on_btn_setting_ok_clicked(button, user_data);
+}
 
 void on_btn_add_clicked(GtkButton *button,
                         gpointer   user_data)
@@ -130,7 +203,7 @@ void on_btn_download_confirm_clicked(GtkButton *button,
         g_request->request.fn.basen = g_strdup(fn);
     }
     gtk_entry_set_text (dlg->entry_fn, "");
-
+    g_request->request.nc = 10;
     bool v = false;
     GtkListStore* store_tasks = G_GET_WIDGET(window->priv->builder,
                                              GtkListStore, "liststore_tasks");
@@ -141,7 +214,8 @@ void on_btn_download_confirm_clicked(GtkButton *button,
                        3, (double)0, -1);
     /* int r = start_request(url, &g_request->request.fn, nc, update_progress, &v); */
     /* printf ("r = %d\n", r); */
-
+    window->priv->request_list = g_list_append(window->priv->request_list,
+                                               g_request);
     pthread_t* tid = start_request_thread(g_request);
     //@todo:
     // 1. Make hash table to store request.
@@ -222,6 +296,8 @@ gm_window_init (GmWindow *window)
     dlg->entry_url  = G_GET_WIDGET(builder, GtkEntry, "entry_url");
     dlg->entry_dir  = G_GET_WIDGET(builder, GtkEntry, "entry_dir");
     dlg->entry_fn   = G_GET_WIDGET(builder, GtkEntry, "entry_filename");
+
+    priv->request_list = g_list_alloc();
 
     g_signal_connect (window, "update-progress", G_CALLBACK
                       (window_update_progress_cb), window);

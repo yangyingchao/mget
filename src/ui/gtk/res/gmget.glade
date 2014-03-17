@@ -2,7 +2,6 @@
 <!-- Generated with glade 3.16.1 -->
 <interface>
   <requires lib="gtk+" version="3.8"/>
-  <object class="GtkIconFactory" id="iconfactory1"/>
   <object class="GtkDialog" id="dlg_new_task">
     <property name="can_focus">False</property>
     <property name="border_width">5</property>
@@ -200,6 +199,75 @@
       <action-widget response="0">btn_download_cancel</action-widget>
     </action-widgets>
   </object>
+  <object class="GtkDialog" id="dlg_settings">
+    <property name="can_focus">False</property>
+    <property name="type_hint">dialog</property>
+    <child internal-child="vbox">
+      <object class="GtkBox" id="dialog-vbox2">
+        <property name="can_focus">False</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+        <child internal-child="action_area">
+          <object class="GtkButtonBox" id="dialog-action_area2">
+            <property name="can_focus">False</property>
+            <property name="layout_style">end</property>
+            <child>
+              <object class="GtkButton" id="btn_setting_ok">
+                <property name="label" translatable="yes">Ok</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+                <signal name="clicked" handler="on_btn_setting_ok_clicked" swapped="no"/>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="btn_setting_cancel">
+                <property name="label" translatable="yes">Cancel</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+                <signal name="clicked" handler="on_btn_setting_cancel_clicked" swapped="no"/>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="pack_type">end</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label2">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Here will show settings.........
+
+
+
+
+Ah</property>
+            <property name="angle">0.10000000000000001</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+  </object>
   <object class="GtkListStore" id="liststore_tasks">
     <columns>
       <!-- column-name GdkPixbuf1 -->
@@ -229,6 +297,7 @@
     <property name="visible">True</property>
     <property name="can_focus">False</property>
     <property name="orientation">vertical</property>
+    <signal name="destroy" handler="on_box1_destroy" swapped="no"/>
     <child>
       <object class="GtkToolbar" id="toolbar">
         <property name="visible">True</property>
@@ -277,12 +346,13 @@
           </packing>
         </child>
         <child>
-          <object class="GtkToolButton" id="toolbutton4">
+          <object class="GtkToolButton" id="btn_settings">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="label" translatable="yes">Preferences</property>
             <property name="use_underline">True</property>
             <property name="stock_id">gtk-execute</property>
+            <signal name="clicked" handler="on_btn_settings_clicked" swapped="no"/>
           </object>
           <packing>
             <property name="expand">False</property>

@@ -39,8 +39,8 @@ void url_info_destroy(url_info ** ui)
 {
     if (ui && *ui) {
         url_info *up = *ui;
-
         FIF(up->furl);
+        FIFZ(ui);
     }
 }
 

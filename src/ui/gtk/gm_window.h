@@ -24,6 +24,7 @@
 #define _GM_WINDOW_H_
 
 #include <gtk/gtk.h>
+#include "../../lib/log.h"
 
 #ifdef __cplusplus
 extern "C" {
