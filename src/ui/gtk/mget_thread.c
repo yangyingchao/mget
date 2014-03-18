@@ -63,12 +63,12 @@ void update_progress(metadata* md, void* user_data)
                               stringify_size(bps),
                               stringify_time((total-recv)/bps));
 
-        fprintf(stderr,
-                "] %.02f percent finished, speed: %s/s, eta: %s\r",
-                (double) recv / total * 100,
-                stringify_size(bps),
-                stringify_time((total-recv)/bps));
-        fprintf(stderr, "\n");
+        /* fprintf(stderr, */
+        /*         "] %.02f percent finished, speed: %s/s, eta: %s\r", */
+        /*         (double) recv / total * 100, */
+        /*         stringify_size(bps), */
+        /*         stringify_time((total-recv)/bps)); */
+        /* fprintf(stderr, "\n"); */
         free(sz);
         req->sts.idx       = 0;
         req->sts.last_recv = recv;

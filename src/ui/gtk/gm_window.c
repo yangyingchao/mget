@@ -20,6 +20,7 @@
  * Boston, MA 02110-1301, USA.
  */
 
+#define DEBUG       
 
 #define _GNU_SOURCE         /* See feature_test_macros(7) */
 #include <stdio.h>
@@ -46,14 +47,27 @@ struct _GmWindowPriv {
     GtkWidget*  main_box;
     GtkBuilder* builder;
     GmNewTaskDlg new_task_dialog;
-    GtkListStore* store_tasks;
+    GtkListStore* task_store;
+    GtkTreeView* task_tree;
     GList* request_list;
+
+    GtkToolButton* btn_add;
+    GtkToolButton* btn_start;
+    GtkToolButton* btn_pause;
+    GtkToolButton* btn_settings;
 };
 
 enum {
     UPDATE_PROGRESS,
     LAST_SIGNAL
 };
+
+typedef enum _task_status
+{
+    TS_PAUSED = 0,
+    TS_ON_GOING,
+    TS_FINISHED,
+} task_status;
 
 
 void pause_request(gpointer data, gpointer user_data)
@@ -102,6 +116,8 @@ G_DEFINE_TYPE (GmWindow, gm_window, GTK_TYPE_APPLICATION_WINDOW);
 
 #define G_SHOW(X)  gtk_widget_show_all ((GtkWidget*)(X));
 #define G_HIDE(X)  gtk_widget_hide ((GtkWidget*)(X));
+
+#define G_ENABLE_WIDGET(X, Y) gtk_widget_set_sensitive((GtkWidget*)(X), (Y))
 
 
 void on_btn_settings_clicked(GtkButton *button,
@@ -160,7 +176,6 @@ void on_btn_add_clicked(GtkButton *button,
 void on_btn_download_cancel_clicked(GtkButton *button,
                                     gpointer   user_data)
 {
-    fprintf(stderr, "A0\n");
     GtkWidget* dlg = (GtkWidget*)user_data;
     gtk_widget_hide (dlg);
 }
@@ -205,12 +220,11 @@ void on_btn_download_confirm_clicked(GtkButton *button,
     gtk_entry_set_text (dlg->entry_fn, "");
     g_request->request.nc = 10;
     bool v = false;
-    GtkListStore* store_tasks = G_GET_WIDGET(window->priv->builder,
-                                             GtkListStore, "liststore_tasks");
-    window->priv->store_tasks = store_tasks;
+    GtkListStore* task_store =  window->priv->task_store;
+
     GtkTreeIter* iter = &(g_request->iter);
-    gtk_list_store_append(store_tasks, iter);
-    gtk_list_store_set(store_tasks, iter, 1, url, 2, "Unkown",
+    gtk_list_store_append(task_store, iter);
+    gtk_list_store_set(task_store, iter, 1, url, 2, "Unkown",
                        3, (double)0, -1);
     /* int r = start_request(url, &g_request->request.fn, nc, update_progress, &v); */
     /* printf ("r = %d\n", r); */
@@ -236,12 +250,10 @@ window_update_progress_cb (void       *window,
                            const char* speed,
                            const char* eta)
 {
-    fprintf(stderr, "URL: %s, ptr: %p, progress: %lf\n",
-            location, user_data, percentage);
     GmWindow* g_window = (GmWindow*)window;
     char* Bps = NULL;
     asprintf(&Bps, "%s/s", speed);
-    gtk_list_store_set(g_window->priv->store_tasks,
+    gtk_list_store_set(g_window->priv->task_store,
                        (GtkTreeIter*)user_data,
                        1, name,
                        2, size,
@@ -250,6 +262,79 @@ window_update_progress_cb (void       *window,
                        5, eta,
                        -1);
     free(Bps);
+}
+
+typedef enum _toolbar_button_status
+{
+    TBS_CAN_ADD   = 1,
+    TBS_CAN_START = 1 << 1,
+    TBS_CAN_PAUSE = 1 <<2,
+} toolbar_button_status;
+
+// check selected row function paramter
+typedef struct _csrf_param
+{
+    GtkTreeModel* model;
+    gint          status;
+} csrf_param;
+
+static void check_selected_row(gpointer data, gpointer user_data)
+{
+    csrf_param* param = (csrf_param*)user_data;
+    GtkTreePath* path = (GtkTreePath*)data;
+    GtkTreeIter  iter;
+
+    if (!path || !param || !param->model ||
+        !gtk_tree_model_get_iter(param->model, &iter, path))
+    {
+        return;
+    }
+
+    gchar* str = NULL;
+    gtk_tree_model_get(param->model, &iter, 0, &str, -1);
+    int status = str ? atoi(str) : TBS_CAN_ADD;
+    switch (status)
+    {
+        case TS_PAUSED:
+        {
+            param->status |= TBS_CAN_START;
+            break;
+        }
+        case TS_ON_GOING:
+        {
+            param->status |= TBS_CAN_PAUSE;
+            break;
+        }
+        default:
+        {
+            break;
+        }
+    }
+}
+
+/* Prototype for selection handler callback */
+static void
+tree_selection_changed_cb (GtkTreeSelection *selection, gpointer data)
+{
+    GmWindow*     window = (GmWindow*)data;
+    GtkTreeModel *model  = NULL;
+    GList* selected_rows =
+            gtk_tree_selection_get_selected_rows(selection,
+                                                 &model);
+    csrf_param* param = ZALLOC1(csrf_param);
+    param->model = model;
+
+    g_list_foreach(selected_rows, check_selected_row, param);
+
+    PDEBUG ("status: %d\n", param->status);
+
+    G_ENABLE_WIDGET(window->priv->btn_start,
+                    (param->status & TBS_CAN_START) ? TRUE : FALSE);
+
+    G_ENABLE_WIDGET(window->priv->btn_pause,
+                    (param->status & TBS_CAN_PAUSE) ? TRUE : FALSE);
+
+    g_list_free_full (selected_rows, (GDestroyNotify) gtk_tree_path_free);
 }
 
 static void
@@ -298,9 +383,37 @@ gm_window_init (GmWindow *window)
     dlg->entry_fn   = G_GET_WIDGET(builder, GtkEntry, "entry_filename");
 
     priv->request_list = g_list_alloc();
+    window->priv->task_tree = G_GET_WIDGET(window->priv->builder,
+                                           GtkTreeView, "task_tree");
 
+    GtkListStore* task_store = G_GET_WIDGET(window->priv->builder,
+                                            GtkListStore, "liststore_tasks");
+    window->priv->task_store = task_store;
+    /* Setup the selection handler */
+    GtkTreeSelection *select =
+            gtk_tree_view_get_selection (GTK_TREE_VIEW
+                                         (window->priv->task_tree));
+    gtk_tree_selection_set_mode (select, GTK_SELECTION_MULTIPLE);
+
+    g_signal_connect (G_OBJECT (select), "changed",
+                      G_CALLBACK (tree_selection_changed_cb),
+                      window);
     g_signal_connect (window, "update-progress", G_CALLBACK
                       (window_update_progress_cb), window);
+
+
+    window->priv->btn_add = G_GET_WIDGET(window->priv->builder,
+                                         GtkToolButton,
+                                         "btn_new");
+    window->priv->btn_start = G_GET_WIDGET(window->priv->builder,
+                                           GtkToolButton,
+                                           "btn_start");
+    window->priv->btn_pause = G_GET_WIDGET(window->priv->builder,
+                                           GtkToolButton,
+                                           "btn_pause");
+    window->priv->btn_settings =G_GET_WIDGET(window->priv->builder,
+                                             GtkToolButton,
+                                             "btn_settings");
 
     /* g_action_map_add_action_entries (G_ACTION_MAP (window), */
     /*                                  win_entries, G_N_ELEMENTS (win_entries), */

@@ -270,8 +270,8 @@ Ah</property>
   </object>
   <object class="GtkListStore" id="liststore_tasks">
     <columns>
-      <!-- column-name GdkPixbuf1 -->
-      <column type="GdkPixbuf"/>
+      <!-- column-name Status -->
+      <column type="gchararray"/>
       <!-- column-name Name -->
       <column type="gchararray"/>
       <!-- column-name Size -->
@@ -283,6 +283,32 @@ Ah</property>
       <!-- column-name eta -->
       <column type="gchararray"/>
     </columns>
+    <data>
+      <row>
+        <col id="0" translatable="yes">0</col>
+        <col id="1" translatable="yes">Test_Paused_Task</col>
+        <col id="2" translatable="yes">000</col>
+        <col id="3">40</col>
+        <col id="4" translatable="yes">10</col>
+        <col id="5" translatable="yes">f</col>
+      </row>
+      <row>
+        <col id="0" translatable="yes">1</col>
+        <col id="1" translatable="yes">Test_Onging_Task</col>
+        <col id="2" translatable="yes">000</col>
+        <col id="3">20</col>
+        <col id="4" translatable="yes">10</col>
+        <col id="5" translatable="yes">fasd</col>
+      </row>
+      <row>
+        <col id="0" translatable="yes">2</col>
+        <col id="1" translatable="yes">Test_Finished_Task</col>
+        <col id="2" translatable="yes">100M</col>
+        <col id="3">100</col>
+        <col id="4" translatable="yes">2</col>
+        <col id="5" translatable="yes">0</col>
+      </row>
+    </data>
   </object>
   <object class="GtkTextBuffer" id="textbuffer1"/>
   <object class="GtkTreeStore" id="treestore1">
@@ -320,9 +346,10 @@ Ah</property>
           </packing>
         </child>
         <child>
-          <object class="GtkToolButton" id="toolbutton2">
+          <object class="GtkToolButton" id="btn_start">
             <property name="visible">True</property>
-            <property name="can_focus">False</property>
+            <property name="sensitive">False</property>
+            <property name="can_focus">True</property>
             <property name="label" translatable="yes">start</property>
             <property name="use_underline">True</property>
             <property name="stock_id">gtk-media-play</property>
@@ -333,9 +360,11 @@ Ah</property>
           </packing>
         </child>
         <child>
-          <object class="GtkToolButton" id="toolbutton3">
+          <object class="GtkToolButton" id="btn_pause">
             <property name="visible">True</property>
-            <property name="can_focus">False</property>
+            <property name="sensitive">False</property>
+            <property name="can_focus">True</property>
+            <property name="tooltip_text" translatable="yes">Pause Download</property>
             <property name="label" translatable="yes">pause</property>
             <property name="use_underline">True</property>
             <property name="stock_id">gtk-media-pause</property>
@@ -410,7 +439,7 @@ Ah</property>
             <property name="position">450</property>
             <property name="position_set">True</property>
             <child>
-              <object class="GtkTreeView" id="treeview2">
+              <object class="GtkTreeView" id="task_tree">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="hexpand">True</property>
@@ -427,9 +456,9 @@ Ah</property>
                     <property name="title" translatable="yes">Status</property>
                     <property name="clickable">True</property>
                     <child>
-                      <object class="GtkCellRendererPixbuf" id="cellrendererpixbuf2"/>
+                      <object class="GtkCellRendererText" id="cellrendererpixbuf2"/>
                       <attributes>
-                        <attribute name="pixbuf">0</attribute>
+                        <attribute name="text">0</attribute>
                       </attributes>
                     </child>
                   </object>
