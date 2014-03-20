@@ -26,9 +26,45 @@
 #include <stdlib.h>
 #include <string.h>
 
+static inline task_status convert_task_status(request_status s)
+{
+    switch (s)
+    {
+        case RS_INIT:
+        {
+            return TS_CREATED;
+        }
+        case RS_PAUSED:
+        case RS_STOPPED:
+        {
+            return TS_PAUSED;
+        }
+        case RS_STARTED:
+        {
+            return TS_STARTED;
+        }
+        case RS_FAILED:
+        {
+            return TS_FAILED;
+        }
+        case RS_SUCCEEDED:
+        {
+            return TS_FINISHED;
+            break;
+        }
+        default:
+        {
+            abort();
+            break;
+        }
+    }
+}
+
 void update_progress(metadata* md, void* user_data)
 {
     gmget_request* req = (gmget_request*)user_data;
+
+
     int threshhold = 78 * md->hd.acon / md->hd.nr_effective;
     if (req->sts.idx < threshhold && md->hd.status == RS_STARTED) {
         if (!req->sts.ts) {
@@ -55,13 +91,12 @@ void update_progress(metadata* md, void* user_data)
 
         char* sz = strdup(stringify_size(total));
         g_signal_emit_by_name(req->window, "update-progress",
-                              md->url,
                               md->fn,
                               sz,
-                              &req->iter,
                               (double) recv / total * 100,
                               stringify_size(bps),
-                              stringify_time((total-recv)/bps));
+                              stringify_time((total-recv)/bps),
+                              &req->iter);
 
         /* fprintf(stderr, */
         /*         "] %.02f percent finished, speed: %s/s, eta: %s\r", */

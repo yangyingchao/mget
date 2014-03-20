@@ -44,6 +44,7 @@ typedef struct _GmApp GmApp;
 
 #define G_GET_WIDGET(B, T, N) (T*)(gtk_builder_get_object((B), N))
 
+#define GD_PTR(T, v, p) T* v = (T*)(p)
 
 typedef enum
 {
@@ -56,18 +57,33 @@ struct _GmWindow {
     GmWindowPriv *priv;
 };
 
+typedef enum _task_status
+{
+    TS_CREATED = 0,
+    TS_PAUSED,
+    TS_STARTED,
+    TS_FINISHED,
+    TS_FAILED,
+} task_status;
+
+
 struct _GmWindowClass {
     GtkApplicationWindowClass parent_class;
 
     /* Signals */
     void (*update_progress) (void*       window,
-                             const char* url,
                              const char* name,
                              const char* size,
-                             gpointer    user_data,
                              double      percentage,
                              const char* speed,
-                             const char* eta);
+                             const char* eta,
+                             gpointer    user_data);
+
+    void (*status_changed) (void* window,
+                           const char* name,
+                           task_status stat,
+                           const char* msg,
+                           gpointer   user_data);
 };
 
 GType      gm_window_get_type     (void) G_GNUC_CONST;

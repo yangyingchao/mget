@@ -20,7 +20,7 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#define DEBUG       
+#define DEBUG
 
 #define _GNU_SOURCE         /* See feature_test_macros(7) */
 #include <stdio.h>
@@ -35,21 +35,24 @@
 
 extern const char* default_dir;
 
+// XXX:
+
+GmWindow* gg_window = NULL;
+
 typedef enum _COLS
 {
-    C_STATUS = 0,
-    C_NAME,
-    C_SIZE,
-    C_PERCENTAGE,
-    C_SPEED,
-    C_ETA,
-    C_STATUS_INT,
-    C_USRE_DATA,
-    C_NUMBER
+    COL_STATUS = 0,
+    COL_NAME,
+    COL_SIZE,
+    COL_PERCENTAGE,
+    COL_SPEED,
+    COL_ETA,
+    COL_STATUS_INT,
+    COL_USRE_DATA,
+    COL_NUMBER
 } COLS;
 
-#define C_END       -1
-
+#define COL_END       -1
 
 
 typedef struct _GmNewTaskDlg
@@ -61,36 +64,35 @@ typedef struct _GmNewTaskDlg
 } GmNewTaskDlg;
 
 struct _GmWindowPriv {
-    GtkWidget*  main_box;
-    GtkBuilder* builder;
-    GmNewTaskDlg new_task_dialog;
+    GtkWidget*    main_box;
+    GtkBuilder*   builder;
+    GmNewTaskDlg  new_task_dialog;
     GtkListStore* task_store;
-    GtkTreeView* task_tree;
-    GList* request_list;
+    GtkTreeView*  task_tree;
+    GList*        request_list;
+
+    GtkTextView*  text_view;
+    GtkTextBuffer* text_buffer;
 
     GtkToolButton* btn_add;
     GtkToolButton* btn_start;
     GtkToolButton* btn_pause;
     GtkToolButton* btn_settings;
 
-    GtkIconTheme*  theme;
-    GdkPixbuf*     pix_paused;
-    GdkPixbuf*     pix_started;
-    GdkPixbuf*     pix_finished;
-    GdkPixbuf*     pix_cancelled;
+    GtkIconTheme* theme;
+    GdkPixbuf*    pix_paused;
+    GdkPixbuf*    pix_started;
+    GdkPixbuf*    pix_finished;
+    GdkPixbuf*    pix_cancelled;
+
+    GtkTextTag*   ts_tag;
 };
 
 enum {
     UPDATE_PROGRESS,
+    STATUS_CHANGED,
     LAST_SIGNAL
 };
-
-typedef enum _task_status
-{
-    TS_PAUSED = 0,
-    TS_ON_GOING,
-    TS_FINISHED,
-} task_status;
 
 
 void pause_request(gpointer data, gpointer user_data)
@@ -210,7 +212,7 @@ pause_selected_tasks(gpointer data, gpointer user_data)
     }
 
     gmget_request* req = NULL;
-    gtk_tree_model_get(model, &iter, C_USRE_DATA, &req, -1);
+    gtk_tree_model_get(model, &iter, COL_USRE_DATA, &req, -1);
     if (req)
     {
         req->request.flag = true;
@@ -298,15 +300,15 @@ void on_btn_download_confirm_clicked(GtkButton *button,
     GtkTreeIter* iter = &(g_request->iter);
     gtk_list_store_append(task_store, iter);
     gtk_list_store_set(task_store, iter,
-                       C_STATUS, window->priv->pix_started,
-                       C_NAME, "Unamed",
-                       C_SIZE, "Unkown Size",
-                       C_PERCENTAGE, (double)0,
-                       C_SPEED, "---",
-                       C_ETA, "---",
-                       C_STATUS_INT, TS_ON_GOING,
-                       C_USRE_DATA, g_request,
-                       C_END);
+                       COL_STATUS, window->priv->pix_started,
+                       COL_NAME, "Unamed",
+                       COL_SIZE, "Unkown Size",
+                       COL_PERCENTAGE, (double)0,
+                       COL_SPEED, "---",
+                       COL_ETA, "---",
+                       COL_STATUS_INT, TS_STARTED,
+                       COL_USRE_DATA, g_request,
+                       COL_END);
     /* int r = start_request(url, &g_request->request.fn, nc, update_progress, &v); */
     /* printf ("r = %d\n", r); */
     window->priv->request_list = g_list_append(window->priv->request_list,
@@ -320,28 +322,92 @@ out:
     G_HIDE(window->priv->new_task_dialog.gtk_dialog);
 }
 
+static void
+window_status_changed_cb(void* window,
+                         const char* name,
+                         task_status stat,
+                         const char* msg,
+                         gpointer   user_data)
+{
+    if (!window || !user_data)
+    {
+        return;
+    }
+
+    GD_PTR(GmWindow, gw, window);
+    GD_PTR(GtkTreeIter, iter, user_data);
+
+    // update status icon
+    GdkPixbuf* pix = NULL;
+    switch (stat)
+    {
+        case TS_CREATED:
+        case TS_PAUSED:
+        {
+            pix = gw->priv->pix_paused;
+            break;
+        }
+        case TS_STARTED:
+        {
+            pix = gw->priv->pix_started;
+            break;
+        }
+        case TS_FINISHED:
+        {
+            pix = gw->priv->pix_finished;
+            break;
+        }
+        case TS_FAILED:
+        {
+            pix = gw->priv->pix_cancelled;
+            break;
+        }
+        default:
+        {
+            abort();
+            break;
+        }
+    }
+
+    gtk_list_store_set(gw->priv->task_store, iter,
+                       COL_STATUS, pix, -1);
+
+
+    GtkTextIter iter1;
+    gtk_text_buffer_get_end_iter(gw->priv->text_buffer, &iter1);
+
+    char* fmsg = NULL;
+    asprintf(&fmsg, "Status changed to: %d -- %s\n", stat, msg);
+    gtk_text_buffer_insert(gw->priv->text_buffer, &iter1, fmsg, -1);
+
+    GtkTextIter iter2;
+    gtk_text_buffer_get_end_iter(gw->priv->text_buffer, &iter2);
+    gtk_text_buffer_get_iter_at_offset (gw->priv->text_buffer, &iter1, 7);
+    gtk_text_buffer_apply_tag(gw->priv->text_buffer,
+                              gw->priv->ts_tag, &iter1, &iter2);
+
+}
 
 static void
 window_update_progress_cb (void       *window,
-                           const char *location,
                            const char  *name,
                            const char  *size,
-                           gpointer    user_data,
                            double      percentage,
                            const char* speed,
-                           const char* eta)
+                           const char* eta,
+                           gpointer    user_data)
 {
     GmWindow* g_window = (GmWindow*)window;
     char* Bps = NULL;
     asprintf(&Bps, "%s/s", speed);
     gtk_list_store_set(g_window->priv->task_store,
                        (GtkTreeIter*)user_data,
-                       1, name,
-                       2, size,
-                       3, percentage,
-                       4, Bps,
-                       5, eta,
-                       -1);
+                       COL_NAME,       name,
+                       COL_SIZE,       size,
+                       COL_PERCENTAGE, percentage,
+                       COL_SPEED,      Bps,
+                       COL_ETA,        eta,
+                       COL_END);
     free(Bps);
 
     //TODO: Remove request from request_list.
@@ -378,11 +444,12 @@ static void check_selected_row(gpointer data, gpointer user_data)
     switch (status)
     {
         case TS_PAUSED:
+        case TS_FAILED:
         {
             param->status |= TBS_CAN_START;
             break;
         }
-        case TS_ON_GOING:
+        case TS_STARTED:
         {
             param->status |= TBS_CAN_PAUSE;
             break;
@@ -392,6 +459,14 @@ static void check_selected_row(gpointer data, gpointer user_data)
             break;
         }
     }
+
+    // Test code:
+    g_signal_emit_by_name(gg_window, "status-changed",
+                          "test name!!",
+                          TS_STARTED,
+                          "This is a test!",
+                          &iter);
+
 }
 
 /* Prototype for selection handler callback */
@@ -417,6 +492,7 @@ tree_selection_changed_cb (GtkTreeSelection *selection, gpointer data)
                     (param->status & TBS_CAN_PAUSE) ? TRUE : FALSE);
 
     g_list_free_full (selected_rows, (GDestroyNotify) gtk_tree_path_free);
+
 }
 
 static inline GdkPixbuf*
@@ -436,46 +512,46 @@ static void fill_testing_data(GmWindow* window)
     GtkTreeIter iter;
     gtk_list_store_append(window->priv->task_store, &iter);
     gtk_list_store_set(window->priv->task_store, &iter,
-                       C_STATUS, window->priv->pix_started,
-                       C_NAME, "Unamed",
-                       C_SIZE, "Unkown Size",
-                       C_PERCENTAGE, (double)20,
-                       C_SPEED, "100M/s",
-                       C_ETA, "1 min",
-                       C_STATUS_INT, TS_ON_GOING,
-                       C_END);
+                       COL_STATUS, window->priv->pix_started,
+                       COL_NAME, "Unamed",
+                       COL_SIZE, "Unkown Size",
+                       COL_PERCENTAGE, (double)20,
+                       COL_SPEED, "100M/s",
+                       COL_ETA, "1 min",
+                       COL_STATUS_INT, TS_STARTED,
+                       COL_END);
 
     gtk_list_store_append(window->priv->task_store, &iter);
     gtk_list_store_set(window->priv->task_store, &iter,
-                       C_STATUS, window->priv->pix_paused,
-                       C_NAME, "Unamed2",
-                       C_SIZE, "Unkown Size",
-                       C_PERCENTAGE, (double)20,
-                       C_SPEED, "100M/s",
-                       C_ETA, "1 min",
-                       C_STATUS_INT, 0,
-                       C_END);
+                       COL_STATUS, window->priv->pix_paused,
+                       COL_NAME, "Unamed2",
+                       COL_SIZE, "Unkown Size",
+                       COL_PERCENTAGE, (double)20,
+                       COL_SPEED, "100M/s",
+                       COL_ETA, "1 min",
+                       COL_STATUS_INT, TS_PAUSED,
+                       COL_END);
     gtk_list_store_append(window->priv->task_store, &iter);
     gtk_list_store_set(window->priv->task_store, &iter,
-                       C_STATUS, window->priv->pix_cancelled,
-                       C_NAME, "Unamed",
-                       C_SIZE, "Unkown Size",
-                       C_PERCENTAGE, (double)20,
-                       C_SPEED, "100M/s",
-                       C_ETA, "1 min",
-                       C_STATUS_INT, 0,
-                       C_END);
+                       COL_STATUS, window->priv->pix_cancelled,
+                       COL_NAME, "Unamed",
+                       COL_SIZE, "Unkown Size",
+                       COL_PERCENTAGE, (double)20,
+                       COL_SPEED, "100M/s",
+                       COL_ETA, "1 min",
+                       COL_STATUS_INT, TS_FAILED,
+                       COL_END);
 
     gtk_list_store_append(window->priv->task_store, &iter);
     gtk_list_store_set(window->priv->task_store, &iter,
-                       C_STATUS, window->priv->pix_finished,
-                       C_NAME, "Unamed",
-                       C_SIZE, "Unkown Size",
-                       C_PERCENTAGE, (double)20,
-                       C_SPEED, "100M/s",
-                       C_ETA, "1 min",
-                       C_STATUS_INT, TS_FINISHED,
-                       C_END);
+                       COL_STATUS, window->priv->pix_finished,
+                       COL_NAME, "Unamed",
+                       COL_SIZE, "Unkown Size",
+                       COL_PERCENTAGE, (double)20,
+                       COL_SPEED, "100M/s",
+                       COL_ETA, "1 min",
+                       COL_STATUS_INT, TS_FINISHED,
+                       COL_END);
 }
 
 static void
@@ -541,30 +617,25 @@ gm_window_init (GmWindow *window)
                       window);
     g_signal_connect (window, "update-progress", G_CALLBACK
                       (window_update_progress_cb), window);
+    g_signal_connect (window, "status-changed", G_CALLBACK
+                      (window_status_changed_cb), window);
 
 
-    window->priv->btn_add = G_GET_WIDGET(window->priv->builder,
-                                         GtkToolButton,
-                                         "btn_new");
-    window->priv->btn_start = G_GET_WIDGET(window->priv->builder,
-                                           GtkToolButton,
-                                           "btn_start");
-    window->priv->btn_pause = G_GET_WIDGET(window->priv->builder,
-                                           GtkToolButton,
-                                           "btn_pause");
-    window->priv->btn_settings =G_GET_WIDGET(window->priv->builder,
-                                             GtkToolButton,
-                                             "btn_settings");
+    priv->btn_add = G_GET_WIDGET(builder, GtkToolButton, "btn_new");
+    priv->btn_start = G_GET_WIDGET(builder, GtkToolButton, "btn_start");
+    priv->btn_pause = G_GET_WIDGET(builder, GtkToolButton, "btn_pause");
+    priv->btn_settings =G_GET_WIDGET(builder, GtkToolButton, "btn_settings");
 
-    window->priv->theme = gtk_icon_theme_get_default();
-    window->priv->pix_paused = pixbuf_from_name(window->priv->theme,
-                                                "gtk-media-pause", 22);
-    window->priv->pix_started = pixbuf_from_name(window->priv->theme,
-                                                "down", 22);
-    window->priv->pix_cancelled = pixbuf_from_name(window->priv->theme,
-                                                   "gtk-close", 22);
-    window->priv->pix_finished = pixbuf_from_name(window->priv->theme,
-                                                  "gtk-ok", 22);
+    priv->text_view = G_GET_WIDGET(builder, GtkTextView, "textview1");
+    priv->text_buffer = G_GET_WIDGET(builder, GtkTextBuffer, "textbuffer1");
+    priv->ts_tag = gtk_text_buffer_create_tag(
+        priv->text_buffer, "blue_foreground", "foreground", "blue", NULL);
+
+    priv->theme = gtk_icon_theme_get_default();
+    priv->pix_paused = pixbuf_from_name(priv->theme, "gtk-media-pause", 22);
+    priv->pix_started = pixbuf_from_name(priv->theme, "down", 22);
+    priv->pix_cancelled = pixbuf_from_name(priv->theme, "gtk-close", 22);
+    priv->pix_finished = pixbuf_from_name(priv->theme, "gtk-ok", 22);
 
     fill_testing_data(window);
     /* g_action_map_add_action_entries (G_ACTION_MAP (window), */
@@ -574,7 +645,9 @@ gm_window_init (GmWindow *window)
     /* accel_group = gtk_accel_group_new (); */
     /* gtk_window_add_accel_group (GTK_WINDOW (window), accel_group); */
 
-    gtk_builder_connect_signals(priv->builder, window);
+    gtk_builder_connect_signals(builder, window);
+
+    gg_window = window;
 }
 
 static void
@@ -610,14 +683,29 @@ gm_window_class_init (GmWindowClass *klass)
                           NULL, NULL,
                           g_cclosure_marshal_generic,
                           G_TYPE_NONE,
-                          7,
-                          G_TYPE_STRING,
-                          G_TYPE_STRING,
-                          G_TYPE_STRING,
-                          G_TYPE_POINTER,
-                          G_TYPE_DOUBLE,
-                          G_TYPE_STRING,
-                          G_TYPE_STRING);
+                          6,
+                          G_TYPE_STRING, // Name,
+                          G_TYPE_STRING, // Size
+                          G_TYPE_DOUBLE, // Percentage
+                          G_TYPE_STRING, // Speed
+                          G_TYPE_STRING, // Eta
+                          G_TYPE_POINTER // User_Data
+                          );
+
+    signals[UPDATE_PROGRESS] =
+            g_signal_new ("status-changed",
+                          G_TYPE_FROM_CLASS (klass),
+                          G_SIGNAL_RUN_LAST,
+                          G_STRUCT_OFFSET (GmWindowClass, status_changed),
+                          NULL, NULL,
+                          g_cclosure_marshal_generic,
+                          G_TYPE_NONE,
+                          4,
+                          G_TYPE_STRING, // name
+                          G_TYPE_INT,    // state
+                          G_TYPE_STRING, // msg
+                          G_TYPE_POINTER // User_Data
+                          );
 }
 
 GtkWidget *

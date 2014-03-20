@@ -38,9 +38,10 @@ typedef struct _mget_request
 
 typedef struct _gmget_statistics
 {
-    int    idx;
-    uint32 ts;
-    uint64 last_recv;
+    int         idx;
+    uint32      ts;
+    uint64      last_recv;
+    task_status last_status;
 } gmget_statistics;
 
 
