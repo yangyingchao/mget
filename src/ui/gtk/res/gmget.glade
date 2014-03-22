@@ -293,7 +293,17 @@ Ah</property>
       <column type="gpointer"/>
     </columns>
   </object>
-  <object class="GtkTextBuffer" id="textbuffer1"/>
+  <object class="GtkTextTagTable" id="texttagtable1">
+    <child type="tag">
+      <object class="GtkTextTag" id="time_stamp">
+        <property name="foreground_gdk">#34346565a4a4</property>
+        <property name="font">Bold</property>
+      </object>
+    </child>
+  </object>
+  <object class="GtkTextBuffer" id="textbuffer1">
+    <property name="tag_table">texttagtable1</property>
+  </object>
   <object class="GtkTreeStore" id="treestore1">
     <columns>
       <!-- column-name GdkPixbuf1 -->
@@ -421,7 +431,6 @@ Ah</property>
             <property name="vexpand">True</property>
             <property name="orientation">vertical</property>
             <property name="position">450</property>
-            <property name="position_set">True</property>
             <child>
               <object class="GtkTreeView" id="task_tree">
                 <property name="visible">True</property>
@@ -518,18 +527,24 @@ Ah</property>
               </packing>
             </child>
             <child>
-              <object class="GtkTextView" id="textview1">
+              <object class="GtkScrolledWindow" id="scrolledwindow1">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
-                <property name="margin_top">3</property>
-                <property name="hexpand">False</property>
-                <property name="vexpand">False</property>
-                <property name="hscroll_policy">natural</property>
-                <property name="vadjustment">adjustment1</property>
-                <property name="vscroll_policy">natural</property>
-                <property name="editable">False</property>
-                <property name="left_margin">10</property>
-                <property name="buffer">textbuffer1</property>
+                <property name="shadow_type">in</property>
+                <child>
+                  <object class="GtkTextView" id="textview1">
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="hexpand">False</property>
+                    <property name="vexpand">False</property>
+                    <property name="hscroll_policy">natural</property>
+                    <property name="vadjustment">adjustment1</property>
+                    <property name="vscroll_policy">natural</property>
+                    <property name="editable">False</property>
+                    <property name="left_margin">10</property>
+                    <property name="buffer">textbuffer1</property>
+                  </object>
+                </child>
               </object>
               <packing>
                 <property name="resize">True</property>

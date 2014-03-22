@@ -372,19 +372,30 @@ window_status_changed_cb(void* window,
     gtk_list_store_set(gw->priv->task_store, iter,
                        COL_STATUS, pix, -1);
 
+    GtkTextBuffer* buffer = gw->priv->text_buffer;
 
     GtkTextIter iter1;
-    gtk_text_buffer_get_end_iter(gw->priv->text_buffer, &iter1);
+    gtk_text_buffer_get_end_iter(buffer, &iter1);
+
+    GTimeVal tv;
+    g_get_current_time(&tv);
 
     char* fmsg = NULL;
-    asprintf(&fmsg, "Status changed to: %d -- %s\n", stat, msg);
-    gtk_text_buffer_insert(gw->priv->text_buffer, &iter1, fmsg, -1);
+    asprintf(&fmsg, "%s: ", g_time_val_to_iso8601(&tv));
 
-    GtkTextIter iter2;
-    gtk_text_buffer_get_end_iter(gw->priv->text_buffer, &iter2);
-    gtk_text_buffer_get_iter_at_offset (gw->priv->text_buffer, &iter1, 7);
-    gtk_text_buffer_apply_tag(gw->priv->text_buffer,
-                              gw->priv->ts_tag, &iter1, &iter2);
+    gtk_text_buffer_insert_with_tags(buffer, &iter1, fmsg, -1,
+                                     gw->priv->ts_tag, NULL);
+
+    free(fmsg);
+    asprintf(&fmsg, "Status changed to %d.\n", stat);
+
+    gtk_text_view_scroll_to_iter (gw->priv->text_view,
+                                  &iter1, 0.0, false, 0, 0);
+
+    gtk_text_buffer_get_end_iter(buffer, &iter1);
+    gtk_text_buffer_insert(buffer, &iter1, fmsg, -1);
+
+    free(fmsg);
 
 }
 
@@ -628,8 +639,7 @@ gm_window_init (GmWindow *window)
 
     priv->text_view = G_GET_WIDGET(builder, GtkTextView, "textview1");
     priv->text_buffer = G_GET_WIDGET(builder, GtkTextBuffer, "textbuffer1");
-    priv->ts_tag = gtk_text_buffer_create_tag(
-        priv->text_buffer, "blue_foreground", "foreground", "blue", NULL);
+    priv->ts_tag = G_GET_WIDGET(builder, GtkTextTag, "time_stamp");
 
     priv->theme = gtk_icon_theme_get_default();
     priv->pix_paused = pixbuf_from_name(priv->theme, "gtk-media-pause", 22);
