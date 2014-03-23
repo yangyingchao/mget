@@ -274,6 +274,7 @@ void on_btn_download_confirm_clicked(GtkButton *button,
 
     g_request->request.url = g_strdup(url);
     gtk_entry_set_text (dlg->entry_url, "");
+    g_request->sts.last_status = -1;
 
     g_request->window = window;
     const gchar* dir = gtk_entry_get_text(dlg->entry_dir);
@@ -387,16 +388,15 @@ window_status_changed_cb(void* window,
                                      gw->priv->ts_tag, NULL);
 
     free(fmsg);
-    asprintf(&fmsg, "Status changed to %d.\n", stat);
-
-    gtk_text_view_scroll_to_iter (gw->priv->text_view,
-                                  &iter1, 0.0, false, 0, 0);
+    if (msg)
+    {
+        gtk_text_buffer_get_end_iter(buffer, &iter1);
+        gtk_text_buffer_insert(buffer, &iter1, fmsg, -1);
+    }
 
     gtk_text_buffer_get_end_iter(buffer, &iter1);
-    gtk_text_buffer_insert(buffer, &iter1, fmsg, -1);
-
-    free(fmsg);
-
+    gtk_text_view_scroll_to_iter (gw->priv->text_view,
+                                  &iter1, 0.0, false, 0, 0);
 }
 
 static void
@@ -470,14 +470,6 @@ static void check_selected_row(gpointer data, gpointer user_data)
             break;
         }
     }
-
-    // Test code:
-    g_signal_emit_by_name(gg_window, "status-changed",
-                          "test name!!",
-                          TS_STARTED,
-                          "This is a test!",
-                          &iter);
-
 }
 
 /* Prototype for selection handler callback */

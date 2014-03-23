@@ -21,6 +21,8 @@
  */
 
 #define _BSD_SOURCE
+#include <stdio.h>
+#include <string.h>
 #include "mget_thread.h"
 #include <libmget/mget_macros.h>
 #include <stdlib.h>
@@ -35,7 +37,6 @@ static inline task_status convert_task_status(request_status s)
             return TS_CREATED;
         }
         case RS_PAUSED:
-        case RS_STOPPED:
         {
             return TS_PAUSED;
         }
@@ -47,7 +48,7 @@ static inline task_status convert_task_status(request_status s)
         {
             return TS_FAILED;
         }
-        case RS_SUCCEEDED:
+        case RS_FINISHED:
         {
             return TS_FINISHED;
             break;
@@ -63,6 +64,55 @@ static inline task_status convert_task_status(request_status s)
 void update_progress(metadata* md, void* user_data)
 {
     gmget_request* req = (gmget_request*)user_data;
+
+    if (!md || !req) {
+        return;
+    }
+
+    if (req->sts.last_status != md->hd.status) {
+        req->sts.last_status = md->hd.status;
+
+        char* msg = NULL;
+
+        switch (req->sts.last_status) {
+            case RS_INIT: {
+                asprintf(&msg, "Download task created...");
+                break;
+            }
+            case RS_STARTED: {
+                asprintf(&msg, "Download task started...");
+                break;
+            }
+            case RS_PAUSED: {
+                asprintf(&msg, "Download task pasued...");
+                break;
+            }
+            case RS_FINISHED: {
+                asprintf(&msg, "Download task finished...");
+                break;
+            }
+            case RS_FAILED: {
+                asprintf(&msg, "Download task failed...");
+                break;
+            }
+            default:{
+                asprintf(&msg, "Unkown status: %d...", req->sts.last_status);
+                break;
+            }
+        }
+
+        fprintf(stderr, "st: %d, msg: %s\n", req->sts.last_status, msg);
+        g_signal_emit_by_name(req->window,
+                              "status-changed",
+                              md->fn,
+                              req->sts.last_status,
+                              msg,
+                              &req->iter);
+
+        //XXX: mem leak here!
+        /* free(msg); */
+    }
+
 
 
     int threshhold = 78 * md->hd.acon / md->hd.nr_effective;
@@ -87,15 +137,20 @@ void update_progress(metadata* md, void* user_data)
         uint64 diff_size = recv - req->sts.last_recv;
         uint64 remain    = total - recv;
         uint32 c_time    = get_time_ms();
-        uint64 bps       = (uint64)((double) (diff_size) * 1000 / (c_time - req->sts.ts));
+        uint32 time_cost = c_time - req->sts.ts;
+        if (!time_cost)    {
+            time_cost = 1;
+        }
+
+        uint64 bps       = (uint64)((double) (diff_size) * 1000 / time_cost);
 
         char* sz = strdup(stringify_size(total));
         g_signal_emit_by_name(req->window, "update-progress",
                               md->fn,
                               sz,
                               (double) recv / total * 100,
-                              stringify_size(bps),
-                              stringify_time((total-recv)/bps),
+                              bps ? stringify_size(bps) : "--",
+                              bps ? stringify_time((total-recv)/bps) : "--",
                               &req->iter);
 
         /* fprintf(stderr, */
@@ -104,7 +159,7 @@ void update_progress(metadata* md, void* user_data)
         /*         stringify_size(bps), */
         /*         stringify_time((total-recv)/bps)); */
         /* fprintf(stderr, "\n"); */
-        free(sz);
+        /* free(sz); */ // XXX: leak
         req->sts.idx       = 0;
         req->sts.last_recv = recv;
         req->sts.ts        = c_time;

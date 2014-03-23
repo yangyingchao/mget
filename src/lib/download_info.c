@@ -44,7 +44,7 @@ void dinfo_destroy(dinfo** info)
 
     bool remove_package  = (*info)->md->hd.package_size == 0;
     bool remove_metadata = remove_package || \
-                           (*info)->md->hd.status == RS_SUCCEEDED;
+                           (*info)->md->hd.status == RS_FINISHED;
 
     if (remove_metadata)
         remove_file((*info)->fm_md->fh->fn);

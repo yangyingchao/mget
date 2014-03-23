@@ -69,7 +69,7 @@ void show_progress(metadata* md, void* user_data)
     static uint32 ts        = 0;
     static uint64 last_recv = 0;
 
-    if (md->hd.status == RS_SUCCEEDED) {
+    if (md->hd.status == RS_FINISHED) {
         char *date = current_time_str();
 
         printf("%s - %s saved in %s [%.02fKB/s] ...\n",

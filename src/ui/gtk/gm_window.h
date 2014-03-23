@@ -60,8 +60,8 @@ struct _GmWindow {
 typedef enum _task_status
 {
     TS_CREATED = 0,
-    TS_PAUSED,
     TS_STARTED,
+    TS_PAUSED,
     TS_FINISHED,
     TS_FAILED,
 } task_status;

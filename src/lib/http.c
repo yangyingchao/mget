@@ -354,7 +354,7 @@ start: ;
 
     dinfo_sync(info);
 
-    if (md->hd.status == RS_SUCCEEDED) {
+    if (md->hd.status == RS_FINISHED) {
         goto ret;
     }
 
@@ -407,7 +407,7 @@ start: ;
     }
 
     if (!need_request) {
-        md->hd.status = RS_SUCCEEDED;
+        md->hd.status = RS_FINISHED;
         goto ret;
     }
 
@@ -429,9 +429,9 @@ start: ;
     }
 
     if (finished) {
-        md->hd.status = RS_SUCCEEDED;
+        md->hd.status = RS_FINISHED;
     } else {
-        md->hd.status = RS_STOPPED;
+        md->hd.status = RS_PAUSED;
     }
 
     md->hd.acc_time += get_time_s() - md->hd.last_time;
