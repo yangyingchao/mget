@@ -172,23 +172,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkButton" id="button2">
-                <property name="label">gtk-about</property>
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="receives_default">True</property>
-                <property name="double_buffered">False</property>
-                <property name="halign">end</property>
-                <property name="valign">center</property>
-                <property name="use_stock">True</property>
-                <property name="always_show_image">True</property>
-              </object>
-              <packing>
-                <property name="left_attach">2</property>
-                <property name="top_attach">2</property>
-                <property name="width">1</property>
-                <property name="height">1</property>
-              </packing>
+              <placeholder/>
             </child>
           </object>
           <packing>
@@ -346,6 +330,7 @@ Ah</property>
             <property name="label" translatable="yes">start</property>
             <property name="use_underline">True</property>
             <property name="stock_id">gtk-media-play</property>
+            <signal name="clicked" handler="on_btn_start_clicked" swapped="no"/>
           </object>
           <packing>
             <property name="expand">False</property>
@@ -492,7 +477,6 @@ Ah</property>
                     <child>
                       <object class="GtkCellRendererProgress" id="cellrendererprogress1"/>
                       <attributes>
-                        <attribute name="text">3</attribute>
                         <attribute name="value">3</attribute>
                       </attributes>
                     </child>

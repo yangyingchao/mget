@@ -27,6 +27,10 @@
 #include <libmget/mget_macros.h>
 #include <stdlib.h>
 #include <string.h>
+#include <libgen.h>
+
+#define BASE_NAME(X)       basename(X)
+
 
 static inline task_status convert_task_status(request_status s)
 {
@@ -69,6 +73,11 @@ void update_progress(metadata* md, void* user_data)
         return;
     }
 
+    static char fname[1024];
+    memset(fname, 0, 1024);
+    sprintf(fname, "%s", md->fn);
+    char* bname = basename(fname);
+
     if (req->sts.last_status != md->hd.status) {
         req->sts.last_status = md->hd.status;
 
@@ -101,13 +110,12 @@ void update_progress(metadata* md, void* user_data)
             }
         }
 
-        fprintf(stderr, "st: %d, msg: %s\n", req->sts.last_status, msg);
         g_signal_emit_by_name(req->window,
                               "status-changed",
-                              md->fn,
+                              bname,
                               req->sts.last_status,
                               msg,
-                              &req->iter);
+                              user_data);
 
         //XXX: mem leak here!
         /* free(msg); */
@@ -146,12 +154,12 @@ void update_progress(metadata* md, void* user_data)
 
         char* sz = strdup(stringify_size(total));
         g_signal_emit_by_name(req->window, "update-progress",
-                              md->fn,
+                              bname,
                               sz,
                               (double) recv / total * 100,
                               bps ? stringify_size(bps) : "--",
                               bps ? stringify_time((total-recv)/bps) : "--",
-                              &req->iter);
+                              user_data);
 
         /* fprintf(stderr, */
         /*         "] %.02f percent finished, speed: %s/s, eta: %s\r", */

@@ -64,6 +64,7 @@ typedef enum _task_status
     TS_PAUSED,
     TS_FINISHED,
     TS_FAILED,
+    TS_INVALID,
 } task_status;
 
 

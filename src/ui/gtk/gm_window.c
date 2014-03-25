@@ -94,6 +94,10 @@ enum {
     LAST_SIGNAL
 };
 
+static const char* status_string[] = {
+    "Created", "Started", "Paused", "Finished", "Failed"
+};
+
 
 void pause_request(gpointer data, gpointer user_data)
 {
@@ -204,10 +208,10 @@ pause_selected_tasks(gpointer data, gpointer user_data)
     GtkTreeModel* model = (GtkTreeModel*)user_data;
     GtkTreeIter   iter;
 
-    if (!path || model ||
+    if (!path || !model ||
         !gtk_tree_model_get_iter(model, &iter, path))
     {
-        PDEBUG ("%p -- %p\n", path, model);
+        PDEBUG ("Can't find iter: Path:%p, Model %p\n", path, model);
         return;
     }
 
@@ -215,6 +219,8 @@ pause_selected_tasks(gpointer data, gpointer user_data)
     gtk_tree_model_get(model, &iter, COL_USRE_DATA, &req, -1);
     if (req)
     {
+        PDEBUG ("set to true!\n");
+
         req->request.flag = true;
     }
     else
@@ -223,13 +229,42 @@ pause_selected_tasks(gpointer data, gpointer user_data)
     }
 }
 
-void on_btn_pause_clicked(GtkButton *button,
+static inline void
+resume_selected_tasks(gpointer data, gpointer user_data)
+{
+    GtkTreePath*  path  = (GtkTreePath*)data;
+    GtkTreeModel* model = (GtkTreeModel*)user_data;
+    GtkTreeIter   iter;
+
+    if (!path || !model ||
+        !gtk_tree_model_get_iter(model, &iter, path))
+    {
+        PDEBUG ("Can't find iter: Path:%p, Model %p\n", path, model);
+        return;
+    }
+
+    gmget_request* req = NULL;
+    gtk_tree_model_get(model, &iter, COL_USRE_DATA, &req, -1);
+    if (req)
+    {
+        req->request.flag = false;
+        pthread_t* tid = start_request_thread(req);
+    }
+    else
+    {
+        PDEBUG ("Null gmget_request pointer!!\n");
+    }
+}
+
+void on_btn_start_clicked(GtkButton *button,
                           gpointer   user_data)
 {
     if (!user_data)
     {
         return;
     }
+
+    PDEBUG ("enter\n");
 
     GmWindow* window = (GmWindow*) user_data;
     GtkTreeSelection *selection =
@@ -240,6 +275,41 @@ void on_btn_pause_clicked(GtkButton *button,
     GList* selected_rows =
             gtk_tree_selection_get_selected_rows(selection,
                                                  &model);
+
+    PDEBUG ("selection: %p, Count: %u\n",
+            selection, g_list_length(selected_rows));
+
+    g_list_foreach(selected_rows, resume_selected_tasks, model);
+
+    G_ENABLE_WIDGET(window->priv->btn_start, FALSE);
+    G_ENABLE_WIDGET(window->priv->btn_pause, TRUE);
+
+    g_list_free_full (selected_rows, (GDestroyNotify) gtk_tree_path_free);
+}
+
+void on_btn_pause_clicked(GtkButton *button,
+                          gpointer   user_data)
+{
+    if (!user_data)
+    {
+        return;
+    }
+
+    PDEBUG ("enter\n");
+
+    GmWindow* window = (GmWindow*) user_data;
+    GtkTreeSelection *selection =
+            gtk_tree_view_get_selection (GTK_TREE_VIEW
+                                         (window->priv->task_tree));
+
+    GtkTreeModel* model  = NULL;
+    GList* selected_rows =
+            gtk_tree_selection_get_selected_rows(selection,
+                                                 &model);
+
+    PDEBUG ("selection: %p, Count: %u\n",
+            selection, g_list_length(selected_rows));
+
     g_list_foreach(selected_rows, pause_selected_tasks, model);
 
     G_ENABLE_WIDGET(window->priv->btn_start, FALSE);
@@ -336,31 +406,47 @@ window_status_changed_cb(void* window,
     }
 
     GD_PTR(GmWindow, gw, window);
-    GD_PTR(GtkTreeIter, iter, user_data);
+    GD_PTR(gmget_request, req, user_data);
+    GD_PTR(GtkTreeIter, iter, &req->iter);
 
+    assert(stat < TS_INVALID);
     // update status icon
     GdkPixbuf* pix = NULL;
     switch (stat)
     {
         case TS_CREATED:
+        {
+            pix = gw->priv->pix_paused;
+            break;
+        }
         case TS_PAUSED:
         {
             pix = gw->priv->pix_paused;
+            G_ENABLE_WIDGET(gw->priv->btn_start, TRUE);
+            G_ENABLE_WIDGET(gw->priv->btn_pause, FALSE);
             break;
         }
         case TS_STARTED:
         {
             pix = gw->priv->pix_started;
+            G_ENABLE_WIDGET(gw->priv->btn_start, FALSE);
+            G_ENABLE_WIDGET(gw->priv->btn_pause, TRUE);
             break;
         }
         case TS_FINISHED:
         {
             pix = gw->priv->pix_finished;
+            G_ENABLE_WIDGET(gw->priv->btn_start, FALSE);
+            G_ENABLE_WIDGET(gw->priv->btn_pause, FALSE);
+            gw->priv->request_list =
+                    g_list_remove(gw->priv->request_list, req);
             break;
         }
         case TS_FAILED:
         {
             pix = gw->priv->pix_cancelled;
+            G_ENABLE_WIDGET(gw->priv->btn_start, TRUE);
+            G_ENABLE_WIDGET(gw->priv->btn_pause, FALSE);
             break;
         }
         default:
@@ -390,9 +476,15 @@ window_status_changed_cb(void* window,
     free(fmsg);
     if (msg)
     {
-        gtk_text_buffer_get_end_iter(buffer, &iter1);
-        gtk_text_buffer_insert(buffer, &iter1, fmsg, -1);
+        asprintf(&fmsg, "%s\n", msg);
     }
+    else
+    {
+        asprintf(&fmsg, "Status changed to: %s", status_string[stat]);
+    }
+    gtk_text_buffer_get_end_iter(buffer, &iter1);
+    gtk_text_buffer_insert(buffer, &iter1, fmsg, -1);
+    free(fmsg);
 
     gtk_text_buffer_get_end_iter(buffer, &iter1);
     gtk_text_view_scroll_to_iter (gw->priv->text_view,
@@ -409,10 +501,12 @@ window_update_progress_cb (void       *window,
                            gpointer    user_data)
 {
     GmWindow* g_window = (GmWindow*)window;
+    GD_PTR(gmget_request, req, user_data);
+    GD_PTR(GtkTreeIter, iter, &req->iter);
     char* Bps = NULL;
     asprintf(&Bps, "%s/s", speed);
     gtk_list_store_set(g_window->priv->task_store,
-                       (GtkTreeIter*)user_data,
+                       iter,
                        COL_NAME,       name,
                        COL_SIZE,       size,
                        COL_PERCENTAGE, percentage,
@@ -443,6 +537,8 @@ static void check_selected_row(gpointer data, gpointer user_data)
     csrf_param* param = (csrf_param*)user_data;
     GtkTreePath* path = (GtkTreePath*)data;
     GtkTreeIter  iter;
+
+    PDEBUG ("model: %p, path: %p\n",param->model, path);
 
     if (!path || !param || !param->model ||
         !gtk_tree_model_get_iter(param->model, &iter, path))
@@ -484,6 +580,9 @@ tree_selection_changed_cb (GtkTreeSelection *selection, gpointer data)
     csrf_param* param = ZALLOC1(csrf_param);
     param->model = model;
 
+    PDEBUG ("selection: %p, Count: %u\n",
+            selection, g_list_length(selected_rows));
+
     g_list_foreach(selected_rows, check_selected_row, param);
 
     PDEBUG ("status: %d\n", param->status);
@@ -512,49 +611,49 @@ pixbuf_from_name(GtkIconTheme* theme, const char* name, gint size)
 
 static void fill_testing_data(GmWindow* window)
 {
-    GtkTreeIter iter;
-    gtk_list_store_append(window->priv->task_store, &iter);
-    gtk_list_store_set(window->priv->task_store, &iter,
-                       COL_STATUS, window->priv->pix_started,
-                       COL_NAME, "Unamed",
-                       COL_SIZE, "Unkown Size",
-                       COL_PERCENTAGE, (double)20,
-                       COL_SPEED, "100M/s",
-                       COL_ETA, "1 min",
-                       COL_STATUS_INT, TS_STARTED,
-                       COL_END);
+    /* GtkTreeIter iter; */
+    /* gtk_list_store_append(window->priv->task_store, &iter); */
+    /* gtk_list_store_set(window->priv->task_store, &iter, */
+    /*                    COL_STATUS, window->priv->pix_started, */
+    /*                    COL_NAME, "Unamed", */
+    /*                    COL_SIZE, "Unkown Size", */
+    /*                    COL_PERCENTAGE, (double)20, */
+    /*                    COL_SPEED, "100M/s", */
+    /*                    COL_ETA, "1 min", */
+    /*                    COL_STATUS_INT, TS_STARTED, */
+    /*                    COL_END); */
 
-    gtk_list_store_append(window->priv->task_store, &iter);
-    gtk_list_store_set(window->priv->task_store, &iter,
-                       COL_STATUS, window->priv->pix_paused,
-                       COL_NAME, "Unamed2",
-                       COL_SIZE, "Unkown Size",
-                       COL_PERCENTAGE, (double)20,
-                       COL_SPEED, "100M/s",
-                       COL_ETA, "1 min",
-                       COL_STATUS_INT, TS_PAUSED,
-                       COL_END);
-    gtk_list_store_append(window->priv->task_store, &iter);
-    gtk_list_store_set(window->priv->task_store, &iter,
-                       COL_STATUS, window->priv->pix_cancelled,
-                       COL_NAME, "Unamed",
-                       COL_SIZE, "Unkown Size",
-                       COL_PERCENTAGE, (double)20,
-                       COL_SPEED, "100M/s",
-                       COL_ETA, "1 min",
-                       COL_STATUS_INT, TS_FAILED,
-                       COL_END);
+    /* gtk_list_store_append(window->priv->task_store, &iter); */
+    /* gtk_list_store_set(window->priv->task_store, &iter, */
+    /*                    COL_STATUS, window->priv->pix_paused, */
+    /*                    COL_NAME, "Unamed2", */
+    /*                    COL_SIZE, "Unkown Size", */
+    /*                    COL_PERCENTAGE, (double)20, */
+    /*                    COL_SPEED, "100M/s", */
+    /*                    COL_ETA, "1 min", */
+    /*                    COL_STATUS_INT, TS_PAUSED, */
+    /*                    COL_END); */
+    /* gtk_list_store_append(window->priv->task_store, &iter); */
+    /* gtk_list_store_set(window->priv->task_store, &iter, */
+    /*                    COL_STATUS, window->priv->pix_cancelled, */
+    /*                    COL_NAME, "Unamed", */
+    /*                    COL_SIZE, "Unkown Size", */
+    /*                    COL_PERCENTAGE, (double)20, */
+    /*                    COL_SPEED, "100M/s", */
+    /*                    COL_ETA, "1 min", */
+    /*                    COL_STATUS_INT, TS_FAILED, */
+    /*                    COL_END); */
 
-    gtk_list_store_append(window->priv->task_store, &iter);
-    gtk_list_store_set(window->priv->task_store, &iter,
-                       COL_STATUS, window->priv->pix_finished,
-                       COL_NAME, "Unamed",
-                       COL_SIZE, "Unkown Size",
-                       COL_PERCENTAGE, (double)20,
-                       COL_SPEED, "100M/s",
-                       COL_ETA, "1 min",
-                       COL_STATUS_INT, TS_FINISHED,
-                       COL_END);
+    /* gtk_list_store_append(window->priv->task_store, &iter); */
+    /* gtk_list_store_set(window->priv->task_store, &iter, */
+    /*                    COL_STATUS, window->priv->pix_finished, */
+    /*                    COL_NAME, "Unamed", */
+    /*                    COL_SIZE, "Unkown Size", */
+    /*                    COL_PERCENTAGE, (double)20, */
+    /*                    COL_SPEED, "100M/s", */
+    /*                    COL_ETA, "1 min", */
+    /*                    COL_STATUS_INT, TS_FINISHED, */
+    /*                    COL_END); */
 }
 
 static void
