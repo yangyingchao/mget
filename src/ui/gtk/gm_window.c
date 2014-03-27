@@ -99,7 +99,8 @@ static const char* status_string[] = {
 };
 
 
-static gboolean on_treeview1_popup_menu(GtkWidget *treeview, gpointer userdata)
+static gboolean
+on_treeview1_popup_menu(GtkWidget *treeview, gpointer userdata)
 {
     PDEBUG ("enter with tree: %p, pointer: %p\n", treeview, userdata);
 
@@ -665,6 +666,50 @@ static void fill_testing_data(GmWindow* window)
 }
 
 static void
+do_popup_menu (GtkWidget *my_widget, GdkEventButton *event)
+{
+    GtkWidget *menu;
+    int button, event_time;
+
+    menu = gtk_menu_new ();
+    g_signal_connect (menu, "deactivate",
+                      G_CALLBACK (gtk_widget_destroy), NULL);
+
+    /* ... add menu items ... */
+
+    if (event)
+    {
+        event_time = event->time;
+    }
+    else
+    {
+        event_time = gtk_get_current_event_time ();
+    }
+
+    gtk_menu_attach_to_widget (GTK_MENU (menu), my_widget, NULL);
+    gtk_menu_popup (GTK_MENU (menu), NULL, NULL, NULL, NULL,
+                    GDK_BUTTON_PRIMARY, event_time);
+}
+// Callback when mouse clicked on task_tree.
+static gboolean
+on_task_tree_button_pressed (GtkWidget *treeview,
+                             GdkEventButton *event,
+                             gpointer userdata)
+{
+    PDEBUG ("enter: tree %p, event: %d, userData: %p\n",
+            treeview, event->button, userdata);
+
+    // Handle only right click here.
+    if (event->button == GDK_BUTTON_SECONDARY)
+    {
+        do_popup_menu (treeview, event);
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+static void
 gm_window_init (GmWindow *window)
 {
     GmWindowPriv  *priv;
@@ -747,6 +792,10 @@ gm_window_init (GmWindow *window)
     priv->pix_finished = pixbuf_from_name(priv->theme, "gtk-ok", 22);
 
     fill_testing_data(window);
+
+    g_signal_connect(priv->task_tree, "button-press-event",
+                     G_CALLBACK(on_task_tree_button_pressed), window);
+
     /* g_action_map_add_action_entries (G_ACTION_MAP (window), */
     /*                                  win_entries, G_N_ELEMENTS (win_entries), */
     /*                                  window); */
@@ -756,8 +805,6 @@ gm_window_init (GmWindow *window)
 
     gtk_builder_connect_signals(builder, window);
 
-    g_signal_connect(priv->task_tree, "popup-menu",
-                     G_CALLBACK(on_treeview1_popup_menu), window);
     gg_window = window;
 }
 
