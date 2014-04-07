@@ -198,8 +198,9 @@ typedef struct _connection_operation_param {
     bool header_finished;
     char *hd;
     hash_table *ht;
-    void (*cb) (metadata * md);
+    void (*cb) (metadata*, void*);
     metadata *md;
+    void* user_data;
 } so_param;
 
 int http_read_sock(connection * conn, void *priv)
@@ -259,7 +260,7 @@ int http_read_sock(connection * conn, void *priv)
     if (rd > 0) {
         dp->cur_pos += rd;
         if (param->cb) {
-            (*(param->cb)) (param->md);
+            (*(param->cb)) (param->md, param->user_data);
         }
     } else if (rd == 0) {
         PDEBUG("Read returns 0: showing chunk: "
@@ -301,7 +302,8 @@ int http_write_sock(connection * conn, void *priv)
     return written;
 }
 
-int process_http_request(dinfo* info, dp_callback cb, bool * stop_flag)
+int process_http_request(dinfo* info, dp_callback cb, bool * stop_flag,
+                         void* user_data)
 {
     PDEBUG("enter\n");
 
@@ -352,13 +354,13 @@ start: ;
 
     dinfo_sync(info);
 
-    if (md->hd.status == RS_SUCCEEDED) {
+    if (md->hd.status == RS_FINISHED) {
         goto ret;
     }
 
     md->hd.status = RS_STARTED;
     if (cb) {
-        (*cb) (md);
+        (*cb) (md, user_data);
     }
 
     connection_group *sg = connection_group_create(stop_flag);
@@ -389,11 +391,12 @@ start: ;
 
         so_param *param = ZALLOC1(so_param);
 
-        param->addr = info->fm_file->addr;
-        param->dp = md->body + i;
-        param->ui = ui;
-        param->md = md;
-        param->cb = cb;
+        param->addr      = info->fm_file->addr;
+        param->dp        = md->body + i;
+        param->ui        = ui;
+        param->md        = md;
+        param->cb        = cb;
+        param->user_data = user_data;
 
         conn->rf = http_read_sock;
         conn->wf = http_write_sock;
@@ -404,7 +407,7 @@ start: ;
     }
 
     if (!need_request) {
-        md->hd.status = RS_SUCCEEDED;
+        md->hd.status = RS_FINISHED;
         goto ret;
     }
 
@@ -426,9 +429,9 @@ start: ;
     }
 
     if (finished) {
-        md->hd.status = RS_SUCCEEDED;
+        md->hd.status = RS_FINISHED;
     } else {
-        md->hd.status = RS_STOPPED;
+        md->hd.status = RS_PAUSED;
     }
 
     md->hd.acc_time += get_time_s() - md->hd.last_time;
@@ -436,7 +439,7 @@ start: ;
 ret:
     metadata_display(md);
     if (cb) {
-        (*cb) (md);
+        (*cb) (md, user_data);
     }
 
     PDEBUG("stopped.\n");

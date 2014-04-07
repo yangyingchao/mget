@@ -38,7 +38,13 @@ typedef struct _file_name {
 } file_name;
 
 // dp stands for download_progress
-typedef void (*dp_callback) (metadata * md);
+typedef void (*dp_callback) (metadata * md, void* user_data);
+
+typedef struct _mget_callbacks
+{
+    void (*status_callback)();
+    void (*progress_callback)();
+} mget_callbacks;
 
 /**
  * @name start_request - start processing request.
@@ -49,8 +55,8 @@ typedef void (*dp_callback) (metadata * md);
  * @param stop_flag - Flag to control when to stop.
  * @return bool
  */
-bool start_request(const char *url, const file_name * fn, int nc,
-                   dp_callback cb, bool * stop_flag);
+bool start_request(const char *url, const file_name* fn, int nc,
+                   dp_callback cb, bool * stop_flag, void* user_data);
 
 #ifdef __cplusplus
 }

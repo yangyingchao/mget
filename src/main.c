@@ -63,13 +63,13 @@ void sigterm_handler(int signum)
     fprintf(stderr, "Saving temporary data...\n");
 }
 
-void show_progress(metadata* md)
+void show_progress(metadata* md, void* user_data)
 {
     static int    idx       = 0;
     static uint32 ts        = 0;
     static uint64 last_recv = 0;
 
-    if (md->hd.status == RS_SUCCEEDED) {
+    if (md->hd.status == RS_FINISHED) {
         char *date = current_time_str();
 
         printf("%s - %s saved in %s [%.02fKB/s] ...\n",
@@ -109,6 +109,7 @@ void show_progress(metadata* md)
                 (double) recv / total * 100,
                 stringify_size(bps),
                 stringify_time((total-recv)/bps));
+        fprintf(stderr, "\n");
 
         idx       = 0;
         last_recv = recv;
@@ -260,7 +261,8 @@ int main(int argc, char *argv[])
         int retry_time = 0;
         bool result = true;
         while (retry_time++ < MAX_RETRY_TIMES && !control_byte) {
-            if ((result = start_request(target, &fn, nc, show_progress, &control_byte))) {
+            if ((result = start_request(target, &fn, nc, show_progress,
+                                        &control_byte, NULL))) {
                 break;
             }
         }

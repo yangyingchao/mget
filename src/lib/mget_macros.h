@@ -1,5 +1,5 @@
 
-/** macros.h --- macros...
+/** mget_macros.h --- mget_macros...
  *
  * Copyright (C) 2013 Yang,Ying-chao
  *

@@ -23,7 +23,7 @@
 
 #include "netutils.h"
 #include <stdio.h>
-#include "macros.h"
+#include "mget_macros.h"
 #include "log.h"
 #include "fileutils.h"
 
@@ -39,8 +39,8 @@ void url_info_destroy(url_info ** ui)
 {
     if (ui && *ui) {
         url_info *up = *ui;
-
         FIF(up->furl);
+        FIFZ(ui);
     }
 }
 

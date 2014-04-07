@@ -42,8 +42,7 @@ typedef enum _request_status {
     RS_INIT = 0,
     RS_STARTED,
     RS_PAUSED,
-    RS_STOPPED,
-    RS_SUCCEEDED,
+    RS_FINISHED,
     RS_FAILED,
 } request_status;
 

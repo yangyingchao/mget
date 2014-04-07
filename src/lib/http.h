@@ -37,7 +37,8 @@
  */
 int process_http_request(dinfo* info,
                          dp_callback cb,
-                         bool * stop_flag);
+                         bool* stop_flag,
+                         void* user_data);
 
 #endif				/* _HTTP_H_ */
 
