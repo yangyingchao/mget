@@ -149,10 +149,7 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn)
             url_info *nui = NULL;
 
             if (loc && parse_url(loc, &nui)) {
-                url_info_display(ui);
-                url_info_display(nui);
                 url_info_copy(ui, nui);
-                url_info_display(ui);
                 url_info_destroy(&nui);
                 connection_put(*conn);
                 *conn = connection_get(ui);
