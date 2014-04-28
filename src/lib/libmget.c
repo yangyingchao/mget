@@ -37,7 +37,6 @@ bool start_request(const char *url, const file_name* fn, int nc,
         return ret;
     }
 
-    url_info_display(info->ui);
     switch (info->ui->eprotocol) {
         case UP_HTTP:
         case UP_HTTPS:

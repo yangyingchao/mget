@@ -140,9 +140,11 @@ void url_info_copy(url_info * u1, url_info * u2)
         sprintf(u1->protocol, "%s", u2->protocol);
         sprintf(u1->host, "%s", u2->host);
         sprintf(u1->sport, "%s", u2->sport);
-        u1->uri = strdup(u2->uri);
+        u1->uri   = strdup(u2->uri);
         u1->bname = strdup(u2->bname);
-        u1->furl = strdup(u2->furl);
+        u1->furl  = strdup(u2->furl);
+        u1->port  = u2->port;
+        u1->eprotocol  = u2->eprotocol;
     }
 }
 

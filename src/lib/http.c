@@ -52,24 +52,22 @@ int dissect_header(const char *buffer, size_t length, hash_table ** ht)
     }
 
     hash_table *pht = hash_table_create(256, free);
-
     if (!pht) {
         abort();
     }
 
     *ht = pht;
 
-    const char *ptr = buffer;
-    int n = 0;
-    int num = 0;
-    int stat = 0;
-    char value[64] = { '\0' };
-    size_t ldsize = 0;
-
-
+    const char *ptr    = buffer;
+    int         n      = 0;
+    int         num    = 0;
+    int         stat   = 0;
+    char value[64]     = { '\0' };
+    size_t      ldsize = 0;
 
     num = sscanf(ptr, "HTTP/1.1 %[^\r\n]\r\n%n", value, &n);
     if (!num) {
+        fprintf(stderr, "Failed to parse header: %s\n", ptr);
         perror("Failed to parse header");
         return -1;
     }
@@ -97,31 +95,33 @@ int dissect_header(const char *buffer, size_t length, hash_table ** ht)
     return stat;
 }
 
-uint64 get_remote_file_size_http(url_info* ui, connection* conn)
+/* This function accepts an pointer of connection pointer, on return. When 302
+ * is detected, it will modify both ui and conn to ensure a valid connection
+ * can be initialized. */
+uint64 get_remote_file_size_http(url_info* ui, connection** conn)
 {
-    uint64 t = 0;
-
-    if (!conn || !ui) {
+    if (!conn ||!*conn || !ui) {
         return 0;
     }
 
     char *hd = generate_request_header("GET", ui, 0, 0);
 
-    conn->ci.writer(conn, hd, strlen(hd), NULL);
+    (*conn)->ci.writer((*conn), hd, strlen(hd), NULL);
     free(hd);
 
     char buffer[4096];
     memset(buffer, 0, 4096);
 
-    size_t      rd   = conn->ci.reader(conn, buffer, 4096, NULL);
+    size_t      rd   = (*conn)->ci.reader((*conn), buffer, 4096, NULL);
     hash_table *ht   = NULL;
     int         stat = dissect_header(buffer, rd, &ht);
 
     PDEBUG("stat: %d, description: %s\n",
            stat, (char *) hash_table_entry_get(ht, "Status"));
 
-    int   num = 0;
-    char* ptr = NULL;
+    int    num = 0;
+    char*  ptr = NULL;
+    uint64 t   = 0;
 
     switch (stat) {
         case 206:			// Ok, we can start download now.
@@ -137,8 +137,7 @@ uint64 get_remote_file_size_http(url_info* ui, connection* conn)
 
             uint64 s, e;
             num = sscanf(ptr, "bytes %llu-%llu/%llu",
-                             &s, &e, &t);
-
+                         &s, &e, &t);
             break;
         }
         case 302:			// Resource moved to other place.
@@ -152,6 +151,8 @@ uint64 get_remote_file_size_http(url_info* ui, connection* conn)
             if (loc && parse_url(loc, &nui)) {
                 url_info_copy(ui, nui);
                 url_info_destroy(&nui);
+                connection_put(*conn);
+                *conn = connection_get(ui);
                 return get_remote_file_size_http(ui, conn);
             }
             fprintf(stderr,
@@ -318,7 +319,7 @@ int process_http_request(dinfo* info, dp_callback cb, bool * stop_flag,
         return -1;
     }
 
-    uint64 total_size = get_remote_file_size_http(info->ui, conn);
+    uint64 total_size = get_remote_file_size_http(info->ui, &conn);
 
     if (!total_size) {
         fprintf(stderr, "Can't get remote file size: %s\n", ui->furl);
