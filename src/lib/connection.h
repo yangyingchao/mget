@@ -43,6 +43,7 @@ typedef struct _connection_impl {
 
 typedef int (*connection_read_func) (connection *, void *);
 typedef int (*connection_write_func) (connection *, void *);
+typedef bool (*connection_reschedule_func) (connection *, void *);
 
 #define COF_FAILED       -1 // Connection Operation Failed
 #define COF_AGAIN        -2 // No data, try again.
@@ -56,6 +57,7 @@ struct _connection {
 	cipl ci;		// returned by connection impl, should not be modified.
 	connection_read_func rf;
 	connection_write_func wf;
+    connection_reschedule_func rsf;
 	void *priv;
 };
 

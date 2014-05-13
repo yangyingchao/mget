@@ -430,7 +430,7 @@ static inline int do_perform_select(connection_group* group)
         }
 
         if (nfds == 0) {
-            fprintf(stderr, "time out ....\n");
+            /* fprintf(stderr, "time out ....\n"); */
         }
 
         connection_list *p = group->lst;
@@ -487,7 +487,7 @@ static inline int do_perform_select(connection_group* group)
         } else if (cnt < group->cnt / 2) { // half of connections are free, reschedule.
             static bool rescheduled = false;
             if (!rescheduled) {
-                PDEBUG ("TODO: implement reschduling...\n");
+                PDEBUG("TODO: implement reschduling...\n");
                 rescheduled = true;
             }
         }
