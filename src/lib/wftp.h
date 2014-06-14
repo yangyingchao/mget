@@ -29,10 +29,10 @@ Corresponding Source for a non-source form of such a combination
 shall include the source code for the parts of OpenSSL used as well
 as that of the covered work.  */
 
-#ifndef FTP_H
-#define FTP_H
+#ifndef WFTP_H
+#define WFTP_H
 
-#include "host.h"
+#include "wget.h"
 
 /* System types. */
 enum stype

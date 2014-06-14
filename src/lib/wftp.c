@@ -29,8 +29,6 @@ Corresponding Source for a non-source form of such a combination
 shall include the source code for the parts of OpenSSL used as well
 as that of the covered work.  */
 
-#include "wget.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -39,17 +37,18 @@ as that of the covered work.  */
 #include <assert.h>
 #include <errno.h>
 #include <time.h>
-
+#include "log.h"
 #include "utils.h"
-#include "url.h"
-#include "retr.h"
-#include "ftp.h"
-#include "connect.h"
-#include "host.h"
-#include "netrc.h"
-#include "convert.h"            /* for downloaded_file */
-#include "recur.h"              /* for INFINITE_RECURSION */
-#include "warc.h"
+/* #include "url.h" */
+/* #include "retr.h" */
+#include "wftp.h"
+/* #include "connect.h" */
+/* #include "host.h" */
+/* #include "netrc.h" */
+/* #include "convert.h"            /\* for downloaded_file *\/ */
+/* #include "recur.h"              /\* for INFINITE_RECURSION *\/ */
+/* #include "warc.h" */
+#include "c-ctype.h"
 
 #ifdef __VMS
 # include "vms.h"
@@ -201,7 +200,7 @@ ftp_do_port (int csock, int *local_sock)
 static uerr_t
 ftp_do_pasv (int csock, ip_address *addr, int *port)
 {
-  if (!opt.server_response)
+  /* if (!opt.server_response) */
     logputs (LOG_VERBOSE, "==> PASV ... ");
   return ftp_pasv (csock, addr, port);
 }
@@ -209,7 +208,7 @@ ftp_do_pasv (int csock, ip_address *addr, int *port)
 static uerr_t
 ftp_do_port (int csock, int *local_sock)
 {
-  if (!opt.server_response)
+  /* if (!opt.server_response) */
     logputs (LOG_VERBOSE, "==> PORT ... ");
   return ftp_port (csock, local_sock);
 }
@@ -416,41 +415,6 @@ Error in server response, closing control connection.\n"));
         default:
           abort ();
         }
-
-#if 0
-      /* 2004-09-17 SMS.
-         Don't help me out.  Please.
-         A reasonably recent VMS FTP server will cope just fine with
-         UNIX file specifications.  This code just spoils things.
-         Discarding the device name, for example, is not a wise move.
-         This code was disabled but left in as an example of what not
-         to do.
-      */
-
-      /* VMS will report something like "PUB$DEVICE:[INITIAL.FOLDER]".
-         Convert it to "/INITIAL/FOLDER" */
-      if (con->rs == ST_VMS)
-        {
-          char *path = strchr (con->id, '[');
-          char *pathend = path ? strchr (path + 1, ']') : NULL;
-          if (!path || !pathend)
-            DEBUGP (("Initial VMS directory not in the form [...]!\n"));
-          else
-            {
-              char *idir = con->id;
-              DEBUGP (("Preprocessing the initial VMS directory\n"));
-              DEBUGP (("  old = '%s'\n", con->id));
-              /* We do the conversion in-place by copying the stuff
-                 between [ and ] to the beginning, and changing dots
-                 to slashes at the same time.  */
-              *idir++ = '/';
-              for (++path; path < pathend; path++, idir++)
-                *idir = *path == '.' ? '/' : *path;
-              *idir = '\0';
-              DEBUGP (("  new = '%s'\n\n", con->id));
-            }
-        }
-#endif /* 0 */
 
       if (!opt.server_response)
         logputs (LOG_VERBOSE, _("done.\n"));

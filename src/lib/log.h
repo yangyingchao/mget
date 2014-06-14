@@ -71,6 +71,8 @@ const char *escnonprint_uri(const char *);
 #endif				/* _DEBUG_H_ */
 
 
+#define _(X)       (X)
+
 #endif				/* LOG_H */
 
 

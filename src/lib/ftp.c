@@ -31,7 +31,6 @@
 
 #define DEFAULT_FTP_CONNECTIONS       8
 
-
 /* This function accepts an pointer of connection pointer, on return. When 302
  * is detected, it will modify both ui and conn to ensure a valid connection
  * can be initialized. */
@@ -48,8 +47,6 @@ typedef struct _connection_operation_param_ftp {
     void *addr;			//base addr;
     data_chunk *dp;
     url_info *ui;
-    bool header_finished;
-    char *hd;
     hash_table *ht;
     void (*cb) (metadata*, void*);
     metadata *md;

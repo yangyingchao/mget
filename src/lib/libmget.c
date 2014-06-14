@@ -41,11 +41,13 @@ bool start_request(const char *url, const file_name* fn, int nc,
         case UP_HTTP:
         case UP_HTTPS:
         {
-            int ret = process_http_request(info, cb, stop_flag, user_data);
-
-            if (ret == 0) {
-                break;
-            }
+            ret = !process_http_request(info, cb, stop_flag, user_data);
+            break;
+        }
+        case UP_FTP:
+        {
+            ret = !process_ftp_request(info, cb, stop_flag, user_data);
+            break;
         }
         default:
         {
