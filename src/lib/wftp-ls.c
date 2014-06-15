@@ -36,12 +36,13 @@ as that of the covered work.  */
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#define _XOPEN_SOURCE       /* See feature_test_macros(7) */
 #include <time.h>
 #include "utils.h"
-#include "ftp.h"
-#include "url.h"
-#include "convert.h"            /* for html_quote_string prototype */
-#include "retr.h"               /* for output_stream */
+#include <time.h>
+#include "wftp.h"
+#include "log.h"
+#include "c-ctype.h"
 
 /* Converts symbolic permissions to number-style ones, e.g. string
    rwxr-xr-x to 755.  For now, it knows nothing of
@@ -92,7 +93,10 @@ clean_line(char *line)
 static struct fileinfo *
 ftp_parse_unix_ls (const char *file, int ignore_perms)
 {
-  FILE *fp;
+// TODO: Remove this ifdef!
+#if 0
+
+FILE *fp;
   static const char *months[] = {
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
@@ -422,6 +426,9 @@ ftp_parse_unix_ls (const char *file, int ignore_perms)
 
   fclose (fp);
   return dir;
+#endif // End of #if 0
+
+  return NULL;
 }
 
 static struct fileinfo *
@@ -435,8 +442,10 @@ ftp_parse_winnt_ls (const char *file)
 
   char *line, *tok;             /* tokenizer */
   struct fileinfo *dir, *l, cur; /* list creation */
+// TODO: Remove this ifdef!
+#if 0
 
-  fp = fopen (file, "rb");
+fp = fopen (file, "rb");
   if (!fp)
     {
       logprintf (LOG_NOTQUIET, "%s: %s\n", file, strerror (errno));
@@ -559,7 +568,9 @@ continue_loop:
     }
 
   fclose(fp);
-  return dir;
+#endif // End of #if 0
+
+return dir;
 }
 
 
@@ -1076,7 +1087,10 @@ Unsupported listing type, trying Unix listing parser.\n"));
 uerr_t
 ftp_index (const char *file, struct url *u, struct fileinfo *f)
 {
-  FILE *fp;
+// TODO: Remove this ifdef!
+#if 0
+
+FILE *fp;
   char *upwd;
   char *htcldir;                /* HTML-clean dir name */
   char *htclfile;               /* HTML-clean file name */
@@ -1191,5 +1205,7 @@ ftp_index (const char *file, struct url *u, struct fileinfo *f)
     fclose (fp);
   else
     fflush (fp);
-  return FTPOK;
+#endif // End of #if 0
+
+return FTPOK;
 }

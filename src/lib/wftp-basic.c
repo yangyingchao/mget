@@ -39,12 +39,193 @@ as that of the covered work.  */
 #include <string.h>
 #include <unistd.h>
 #include "utils.h"
-#include "connect.h"
-#include "host.h"
-#include "ftp.h"
-#include "retr.h"
+/* #include "connect.h" */
+/* #include "host.h" */
+#include "wftp.h"
+/* #include "retr.h" */
+#include "c-ctype.h"
 
 char ftp_last_respline[128];
+
+/* Read a hunk of data from FD, up until a terminator.  The hunk is
+   limited by whatever the TERMINATOR callback chooses as its
+   terminator.  For example, if terminator stops at newline, the hunk
+   will consist of a line of data; if terminator stops at two
+   newlines, it can be used to read the head of an HTTP response.
+   Upon determining the boundary, the function returns the data (up to
+   the terminator) in malloc-allocated storage.
+
+   In case of read error, NULL is returned.  In case of EOF and no
+   data read, NULL is returned and errno set to 0.  In case of having
+   read some data, but encountering EOF before seeing the terminator,
+   the data that has been read is returned, but it will (obviously)
+   not contain the terminator.
+
+   The TERMINATOR function is called with three arguments: the
+   beginning of the data read so far, the beginning of the current
+   block of peeked-at data, and the length of the current block.
+   Depending on its needs, the function is free to choose whether to
+   analyze all data or just the newly arrived data.  If TERMINATOR
+   returns NULL, it means that the terminator has not been seen.
+   Otherwise it should return a pointer to the charactre immediately
+   following the terminator.
+
+   The idea is to be able to read a line of input, or otherwise a hunk
+   of text, such as the head of an HTTP request, without crossing the
+   boundary, so that the next call to fd_read etc. reads the data
+   after the hunk.  To achieve that, this function does the following:
+
+   1. Peek at incoming data.
+
+   2. Determine whether the peeked data, along with the previously
+      read data, includes the terminator.
+
+      2a. If yes, read the data until the end of the terminator, and
+          exit.
+
+      2b. If no, read the peeked data and goto 1.
+
+   The function is careful to assume as little as possible about the
+   implementation of peeking.  For example, every peek is followed by
+   a read.  If the read returns a different amount of data, the
+   process is retried until all data arrives safely.
+
+   SIZEHINT is the buffer size sufficient to hold all the data in the
+   typical case (it is used as the initial buffer size).  MAXSIZE is
+   the maximum amount of memory this function is allowed to allocate,
+   or 0 if no upper limit is to be enforced.
+
+   This function should be used as a building block for other
+   functions -- see fd_read_line as a simple example.  */
+// TODO: Remove this ifdef!
+#if 0
+
+char *
+fd_read_hunk (int fd, hunk_terminator_t terminator, long sizehint, long maxsize)
+{
+  long bufsize = sizehint;
+  char *hunk = xmalloc (bufsize);
+  int tail = 0;                 /* tail position in HUNK */
+
+  assert (!maxsize || maxsize >= bufsize);
+
+  while (1)
+    {
+      const char *end;
+      int pklen, rdlen, remain;
+
+      /* First, peek at the available data. */
+
+      pklen = fd_peek (fd, hunk + tail, bufsize - 1 - tail, -1);
+      if (pklen < 0)
+        {
+          xfree (hunk);
+          return NULL;
+        }
+      end = terminator (hunk, hunk + tail, pklen);
+      if (end)
+        {
+          /* The data contains the terminator: we'll drain the data up
+             to the end of the terminator.  */
+          remain = end - (hunk + tail);
+          assert (remain >= 0);
+          if (remain == 0)
+            {
+              /* No more data needs to be read. */
+              hunk[tail] = '\0';
+              return hunk;
+            }
+          if (bufsize - 1 < tail + remain)
+            {
+              bufsize = tail + remain + 1;
+              hunk = xrealloc (hunk, bufsize);
+            }
+        }
+      else
+        /* No terminator: simply read the data we know is (or should
+           be) available.  */
+        remain = pklen;
+
+      /* Now, read the data.  Note that we make no assumptions about
+         how much data we'll get.  (Some TCP stacks are notorious for
+         read returning less data than the previous MSG_PEEK.)  */
+
+      rdlen = fd_read (fd, hunk + tail, remain, 0);
+      if (rdlen < 0)
+        {
+          xfree_null (hunk);
+          return NULL;
+        }
+      tail += rdlen;
+      hunk[tail] = '\0';
+
+      if (rdlen == 0)
+        {
+          if (tail == 0)
+            {
+              /* EOF without anything having been read */
+              xfree (hunk);
+              errno = 0;
+              return NULL;
+            }
+          else
+            /* EOF seen: return the data we've read. */
+            return hunk;
+        }
+      if (end && rdlen == remain)
+        /* The terminator was seen and the remaining data drained --
+           we got what we came for.  */
+        return hunk;
+
+      /* Keep looping until all the data arrives. */
+
+      if (tail == bufsize - 1)
+        {
+          /* Double the buffer size, but refuse to allocate more than
+             MAXSIZE bytes.  */
+          if (maxsize && bufsize >= maxsize)
+            {
+              xfree (hunk);
+              errno = ENOMEM;
+              return NULL;
+            }
+          bufsize <<= 1;
+          if (maxsize && bufsize > maxsize)
+            bufsize = maxsize;
+          hunk = xrealloc (hunk, bufsize);
+        }
+    }
+}
+
+static const char *
+line_terminator (const char *start, const char *peeked, int peeklen)
+{
+  const char *p = memchr (peeked, '\n', peeklen);
+  if (p)
+    /* p+1 because the line must include '\n' */
+    return p + 1;
+  return NULL;
+}
+#endif // End of #if 0
+
+/* The maximum size of the single line we agree to accept.  This is
+   not meant to impose an arbitrary limit, but to protect the user
+   from Wget slurping up available memory upon encountering malicious
+   or buggy server output.  Define it to 0 to remove the limit.  */
+#define FD_READ_LINE_MAX 4096
+
+/* Read one line from FD and return it.  The line is allocated using
+   malloc, but is never larger than FD_READ_LINE_MAX.
+
+   If an error occurs, or if no data can be read, NULL is returned.
+   In the former case errno indicates the error condition, and in the
+   latter case, errno is NULL.  */
+
+char *
+fd_read_line (int fd)
+{
+  return NULL;/* fd_read_hunk (fd, line_terminator, 128, FD_READ_LINE_MAX); */
+}
 
 
 /* Get the response of FTP server and allocate enough room to handle
@@ -73,14 +254,17 @@ ftp_response (int fd, char **ret_line)
         *--p = '\0';
       if (p > line && p[-1] == '\r')
         *--p = '\0';
+// TODO: Remove this ifdef!
+#if 0
 
-      if (opt.server_response)
+if (opt.server_response)
         logprintf (LOG_NOTQUIET, "%s\n",
                    quotearg_style (escape_quoting_style, line));
       else
         DEBUGP (("%s\n", quotearg_style (escape_quoting_style, line)));
+#endif // End of #if 0
 
-      /* The last line of output is the one that begins with "ddd ". */
+/* The last line of output is the one that begins with "ddd ". */
       if (c_isdigit (line[0]) && c_isdigit (line[1]) && c_isdigit (line[2])
           && line[3] == ' ')
         {
@@ -115,9 +299,9 @@ ftp_request (const char *command, const char *value)
           for (p = defanged; *p; p++)
             if (*p == '\r' || *p == '\n')
               *p = ' ';
-          DEBUGP (("\nDetected newlines in %s \"%s\"; changing to %s \"%s\"\n",
-                   command, quotearg_style (escape_quoting_style, value),
-                   command, quotearg_style (escape_quoting_style, defanged)));
+          /* DEBUGP (("\nDetected newlines in %s \"%s\"; changing to %s \"%s\"\n", */
+          /*          command, quotearg_style (escape_quoting_style, value), */
+          /*          command, quotearg_style (escape_quoting_style, defanged))) */;
           /* Make VALUE point to the defanged copy of the string. */
           value = defanged;
         }
@@ -125,7 +309,10 @@ ftp_request (const char *command, const char *value)
     }
   else
     res = concat_strings (command, "\r\n", (char *) 0);
-  if (opt.server_response)
+// TODO: Remove this ifdef!
+#if 0
+
+if (opt.server_response)
     {
       /* Hack: don't print out password.  */
       if (strncmp (res, "PASS", 4) != 0)
@@ -135,7 +322,9 @@ ftp_request (const char *command, const char *value)
     }
   else
     DEBUGP (("\n--> %s\n", res));
-  return res;
+#endif // End of #if 0
+
+return res;
 }
 
 /* Sends the USER and PASS commands to the server, to control
@@ -266,7 +455,10 @@ ip_address_to_port_repr (const ip_address *addr, int port, char *buf,
 uerr_t
 ftp_port (int csock, int *local_sock)
 {
-  uerr_t err;
+// TODO: Remove this ifdef!
+#if 0
+
+uerr_t err;
   char *request, *respline;
   ip_address addr;
   int nwritten;
@@ -316,7 +508,9 @@ ftp_port (int csock, int *local_sock)
       return FTPPORTERR;
     }
   xfree (respline);
-  return FTPOK;
+#endif // End of #if 0
+
+return FTPOK;
 }
 
 #ifdef ENABLE_IPV6

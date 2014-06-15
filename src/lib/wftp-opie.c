@@ -34,7 +34,7 @@ as that of the covered work.  */
 #include <stdlib.h>
 #include <string.h>
 
-#include "md5.h"
+/* #include "md5.h" */
 #include "ftp.h"
 
 /* Dictionary for integer-word translations.  Available in appendix D
@@ -2190,7 +2190,10 @@ btoe (char *store, const unsigned char *c)
 const char *
 skey_response (int sequence, const char *seed, const char *pass)
 {
-  unsigned char key[8];
+// TODO: Remove this ifdef!
+#if 0
+
+unsigned char key[8];
 
   /* Room to hold 6 four-letter words (heh), 5 space separators, and
      the terminating \0.  24+5+1 == 30  */
@@ -2217,4 +2220,7 @@ skey_response (int sequence, const char *seed, const char *pass)
       memcpy (key, checksum, 8);
     }
   return btoe (english, key);
+#endif // End of #if 0
+
+  return NULL;
 }

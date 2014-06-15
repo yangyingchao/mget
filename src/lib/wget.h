@@ -123,5 +123,12 @@ enum {
 };
 
 typedef long long wgint;
+
 # define str_to_wgint strtoll
+#define xstrdup       strdup
+/* Zero out a value.  */
+#define xzero(x) memset (&(x), '\0', sizeof (x))
+
+
 #endif /* WGET_H */
+
