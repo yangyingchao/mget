@@ -34,11 +34,15 @@
 /* This function accepts an pointer of connection pointer, on return. When 302
  * is detected, it will modify both ui and conn to ensure a valid connection
  * can be initialized. */
-uint64 get_remote_file_size_ftp(url_info* ui, connection** conn)
+uint64 get_remote_file_size_ftp(dinfo* info, connection** conn,
+                                bool* can_split)
 {
-    if (!conn ||!*conn || !ui) {
+    if (!conn ||!*conn || !info || !info->ui) {
         return 0;
     }
+
+    logprintf (LOG_VERBOSE, "Logging in as %s ... ",
+               "USER");
 
     return 0;
 }
@@ -140,7 +144,8 @@ int process_ftp_request(dinfo* info,
         return -1;
     }
 
-    uint64 total_size = get_remote_file_size_ftp(info->ui, &conn);
+    bool can_split = true;
+    uint64 total_size = get_remote_file_size_ftp(info, &conn, &can_split);
 
     if (!total_size) {
         fprintf(stderr, "Can't get remote file size: %s\n", ui->furl);

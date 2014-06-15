@@ -25,6 +25,7 @@
 #include <strings.h>
 #include "log.h"
 #include "http.h"
+#include "ftp.h"
 
 bool start_request(const char *url, const file_name* fn, int nc,
                    dp_callback cb, bool* stop_flag, void* user_data)
