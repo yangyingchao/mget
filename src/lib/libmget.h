@@ -42,6 +42,7 @@ typedef struct _mget_option
     int max_connections;
     char* user;
     char* passwd;
+    bool recursive; //@todo:
 } mget_option;
 
 // dp stands for download_progress

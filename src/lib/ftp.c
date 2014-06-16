@@ -49,7 +49,7 @@ uerr_t get_remote_file_size_ftp(dinfo* info, ftp_connection* conn,
     /* First: Establish the control ftp_connection, already done.  */
 
     /* Second: Login with proper USER/PASS sequence.  */
-    logprintf (LOG_VERBOSE, "Logging in as %s ... ", info->md->user);
+    logprintf (LOG_VERBOSE, "Logging in as %s ... \n", info->md->user);
 
     uerr_t err = ftp_login (conn, info->md->user, info->md->passwd);
 
@@ -85,6 +85,130 @@ Error in server response, closing control ftp_connection.\n"));
             abort ();
     }
 
+    /* Third: Get the system type */
+    logprintf (LOG_VERBOSE, "==> SYST ... ");
+    err = ftp_syst (conn, &conn->rs);
+    /* FTPRERR */
+    switch (err)
+    {
+        case FTPRERR:
+            logputs (LOG_VERBOSE, "\n");
+            logputs (LOG_NOTQUIET, _("\
+Error in server response, closing control ftp_connection.\n"));
+            return err;
+        case FTPSRVERR:
+            logputs (LOG_VERBOSE, "\n");
+            logputs (LOG_NOTQUIET,
+                     _("Server error, can't determine system type.\n"));
+            break;
+        case FTPOK:
+            /* Everything is OK.  */
+            break;
+        default:
+            abort ();
+    }
+
+
+    /* Fourth: Find the initial ftp directory */
+
+    logprintf (LOG_VERBOSE, "==> PWD ... ");
+    err = ftp_pwd (conn, &conn->id);
+    /* FTPRERR */
+    switch (err)
+    {
+        case FTPRERR:
+            logputs (LOG_VERBOSE, "\n");
+            logputs (LOG_NOTQUIET, _("\
+Error in server response, closing control ftp_connection.\n"));
+            return err;
+        case FTPSRVERR :
+            /* PWD unsupported -- assume "/". */
+            xfree (conn->id);
+            conn->id = xstrdup ("/");
+            break;
+        case FTPOK:
+            /* Everything is OK.  */
+            break;
+        default:
+            abort ();
+    }
+
+
+    /* Fifth: Set the FTP type.  */
+    char type_char = ftp_process_type (NULL);
+    logprintf (LOG_VERBOSE, "==> TYPE %c ... ", type_char);
+    err = ftp_type (conn, type_char);
+    /* FTPRERR, WRITEFAILED, FTPUNKNOWNTYPE */
+    switch (err)
+    {
+        case FTPRERR:
+            logputs (LOG_VERBOSE, "\n");
+            logputs (LOG_NOTQUIET, _("\
+Error in server response, closing control ftp_connection.\n"));
+            return err;
+        case WRITEFAILED:
+            logputs (LOG_VERBOSE, "\n");
+            logputs (LOG_NOTQUIET,
+                     _("Write failed, closing control ftp_connection.\n"));
+            return err;
+        case FTPUNKNOWNTYPE:
+            logputs (LOG_VERBOSE, "\n");
+            logprintf (LOG_NOTQUIET,
+                       _("Unknown type `%c', closing control ftp_connection.\n"),
+                       type_char);
+            return err;
+        case FTPOK:
+            /* Everything is OK.  */
+            break;
+        default:
+            abort ();
+    }
+
+
+    err = ftp_size (conn, info->ui->uri, psize);
+    /* FTPRERR */
+    switch (err)
+    {
+        case FTPRERR:
+        case FTPSRVERR:
+            logputs (LOG_VERBOSE, "\n");
+            logputs (LOG_NOTQUIET, _("\
+Error in server response, closing control ftp_connection.\n"));
+            return err;
+        case FTPOK:
+            /* got_expected_bytes = true; */
+            /* Everything is OK.  */
+            break;
+        default:
+            abort ();
+    }
+
+    PDEBUG ("Total size: %s\n", stringify_size(*psize));
+
+    err = ftp_rest (conn, 16); // Just a test to see if it supports this.
+
+    /* FTPRERR, WRITEFAILED, FTPRESTFAIL */
+    switch (err)
+    {
+        case FTPRERR:
+            logputs (LOG_VERBOSE, "\n");
+            logputs (LOG_NOTQUIET, _("\
+Error in server response, closing control ftp_connection.\n"));
+            return err;
+        case WRITEFAILED:
+            logputs (LOG_VERBOSE, "\n");
+            logputs (LOG_NOTQUIET,
+                     _("Write failed, closing control ftp_connection.\n"));
+            return err;
+        case FTPRESTFAIL:
+            logputs (LOG_VERBOSE, _("\nREST failed, starting from scratch.\n"));
+            break;
+        case FTPOK:
+            *can_split = true;
+            break;
+        default:
+            abort ();
+    }
 
 ret:
     return 0;
@@ -180,7 +304,6 @@ int process_ftp_request(dinfo* info,
     if (dinfo_ready(info))
         goto start;
 
-    // XXX: set default username and password
     if (!info->md->user)
     {
         info->md->user = "anonymous";
@@ -231,8 +354,10 @@ start: ;
     if (md->hd.status == RS_FINISHED) {
         goto ret;
     }
+// TODO: Remove this ifdef!
+#if 0
 
-    md->hd.status = RS_STARTED;
+md->hd.status = RS_STARTED;
     if (cb) {
         (*cb) (md, user_data);
     }
@@ -310,6 +435,7 @@ start: ;
     }
 
     md->hd.acc_time += get_time_s() - md->hd.last_time;
+#endif // End of #if 0
 
 ret:
     metadata_display(md);

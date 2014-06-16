@@ -164,7 +164,6 @@ int main(int argc, char *argv[])
     memset(&opts, 0, sizeof(mget_option));
     opts.max_connections = 5;
 
-
     memset(&fn, 0, sizeof(file_name));
 
     while ((opt = getopt(argc, argv, "hj:d:o:r:svu:p:")) != -1) {
@@ -203,6 +202,7 @@ int main(int argc, char *argv[])
             }
             case 'p':
             {
+                fprintf(stderr, "%s \n", optarg);
                 opts.passwd = strdup(optarg);
                 break;
             }

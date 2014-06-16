@@ -97,8 +97,6 @@ bool dinfo_create(const char *url, const file_name * fn,
     char tfn[256] = { '\0' };
     sprintf(tfn, "%s.tmd", fpath);
 
-    PDEBUG ("Metadata: %s\n", tfn);
-
     if (file_existp(tfn) &&
         metadata_create_from_file(tfn, &dInfo->md, &dInfo->fm_md)) {
         PDEBUG("DInfo created from file: %s\n", tfn);
@@ -139,9 +137,7 @@ bool dinfo_create(const char *url, const file_name * fn,
                      (opt->user ? PA(strlen(opt->user), 4) : 0) +
                      (opt->passwd ? PA(strlen(opt->passwd), 4) : 0) +
                      512;
-        PDEBUG ("ebl: %lu\n", ebl);
         size_t md_size = MH_SIZE() + (sizeof(data_chunk)*opt->max_connections) + (size_t)ebl;
-        PDEBUG ("size: %lu\n", md_size);
 
         dInfo->fm_md = fm_create(tfn, md_size);
         dInfo->md = (metadata*)dInfo->fm_md->addr;
@@ -175,9 +171,6 @@ bool dinfo_create(const char *url, const file_name * fn,
         if (fn) {
             sprintf(pmd->fn, "%s", fpath);
         }
-
-        PDEBUG ("fn: %s\n", pmd->fn);
-
 
         ptr += strlen(pmd->fn) + 1;
         pmd->user = ptr;
