@@ -64,9 +64,9 @@ as that of the covered work.  */
 
 typedef struct
 {
-  int st;                       /* connection status */
+  int st;                       /* ftp_connection status */
   int cmd;                      /* command code */
-  int csock;                    /* control connection socket */
+  ftp_connection* conn;                    /* control ftp_connection socket */
   double dltime;                /* time of the download in msecs */
   enum stype rs;                /* remote system reported by ftp server */
   char *id;                     /* initial directory */
@@ -110,41 +110,41 @@ ftp_expected_bytes (const char *s)
 
 #ifdef ENABLE_IPV6
 /*
- * This function sets up a passive data connection with the FTP server.
+ * This function sets up a passive data ftp_connection with the FTP server.
  * It is merely a wrapper around ftp_epsv, ftp_lpsv and ftp_pasv.
  */
 static uerr_t
-ftp_do_pasv (int csock, ip_address *addr, int *port)
+ftp_do_pasv (ftp_connection* conn, ip_address *addr, int *port)
 {
   uerr_t err;
 
   /* We need to determine the address family and need to call
      getpeername, so while we're at it, store the address to ADDR.
      ftp_pasv and ftp_lpsv can simply override it.  */
-  if (!socket_ip_address (csock, addr, ENDPOINT_PEER))
+  if (!socket_ip_address (conn, addr, ENDPOINT_PEER))
     abort ();
 
-  /* If our control connection is over IPv6, then we first try EPSV and then
-   * LPSV if the former is not supported. If the control connection is over
+  /* If our control ftp_connection is over IPv6, then we first try EPSV and then
+   * LPSV if the former is not supported. If the control ftp_connection is over
    * IPv4, we simply issue the good old PASV request. */
   switch (addr->family)
     {
     case AF_INET:
       if (!opt.server_response)
         logputs (LOG_VERBOSE, "==> PASV ... ");
-      err = ftp_pasv (csock, addr, port);
+      err = ftp_pasv (conn, addr, port);
       break;
     case AF_INET6:
       if (!opt.server_response)
         logputs (LOG_VERBOSE, "==> EPSV ... ");
-      err = ftp_epsv (csock, addr, port);
+      err = ftp_epsv (conn, addr, port);
 
       /* If EPSV is not supported try LPSV */
       if (err == FTPNOPASV)
         {
           if (!opt.server_response)
             logputs (LOG_VERBOSE, "==> LPSV ... ");
-          err = ftp_lpsv (csock, addr, port);
+          err = ftp_lpsv (conn, addr, port);
         }
       break;
     default:
@@ -155,39 +155,39 @@ ftp_do_pasv (int csock, ip_address *addr, int *port)
 }
 
 /*
- * This function sets up an active data connection with the FTP server.
+ * This function sets up an active data ftp_connection with the FTP server.
  * It is merely a wrapper around ftp_eprt, ftp_lprt and ftp_port.
  */
 static uerr_t
-ftp_do_port (int csock, int *local_sock)
+ftp_do_port (ftp_connection* conn, int *local_sock)
 {
   uerr_t err;
   ip_address cip;
 
-  if (!socket_ip_address (csock, &cip, ENDPOINT_PEER))
+  if (!socket_ip_address (conn, &cip, ENDPOINT_PEER))
     abort ();
 
-  /* If our control connection is over IPv6, then we first try EPRT and then
-   * LPRT if the former is not supported. If the control connection is over
+  /* If our control ftp_connection is over IPv6, then we first try EPRT and then
+   * LPRT if the former is not supported. If the control ftp_connection is over
    * IPv4, we simply issue the good old PORT request. */
   switch (cip.family)
     {
     case AF_INET:
       if (!opt.server_response)
         logputs (LOG_VERBOSE, "==> PORT ... ");
-      err = ftp_port (csock, local_sock);
+      err = ftp_port (conn, local_sock);
       break;
     case AF_INET6:
       if (!opt.server_response)
         logputs (LOG_VERBOSE, "==> EPRT ... ");
-      err = ftp_eprt (csock, local_sock);
+      err = ftp_eprt (conn, local_sock);
 
       /* If EPRT is not supported try LPRT */
       if (err == FTPPORTERR)
         {
           if (!opt.server_response)
             logputs (LOG_VERBOSE, "==> LPRT ... ");
-          err = ftp_lprt (csock, local_sock);
+          err = ftp_lprt (conn, local_sock);
         }
       break;
     default:
@@ -198,46 +198,46 @@ ftp_do_port (int csock, int *local_sock)
 #else
 
 static uerr_t
-ftp_do_pasv (int csock, ip_address *addr, int *port)
+ftp_do_pasv (ftp_connection* conn, ip_address *addr, int *port)
 {
   /* if (!opt.server_response) */
     logputs (LOG_VERBOSE, "==> PASV ... ");
-  return ftp_pasv (csock, addr, port);
+  return ftp_pasv (conn, addr, port);
 }
 
 static uerr_t
-ftp_do_port (int csock, int *local_sock)
+ftp_do_port (ftp_connection* conn, int *local_sock)
 {
   /* if (!opt.server_response) */
     logputs (LOG_VERBOSE, "==> PORT ... ");
-  return ftp_port (csock, local_sock);
+  return ftp_port (conn, local_sock);
 }
 #endif
 
 static void
 print_length (wgint size, wgint start, bool authoritative)
 {
-  logprintf (LOG_VERBOSE, _("Length: %s"), number_to_static_string (size));
-  if (size >= 1024)
-    logprintf (LOG_VERBOSE, " (%s)", human_readable (size));
-  if (start > 0)
-    {
-      if (size - start >= 1024)
-        logprintf (LOG_VERBOSE, _(", %s (%s) remaining"),
-                   number_to_static_string (size - start),
-                   human_readable (size - start));
-      else
-        logprintf (LOG_VERBOSE, _(", %s remaining"),
-                   number_to_static_string (size - start));
-    }
-  logputs (LOG_VERBOSE, !authoritative ? _(" (unauthoritative)\n") : "\n");
+  /* logprintf (LOG_VERBOSE, _("Length: %s"), number_to_static_string (size)); */
+  /* if (size >= 1024) */
+  /*   logprintf (LOG_VERBOSE, " (%s)", human_readable (size)); */
+  /* if (start > 0) */
+  /*   { */
+  /*     if (size - start >= 1024) */
+  /*       logprintf (LOG_VERBOSE, _(", %s (%s) remaining"), */
+  /*                  number_to_static_string (size - start), */
+  /*                  human_readable (size - start)); */
+  /*     else */
+  /*       logprintf (LOG_VERBOSE, _(", %s remaining"), */
+  /*                  number_to_static_string (size - start)); */
+  /*   } */
+  /* logputs (LOG_VERBOSE, !authoritative ? _(" (unauthoritative)\n") : "\n"); */
 }
 
 static uerr_t ftp_get_listing (struct url *, ccon *, struct fileinfo **);
 
 /* Retrieves a file with denoted parameters through opening an FTP
-   connection to the server.  It always closes the data connection,
-   and closes the control connection in case of error.  If warc_tmp
+   ftp_connection to the server.  It always closes the data ftp_connection,
+   and closes the control ftp_connection in case of error.  If warc_tmp
    is non-NULL, the downloaded data will be written there as well.  */
 static uerr_t
 getftp (struct url *u, wgint passed_expected_bytes, wgint *qtyread,
@@ -245,7 +245,7 @@ getftp (struct url *u, wgint passed_expected_bytes, wgint *qtyread,
 {
 // TODO: Remove this ifdef!
 #if 0
-    int csock, dtsock, local_sock, res;
+    ftp_connection* conn, dtsock, local_sock, res;
     uerr_t err = RETROK;          /* appease the compiler */
     FILE *fp;
     char *respline, *tms;
@@ -284,7 +284,7 @@ getftp (struct url *u, wgint passed_expected_bytes, wgint *qtyread,
     con->dltime = 0;
 
     if (!(cmd & DO_LOGIN))
-        csock = con->csock;
+        conn = con->conn;
     else                          /* cmd & DO_LOGIN */
     {
         char    *host = con->proxy ? con->proxy->host : u->host;
@@ -292,19 +292,19 @@ getftp (struct url *u, wgint passed_expected_bytes, wgint *qtyread,
 
         /* Login to the server: */
 
-        /* First: Establish the control connection.  */
+        /* First: Establish the control ftp_connection.  */
 
-        csock = connect_to_host (host, port);
-        if (csock == E_HOST)
+        conn = connect_to_host (host, port);
+        if (conn == E_HOST)
             return HOSTERR;
-        else if (csock < 0)
+        else if (conn < 0)
             return (retryable_socket_connect_error (errno)
                     ? CONERROR : CONIMPOSSIBLE);
 
         if (cmd & LEAVE_PENDING)
-            con->csock = csock;
+            con->conn = conn;
         else
-            con->csock = -1;
+            con->conn = -1;
 
         /* Second: Login with proper USER/PASS sequence.  */
         logprintf (LOG_VERBOSE, _("Logging in as %s ... "),
@@ -315,11 +315,11 @@ getftp (struct url *u, wgint passed_expected_bytes, wgint *qtyread,
         {
             /* If proxy is in use, log in as username@target-site. */
             char *logname = concat_strings (user, "@", u->host, (char *) 0);
-            err = ftp_login (csock, logname, passwd);
+            err = ftp_login (conn, logname, passwd);
             xfree (logname);
         }
         else
-            err = ftp_login (csock, user, passwd);
+            err = ftp_login (conn, user, passwd);
 
         /* FTPRERR, FTPSRVERR, WRITEFAILED, FTPLOGREFUSED, FTPLOGINC */
         switch (err)
@@ -327,34 +327,34 @@ getftp (struct url *u, wgint passed_expected_bytes, wgint *qtyread,
             case FTPRERR:
                 logputs (LOG_VERBOSE, "\n");
                 logputs (LOG_NOTQUIET, _("\
-Error in server response, closing control connection.\n"));
-                fd_close (csock);
-                con->csock = -1;
+Error in server response, closing control ftp_connection.\n"));
+                fd_close (conn);
+                con->conn = -1;
                 return err;
             case FTPSRVERR:
                 logputs (LOG_VERBOSE, "\n");
                 logputs (LOG_NOTQUIET, _("Error in server greeting.\n"));
-                fd_close (csock);
-                con->csock = -1;
+                fd_close (conn);
+                con->conn = -1;
                 return err;
             case WRITEFAILED:
                 logputs (LOG_VERBOSE, "\n");
                 logputs (LOG_NOTQUIET,
-                         _("Write failed, closing control connection.\n"));
-                fd_close (csock);
-                con->csock = -1;
+                         _("Write failed, closing control ftp_connection.\n"));
+                fd_close (conn);
+                con->conn = -1;
                 return err;
             case FTPLOGREFUSED:
                 logputs (LOG_VERBOSE, "\n");
                 logputs (LOG_NOTQUIET, _("The server refuses login.\n"));
-                fd_close (csock);
-                con->csock = -1;
+                fd_close (conn);
+                con->conn = -1;
                 return FTPLOGREFUSED;
             case FTPLOGINC:
                 logputs (LOG_VERBOSE, "\n");
                 logputs (LOG_NOTQUIET, _("Login incorrect.\n"));
-                fd_close (csock);
-                con->csock = -1;
+                fd_close (conn);
+                con->conn = -1;
                 return FTPLOGINC;
             case FTPOK:
                 if (!opt.server_response)
@@ -366,16 +366,16 @@ Error in server response, closing control connection.\n"));
         /* Third: Get the system type */
         if (!opt.server_response)
             logprintf (LOG_VERBOSE, "==> SYST ... ");
-        err = ftp_syst (csock, &con->rs);
+        err = ftp_syst (conn, &con->rs);
         /* FTPRERR */
         switch (err)
         {
             case FTPRERR:
                 logputs (LOG_VERBOSE, "\n");
                 logputs (LOG_NOTQUIET, _("\
-Error in server response, closing control connection.\n"));
-                fd_close (csock);
-                con->csock = -1;
+Error in server response, closing control ftp_connection.\n"));
+                fd_close (conn);
+                con->conn = -1;
                 return err;
             case FTPSRVERR:
                 logputs (LOG_VERBOSE, "\n");
@@ -395,16 +395,16 @@ Error in server response, closing control connection.\n"));
 
         if (!opt.server_response)
             logprintf (LOG_VERBOSE, "==> PWD ... ");
-        err = ftp_pwd (csock, &con->id);
+        err = ftp_pwd (conn, &con->id);
         /* FTPRERR */
         switch (err)
         {
             case FTPRERR:
                 logputs (LOG_VERBOSE, "\n");
                 logputs (LOG_NOTQUIET, _("\
-Error in server response, closing control connection.\n"));
-                fd_close (csock);
-                con->csock = -1;
+Error in server response, closing control ftp_connection.\n"));
+                fd_close (conn);
+                con->conn = -1;
                 return err;
             case FTPSRVERR :
                 /* PWD unsupported -- assume "/". */
@@ -425,31 +425,31 @@ Error in server response, closing control connection.\n"));
         type_char = ftp_process_type (u->params);
         if (!opt.server_response)
             logprintf (LOG_VERBOSE, "==> TYPE %c ... ", type_char);
-        err = ftp_type (csock, type_char);
+        err = ftp_type (conn, type_char);
         /* FTPRERR, WRITEFAILED, FTPUNKNOWNTYPE */
         switch (err)
         {
             case FTPRERR:
                 logputs (LOG_VERBOSE, "\n");
                 logputs (LOG_NOTQUIET, _("\
-Error in server response, closing control connection.\n"));
-                fd_close (csock);
-                con->csock = -1;
+Error in server response, closing control ftp_connection.\n"));
+                fd_close (conn);
+                con->conn = -1;
                 return err;
             case WRITEFAILED:
                 logputs (LOG_VERBOSE, "\n");
                 logputs (LOG_NOTQUIET,
-                         _("Write failed, closing control connection.\n"));
-                fd_close (csock);
-                con->csock = -1;
+                         _("Write failed, closing control ftp_connection.\n"));
+                fd_close (conn);
+                con->conn = -1;
                 return err;
             case FTPUNKNOWNTYPE:
                 logputs (LOG_VERBOSE, "\n");
                 logprintf (LOG_NOTQUIET,
-                           _("Unknown type `%c', closing control connection.\n"),
+                           _("Unknown type `%c', closing control ftp_connection.\n"),
                            type_char);
-                fd_close (csock);
-                con->csock = -1;
+                fd_close (conn);
+                con->conn = -1;
                 return err;
             case FTPOK:
                 /* Everything is OK.  */
@@ -655,30 +655,30 @@ Error in server response, closing control connection.\n"));
                 if (!opt.server_response)
                     logprintf (LOG_VERBOSE, "==> CWD (%d) %s ... ", cwd_count,
                                quotearg_style (escape_quoting_style, target));
-                err = ftp_cwd (csock, targ);
+                err = ftp_cwd (conn, targ);
                 /* FTPRERR, WRITEFAILED, FTPNSFOD */
                 switch (err)
                 {
                     case FTPRERR:
                         logputs (LOG_VERBOSE, "\n");
                         logputs (LOG_NOTQUIET, _("\
-Error in server response, closing control connection.\n"));
-                        fd_close (csock);
-                        con->csock = -1;
+Error in server response, closing control ftp_connection.\n"));
+                        fd_close (conn);
+                        con->conn = -1;
                         return err;
                     case WRITEFAILED:
                         logputs (LOG_VERBOSE, "\n");
                         logputs (LOG_NOTQUIET,
-                                 _("Write failed, closing control connection.\n"));
-                        fd_close (csock);
-                        con->csock = -1;
+                                 _("Write failed, closing control ftp_connection.\n"));
+                        fd_close (conn);
+                        con->conn = -1;
                         return err;
                     case FTPNSFOD:
                         logputs (LOG_VERBOSE, "\n");
                         logprintf (LOG_NOTQUIET, _("No such directory %s.\n\n"),
                                    quote (u->dir));
-                        fd_close (csock);
-                        con->csock = -1;
+                        fd_close (conn);
+                        con->conn = -1;
                         return err;
                     case FTPOK:
                         break;
@@ -707,7 +707,7 @@ Error in server response, closing control connection.\n"));
                            quotearg_style (escape_quoting_style, u->file));
         }
 
-        err = ftp_size (csock, u->file, &expected_bytes);
+        err = ftp_size (conn, u->file, &expected_bytes);
         /* FTPRERR */
         switch (err)
         {
@@ -715,9 +715,9 @@ Error in server response, closing control connection.\n"));
             case FTPSRVERR:
                 logputs (LOG_VERBOSE, "\n");
                 logputs (LOG_NOTQUIET, _("\
-Error in server response, closing control connection.\n"));
-                fd_close (csock);
-                con->csock = -1;
+Error in server response, closing control ftp_connection.\n"));
+                fd_close (conn);
+                con->conn = -1;
                 return err;
             case FTPOK:
                 got_expected_bytes = true;
@@ -736,8 +736,8 @@ Error in server response, closing control connection.\n"));
         /* Server confirms that file has length restval. We should stop now.
            Some servers (f.e. NcFTPd) return error when receive REST 0 */
         logputs (LOG_VERBOSE, _("File has already been retrieved.\n"));
-        fd_close (csock);
-        con->csock = -1;
+        fd_close (conn);
+        con->conn = -1;
         return RETRFINISHED;
     }
 
@@ -748,23 +748,23 @@ Error in server response, closing control connection.\n"));
         {
             ip_address passive_addr;
             int        passive_port;
-            err = ftp_do_pasv (csock, &passive_addr, &passive_port);
+            err = ftp_do_pasv (conn, &passive_addr, &passive_port);
             /* FTPRERR, WRITEFAILED, FTPNOPASV, FTPINVPASV */
             switch (err)
             {
                 case FTPRERR:
                     logputs (LOG_VERBOSE, "\n");
                     logputs (LOG_NOTQUIET, _("\
-Error in server response, closing control connection.\n"));
-                    fd_close (csock);
-                    con->csock = -1;
+Error in server response, closing control ftp_connection.\n"));
+                    fd_close (conn);
+                    con->conn = -1;
                     return err;
                 case WRITEFAILED:
                     logputs (LOG_VERBOSE, "\n");
                     logputs (LOG_NOTQUIET,
-                             _("Write failed, closing control connection.\n"));
-                    fd_close (csock);
-                    con->csock = -1;
+                             _("Write failed, closing control ftp_connection.\n"));
+                    fd_close (conn);
+                    con->conn = -1;
                     return err;
                 case FTPNOPASV:
                     logputs (LOG_VERBOSE, "\n");
@@ -787,8 +787,8 @@ Error in server response, closing control connection.\n"));
                 if (dtsock < 0)
                 {
                     int save_errno = errno;
-                    fd_close (csock);
-                    con->csock = -1;
+                    fd_close (conn);
+                    con->conn = -1;
                     logprintf (LOG_VERBOSE, _("couldn't connect to %s port %d: %s\n"),
                                print_address (&passive_addr), passive_port,
                                strerror (save_errno));
@@ -804,7 +804,7 @@ Error in server response, closing control connection.\n"));
 
         if (!pasv_mode_open)   /* Try to use a port command if PASV failed */
         {
-            err = ftp_do_port (csock, &local_sock);
+            err = ftp_do_port (conn, &local_sock);
             /* FTPRERR, WRITEFAILED, bindport (FTPSYSERR), HOSTERR,
                FTPPORTERR */
             switch (err)
@@ -812,26 +812,26 @@ Error in server response, closing control connection.\n"));
                 case FTPRERR:
                     logputs (LOG_VERBOSE, "\n");
                     logputs (LOG_NOTQUIET, _("\
-Error in server response, closing control connection.\n"));
-                    fd_close (csock);
-                    con->csock = -1;
+Error in server response, closing control ftp_connection.\n"));
+                    fd_close (conn);
+                    con->conn = -1;
                     fd_close (dtsock);
                     fd_close (local_sock);
                     return err;
                 case WRITEFAILED:
                     logputs (LOG_VERBOSE, "\n");
                     logputs (LOG_NOTQUIET,
-                             _("Write failed, closing control connection.\n"));
-                    fd_close (csock);
-                    con->csock = -1;
+                             _("Write failed, closing control ftp_connection.\n"));
+                    fd_close (conn);
+                    con->conn = -1;
                     fd_close (dtsock);
                     fd_close (local_sock);
                     return err;
                 case CONSOCKERR:
                     logputs (LOG_VERBOSE, "\n");
                     logprintf (LOG_NOTQUIET, "socket: %s\n", strerror (errno));
-                    fd_close (csock);
-                    con->csock = -1;
+                    fd_close (conn);
+                    con->conn = -1;
                     fd_close (dtsock);
                     fd_close (local_sock);
                     return err;
@@ -844,8 +844,8 @@ Error in server response, closing control connection.\n"));
                 case FTPPORTERR:
                     logputs (LOG_VERBOSE, "\n");
                     logputs (LOG_NOTQUIET, _("Invalid PORT.\n"));
-                    fd_close (csock);
-                    con->csock = -1;
+                    fd_close (conn);
+                    con->conn = -1;
                     fd_close (dtsock);
                     fd_close (local_sock);
                     return err;
@@ -865,7 +865,7 @@ Error in server response, closing control connection.\n"));
         if (!opt.server_response)
             logprintf (LOG_VERBOSE, "==> REST %s ... ",
                        number_to_static_string (restval));
-        err = ftp_rest (csock, restval);
+        err = ftp_rest (conn, restval);
 
         /* FTPRERR, WRITEFAILED, FTPRESTFAIL */
         switch (err)
@@ -873,18 +873,18 @@ Error in server response, closing control connection.\n"));
             case FTPRERR:
                 logputs (LOG_VERBOSE, "\n");
                 logputs (LOG_NOTQUIET, _("\
-Error in server response, closing control connection.\n"));
-                fd_close (csock);
-                con->csock = -1;
+Error in server response, closing control ftp_connection.\n"));
+                fd_close (conn);
+                con->conn = -1;
                 fd_close (dtsock);
                 fd_close (local_sock);
                 return err;
             case WRITEFAILED:
                 logputs (LOG_VERBOSE, "\n");
                 logputs (LOG_NOTQUIET,
-                         _("Write failed, closing control connection.\n"));
-                fd_close (csock);
-                con->csock = -1;
+                         _("Write failed, closing control ftp_connection.\n"));
+                fd_close (conn);
+                con->conn = -1;
                 fd_close (dtsock);
                 fd_close (local_sock);
                 return err;
@@ -940,8 +940,8 @@ Error in server response, closing control connection.\n"));
                                quote (u->file));
                 }
             }
-            fd_close (csock);
-            con->csock = -1;
+            fd_close (conn);
+            con->conn = -1;
             fd_close (dtsock);
             fd_close (local_sock);
             return RETRFINISHED;
@@ -958,25 +958,25 @@ Error in server response, closing control connection.\n"));
             }
         }
 
-        err = ftp_retr (csock, u->file);
+        err = ftp_retr (conn, u->file);
         /* FTPRERR, WRITEFAILED, FTPNSFOD */
         switch (err)
         {
             case FTPRERR:
                 logputs (LOG_VERBOSE, "\n");
                 logputs (LOG_NOTQUIET, _("\
-Error in server response, closing control connection.\n"));
-                fd_close (csock);
-                con->csock = -1;
+Error in server response, closing control ftp_connection.\n"));
+                fd_close (conn);
+                con->conn = -1;
                 fd_close (dtsock);
                 fd_close (local_sock);
                 return err;
             case WRITEFAILED:
                 logputs (LOG_VERBOSE, "\n");
                 logputs (LOG_NOTQUIET,
-                         _("Write failed, closing control connection.\n"));
-                fd_close (csock);
-                con->csock = -1;
+                         _("Write failed, closing control ftp_connection.\n"));
+                fd_close (conn);
+                con->conn = -1;
                 fd_close (dtsock);
                 fd_close (local_sock);
                 return err;
@@ -1007,25 +1007,25 @@ Error in server response, closing control connection.\n"));
         /* As Maciej W. Rozycki (macro@ds2.pg.gda.pl) says, `LIST'
            without arguments is better than `LIST .'; confirmed by
            RFC959.  */
-        err = ftp_list (csock, NULL, con->rs);
+        err = ftp_list (conn, NULL, con->rs);
         /* FTPRERR, WRITEFAILED */
         switch (err)
         {
             case FTPRERR:
                 logputs (LOG_VERBOSE, "\n");
                 logputs (LOG_NOTQUIET, _("\
-Error in server response, closing control connection.\n"));
-                fd_close (csock);
-                con->csock = -1;
+Error in server response, closing control ftp_connection.\n"));
+                fd_close (conn);
+                con->conn = -1;
                 fd_close (dtsock);
                 fd_close (local_sock);
                 return err;
             case WRITEFAILED:
                 logputs (LOG_VERBOSE, "\n");
                 logputs (LOG_NOTQUIET,
-                         _("Write failed, closing control connection.\n"));
-                fd_close (csock);
-                con->csock = -1;
+                         _("Write failed, closing control ftp_connection.\n"));
+                fd_close (conn);
+                con->conn = -1;
                 fd_close (dtsock);
                 fd_close (local_sock);
                 return err;
@@ -1066,7 +1066,7 @@ Error in server response, closing control connection.\n"));
     {
         /* Wait for the server to connect to the address we're waiting
            at.  */
-        dtsock = accept_connection (local_sock);
+        dtsock = accept_ftp_connection (local_sock);
         if (dtsock < 0)
         {
             logprintf (LOG_NOTQUIET, "accept: %s\n", strerror (errno));
@@ -1157,8 +1157,8 @@ Error in server response, closing control connection.\n"));
                 {
                     logprintf (LOG_NOTQUIET, "%s: %s\n", con->target,
                                strerror (errno));
-                    fd_close (csock);
-                    con->csock = -1;
+                    fd_close (conn);
+                    con->conn = -1;
                     fd_close (dtsock);
                     fd_close (local_sock);
                     return UNLINKERR;
@@ -1193,8 +1193,8 @@ Error in server response, closing control connection.\n"));
                    Instead, return and retry the download.  */
                 logprintf (LOG_NOTQUIET, _("%s has sprung into existence.\n"),
                            con->target);
-                fd_close (csock);
-                con->csock = -1;
+                fd_close (conn);
+                con->conn = -1;
                 fd_close (dtsock);
                 fd_close (local_sock);
                 return FOPEN_EXCL_ERR;
@@ -1203,8 +1203,8 @@ Error in server response, closing control connection.\n"));
         if (!fp)
         {
             logprintf (LOG_NOTQUIET, "%s: %s\n", con->target, strerror (errno));
-            fd_close (csock);
-            con->csock = -1;
+            fd_close (conn);
+            con->conn = -1;
             fd_close (dtsock);
             fd_close (local_sock);
             return FOPENERR;
@@ -1243,10 +1243,10 @@ Error in server response, closing control connection.\n"));
     /* If fd_read_body couldn't write to fp or warc_tmp, bail out.  */
     if (res == -2 || (warc_tmp != NULL && res == -3))
     {
-        logprintf (LOG_NOTQUIET, _("%s: %s, closing control connection.\n"),
+        logprintf (LOG_NOTQUIET, _("%s: %s, closing control ftp_connection.\n"),
                    con->target, strerror (errno));
-        fd_close (csock);
-        con->csock = -1;
+        fd_close (conn);
+        con->conn = -1;
         fd_close (dtsock);
         if (res == -2)
             return FWRITEERR;
@@ -1255,7 +1255,7 @@ Error in server response, closing control connection.\n"));
     }
     else if (res == -1)
     {
-        logprintf (LOG_NOTQUIET, _("%s (%s) - Data connection: %s; "),
+        logprintf (LOG_NOTQUIET, _("%s (%s) - Data ftp_connection: %s; "),
                    tms, tmrate, fd_errstr (dtsock));
         if (opt.server_response)
             logputs (LOG_ALWAYS, "\n");
@@ -1263,25 +1263,25 @@ Error in server response, closing control connection.\n"));
     fd_close (dtsock);
 
     /* Get the server to tell us if everything is retrieved.  */
-    err = ftp_response (csock, &respline);
+    err = ftp_response (conn, &respline);
     if (err != FTPOK)
     {
-        /* The control connection is decidedly closed.  Print the time
+        /* The control ftp_connection is decidedly closed.  Print the time
            only if it hasn't already been printed.  */
         if (res != -1)
             logprintf (LOG_NOTQUIET, "%s (%s) - ", tms, tmrate);
-        logputs (LOG_NOTQUIET, _("Control connection closed.\n"));
-        /* If there is an error on the control connection, close it, but
+        logputs (LOG_NOTQUIET, _("Control ftp_connection closed.\n"));
+        /* If there is an error on the control ftp_connection, close it, but
            return FTPRETRINT, since there is a possibility that the
            whole file was retrieved nevertheless (but that is for
            ftp_loop_internal to decide).  */
-        fd_close (csock);
-        con->csock = -1;
+        fd_close (conn);
+        con->conn = -1;
         return FTPRETRINT;
     } /* err != FTPOK */
     /* If retrieval failed for any reason, return FTPRETRINT, but do not
-       close socket, since the control connection is still alive.  If
-       there is something wrong with the control connection, it will
+       close socket, since the control ftp_connection is still alive.  If
+       there is something wrong with the control ftp_connection, it will
        become apparent later.  */
     if (*respline != '2')
     {
@@ -1295,7 +1295,7 @@ Error in server response, closing control connection.\n"));
 
     if (res == -1)
     {
-        /* What now?  The data connection was erroneous, whereas the
+        /* What now?  The data ftp_connection was erroneous, whereas the
            response says everything is OK.  We shall play it safe.  */
         return FTPRETRINT;
     }
@@ -1304,8 +1304,8 @@ Error in server response, closing control connection.\n"));
     {
         /* Closing the socket is faster than sending 'QUIT' and the
            effect is the same.  */
-        fd_close (csock);
-        con->csock = -1;
+        fd_close (conn);
+        con->conn = -1;
     }
     /* If it was a listing, and opt.server_response is true,
        print it out.  */
@@ -1421,10 +1421,10 @@ int count, orig_lp;
       if (warc_tmp == NULL)
         return WARC_TMP_FOPENERR;
 
-      if (!con->proxy && con->csock != -1)
+      if (!con->proxy && con->conn != -1)
         {
           warc_ip = (ip_address *) alloca (sizeof (ip_address));
-          socket_ip_address (con->csock, warc_ip, ENDPOINT_PEER);
+          socket_ip_address (con->conn, warc_ip, ENDPOINT_PEER);
         }
     }
 
@@ -1438,14 +1438,14 @@ int count, orig_lp;
         {
           con->cmd = 0;
           con->cmd |= (DO_RETR | LEAVE_PENDING);
-          if (con->csock != -1)
+          if (con->conn != -1)
             con->cmd &= ~ (DO_LOGIN | DO_CWD);
           else
             con->cmd |= (DO_LOGIN | DO_CWD);
         }
       else /* not on your own */
         {
-          if (con->csock != -1)
+          if (con->conn != -1)
             con->cmd &= ~DO_LOGIN;
           else
             con->cmd |= DO_LOGIN;
@@ -1497,7 +1497,7 @@ int count, orig_lp;
          to the warc_tmp file. */
       err = getftp (u, len, &qtyread, restval, con, count, warc_tmp);
 
-      if (con->csock == -1)
+      if (con->conn == -1)
         con->st &= ~DONE_CWD;
       else
         con->st |= DONE_CWD;
@@ -1526,7 +1526,7 @@ int count, orig_lp;
             }
           continue;
         case FTPRETRINT:
-          /* If the control connection was closed, the retrieval
+          /* If the control ftp_connection was closed, the retrieval
              will be considered OK if f->size == len.  */
           if (!f || qtyread != f->size)
             {
@@ -1551,8 +1551,8 @@ int count, orig_lp;
 
       if (con->st & ON_YOUR_OWN)
         {
-          fd_close (con->csock);
-          con->csock = -1;
+          fd_close (con->conn);
+          con->conn = -1;
         }
       if (!opt.spider)
         {
@@ -1637,10 +1637,10 @@ Removing file due to --delete-after in ftp_loop_internal():\n"));
       return RETROK;
     } while (!opt.ntry || (count < opt.ntry));
 
-  if (con->csock != -1 && (con->st & ON_YOUR_OWN))
+  if (con->conn != -1 && (con->st & ON_YOUR_OWN))
     {
-      fd_close (con->csock);
-      con->csock = -1;
+      fd_close (con->conn);
+      con->conn = -1;
     }
 #endif // End of #if 0
 
@@ -1745,7 +1745,7 @@ static int depth = 0;
     con->cmd &= ~DO_CWD;
   con->cmd |= (DO_RETR | LEAVE_PENDING);
 
-  if (con->csock < 0)
+  if (con->conn < 0)
     con->cmd |= DO_LOGIN;
   else
     con->cmd &= ~DO_LOGIN;
@@ -2202,7 +2202,7 @@ uerr_t
 ftp_loop (struct url *u, char **local_file, int *dt, struct url *proxy,
           bool recursive, bool glob)
 {
-  ccon con;                     /* FTP connection */
+  ccon con;                     /* FTP ftp_connection */
   uerr_t res;
 // TODO: Remove this ifdef!
 #if 0
@@ -2211,7 +2211,7 @@ ftp_loop (struct url *u, char **local_file, int *dt, struct url *proxy,
 
   xzero (con);
 
-  con.csock = -1;
+  con.conn = -1;
   con.st = ON_YOUR_OWN;
   con.rs = ST_UNIX;
   con.id = NULL;
@@ -2287,9 +2287,9 @@ ftp_loop (struct url *u, char **local_file, int *dt, struct url *proxy,
     res = RETROK;
   if (res == RETROK)
     *dt |= RETROKF;
-  /* If a connection was left, quench it.  */
-  if (con.csock != -1)
-    fd_close (con.csock);
+  /* If a ftp_connection was left, quench it.  */
+  if (con.conn != -1)
+    fd_close (con.conn);
   xfree_null (con.id);
   con.id = NULL;
   xfree_null (con.target);

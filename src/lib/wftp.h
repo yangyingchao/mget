@@ -33,6 +33,8 @@ as that of the covered work.  */
 #define WFTP_H
 
 #include "wget.h"
+#include "connection.h"
+#include "data_utlis.h"
 
 /* System types. */
 enum stype
@@ -45,26 +47,32 @@ enum stype
   ST_OTHER
 };
 
+typedef struct _ftp_connection
+{
+    connection* conn;
+    byte_queue* bq;
+} ftp_connection;
+
 extern char ftp_last_respline[];
 
-uerr_t ftp_response (int, char **);
-uerr_t ftp_login (int, const char *, const char *);
-uerr_t ftp_port (int, int *);
-uerr_t ftp_pasv (int, ip_address *, int *);
+uerr_t ftp_response (ftp_connection*, char **);
+uerr_t ftp_login (ftp_connection*, const char *, const char *);
+uerr_t ftp_port (ftp_connection*, int *);
+uerr_t ftp_pasv (ftp_connection*, ip_address *, int *);
 #ifdef ENABLE_IPV6
 uerr_t ftp_lprt (int, int *);
 uerr_t ftp_lpsv (int, ip_address *, int *);
 uerr_t ftp_eprt (int, int *);
 uerr_t ftp_epsv (int, ip_address *, int *);
 #endif
-uerr_t ftp_type (int, int);
-uerr_t ftp_cwd (int, const char *);
-uerr_t ftp_retr (int, const char *);
-uerr_t ftp_rest (int, wgint);
-uerr_t ftp_list (int, const char *, enum stype);
-uerr_t ftp_syst (int, enum stype *);
-uerr_t ftp_pwd (int, char **);
-uerr_t ftp_size (int, const char *, wgint *);
+uerr_t ftp_type (ftp_connection*, int);
+uerr_t ftp_cwd (ftp_connection*, const char *);
+uerr_t ftp_retr (ftp_connection*, const char *);
+uerr_t ftp_rest (ftp_connection*, wgint);
+uerr_t ftp_list (ftp_connection*, const char *, enum stype);
+uerr_t ftp_syst (ftp_connection*, enum stype *);
+uerr_t ftp_pwd (ftp_connection*, char **);
+uerr_t ftp_size (ftp_connection*, const char *, wgint *);
 
 #ifdef ENABLE_OPIE
 const char *skey_response (int, const char *, const char *);
@@ -134,6 +142,5 @@ uerr_t ftp_loop (struct url *, char **, int *, struct url *, bool, bool);
 uerr_t ftp_index (const char *, struct url *, struct fileinfo *);
 
 char ftp_process_type (const char *);
-
 
 #endif /* FTP_H */

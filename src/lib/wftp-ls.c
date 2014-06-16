@@ -608,7 +608,10 @@ return dir;
 static void eat_carets( char *str)
 /* char *str;      Source pointer. */
 {
-  char *strd;   /* Destination pointer. */
+// TODO: Remove this ifdef!
+#if 0
+
+char *strd;   /* Destination pointer. */
   char hdgt;
   unsigned char uchr;
   unsigned char prop;
@@ -680,13 +683,16 @@ static void eat_carets( char *str)
     /* Terminate the destination string. */
     *strd = '\0';
   }
+#endif // End of #if 0
+
 }
 
 
 static struct fileinfo *
 ftp_parse_vms_ls (const char *file)
 {
-  FILE *fp;
+
+    FILE *fp;
   int dt, i, j, len;
   int perms;
   time_t timenow;
@@ -695,6 +701,8 @@ ftp_parse_vms_ls (const char *file)
 
   char *line, *tok;		 /* tokenizer */
   struct fileinfo *dir, *l, cur; /* list creation */
+  // TODO: Remove this ifdef!
+#if 0
 
   fp = fopen (file, "r");
   if (!fp)
@@ -1031,7 +1039,9 @@ ftp_parse_vms_ls (const char *file)
     }
 
   fclose (fp);
-  return dir;
+#endif // End of #if 0
+
+return dir;
 }
 
 

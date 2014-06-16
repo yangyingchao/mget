@@ -116,6 +116,18 @@ char *rstrip(char *str);
 
 #define GET_HASH_ENTRY(T, H, K)       ((T*)hash_table_entry_get(H, K))
 
+
+typedef struct _byte_queue
+{
+    byte* p; // start of buffer
+    byte* r; // read ptr
+    byte* w; // write ptr
+    byte* x; // end of buffer
+} byte_queue;
+
+byte_queue* bq_init(size_t size);
+byte_queue* bq_resize(byte_queue* bq, size_t sz);
+
 #ifdef __cplusplus
 }
 #endif

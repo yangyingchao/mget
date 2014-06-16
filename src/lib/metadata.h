@@ -33,7 +33,7 @@ extern "C" {
 
 #define PA(X, N)       ((X % N) ? (N * ((X/N) + 1)):X)
 #define MH_SIZE()      48
-#define MD_SIZE(X)     (MH_SIZE()+sizeof(void*)*4+sizeof(data_chunk)*(X->hd.nr_user)+PA(X->hd.eb_length,4))
+#define MD_SIZE(X)     (MH_SIZE()+sizeof(void*)*6+sizeof(data_chunk)*(X->hd.nr_user)+PA(X->hd.eb_length,4))
 #define CHUNK_NUM(X)       (X->hd.nr_effective)
 #define CHUNK_SIZE(X)      (sizeof(data_chunk)*(X->hd.nr_user))
 #define GET_URL(X)         (((char*)X->raw_data)+CHUNK_SIZE(X))

@@ -186,6 +186,19 @@ const char *stringify_size(uint64 sz)
     return str_size;
 }
 
+byte_queue* bq_init(size_t size)
+{
+    byte_queue* bq = ZALLOC1(byte_queue);
+    bq->r = bq->w = bq->p = ZALLOC(byte, size);
+    bq->x = bq->p + size;
+    return  bq;
+}
+
+byte_queue* bq_resize(byte_queue* bq, size_t sz)
+{
+    return NULL;
+}
+
 /*
  * Editor modelines
  *

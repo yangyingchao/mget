@@ -127,6 +127,8 @@ void print_help()
         "\t-o:  set file name to store download data."
         "If not provided, mget will name it.\n",
         "\t-r:  resume a previous download using stored metadata.\n",
+        "\t-u:  set user name.\n",
+        "\t-p:  set user password.\n",
         "\t-h:  show this help.\n",
         "\n",
         NULL
@@ -152,15 +154,20 @@ int main(int argc, char *argv[])
 
     bool view_only = false;
     int  opt       = 0;
-    int  nc        = 5;                 // default number of connections.
 
     file_name fn;
-    char *target = NULL;
-    bool resume = false;
+    char  *target = NULL;
+    bool   resume = false;
+    char*  user   = NULL;
+    char*  passwd = NULL;
+    mget_option opts;
+    memset(&opts, 0, sizeof(mget_option));
+    opts.max_connections = 5;
+
 
     memset(&fn, 0, sizeof(file_name));
 
-    while ((opt = getopt(argc, argv, "hj:d:o:r:sv")) != -1) {
+    while ((opt = getopt(argc, argv, "hj:d:o:r:svu:p:")) != -1) {
         switch (opt) {
             case 'h':
             {
@@ -179,14 +186,24 @@ int main(int argc, char *argv[])
             }
             case 'j':
             {
-                nc = atoi(optarg);
-                if (nc > MAX_NC) {
+                opts.max_connections = atoi(optarg);
+                if (opts.max_connections > MAX_NC) {
                     printf("Max connections: "
                            "specified: %d, allowed: %d, "
-                           "set it to max...\n", nc, MAX_NC);
-                    nc = MAX_NC;
+                           "set it to max...\n", opts.max_connections, MAX_NC);
+                    opts.max_connections = MAX_NC;
                 }
 
+                break;
+            }
+            case 'u':
+            {
+                opts.user = strdup(optarg);
+                break;
+            }
+            case 'p':
+            {
+                opts.passwd = strdup(optarg);
                 break;
             }
             case 'o':
@@ -261,7 +278,7 @@ int main(int argc, char *argv[])
         int retry_time = 0;
         bool result = true;
         while (retry_time++ < MAX_RETRY_TIMES && !control_byte) {
-            if ((result = start_request(target, &fn, nc, show_progress,
+            if ((result = start_request(target, &fn, &opts, show_progress,
                                         &control_byte, NULL))) {
                 break;
             }

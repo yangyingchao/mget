@@ -80,7 +80,6 @@ int connection_perform(connection_group* group);
 connection *connection_get(const url_info * ui);
 void connection_put(connection * sock);
 
-
 #ifdef __cplusplus
 }
 #endif

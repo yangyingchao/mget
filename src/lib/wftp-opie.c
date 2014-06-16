@@ -33,6 +33,7 @@ as that of the covered work.  */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "log.h"
 
 /* #include "md5.h" */
 #include "ftp.h"
@@ -2122,8 +2123,10 @@ btoe (char *store, const unsigned char *c)
                                    extract() slop.  */
   int p, i;
   char *store_beg = store;
+// TODO: Remove this ifdef!
+#if 0
 
-  *store = '\0';
+*store = '\0';
 
   /* Workaround for extract() reads beyond end of data */
   xzero (cp);
@@ -2158,7 +2161,9 @@ btoe (char *store, const unsigned char *c)
   store[4] = '\0';              /* make sure the string is terminated */
 
   DEBUGP (("wrote %s to STORE\n", quote (store_beg)));
-  return store_beg;
+#endif // End of #if 0
+
+return store_beg;
 }
 
 /* Calculate the SKEY response, based on the sequence, seed

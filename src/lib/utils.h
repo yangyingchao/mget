@@ -49,7 +49,6 @@ as that of the covered work.  */
 
 #define alloca_array(type, size) ((type *) alloca ((size) * sizeof (type)))
 
-#define xfree free
 /* Free P if it is non-NULL.  C requires free() to behaves this way by
    default, but Wget's code is historically careful not to pass NULL
    to free.  This allows us to assert p!=NULL in xfree to check

@@ -81,6 +81,8 @@ typedef struct _metadata {
     data_chunk *body;		// pointer to data_chunk
     char *url;			// pointer to url
     char *fn;			// saved file name.
+    char *user;
+    char *passwd;
     char *mime;			// pointer to mime type
     char raw_data[0];		// start to body of raw_data.
 } metadata;

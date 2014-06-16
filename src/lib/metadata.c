@@ -37,6 +37,8 @@
 
 bool metadata_create_from_file(const char *fn, metadata** md, fh_map** fm_md)
 {
+    PDEBUG ("enter with fn: %s\n", fn);
+
     bool     ret = false;
     fhandle *fh  = NULL;
     fh_map  *fm  = NULL;

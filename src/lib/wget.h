@@ -130,5 +130,97 @@ typedef long long wgint;
 #define xzero(x) memset (&(x), '\0', sizeof (x))
 
 
+/* Useful macros used across the code: */
+
+/* The number of elements in an array.  For example:
+   static char a[] = "foo";     -- countof(a) == 4 (note terminating \0)
+   int a[5] = {1, 2};           -- countof(a) == 5
+   char *a[] = {                -- countof(a) == 3
+   "foo", "bar", "baz"
+   }; */
+#define countof(array) (sizeof (array) / sizeof ((array)[0]))
+
+/* Zero out a value.  */
+#define xzero(x) memset (&(x), '\0', sizeof (x))
+
+/* Convert an ASCII hex digit to the corresponding number between 0
+   and 15.  H should be a hexadecimal digit that satisfies isxdigit;
+   otherwise, the result is undefined.  */
+#define XDIGIT_TO_NUM(h) ((h) < 'A' ? (h) - '0' : c_toupper (h) - 'A' + 10)
+#define X2DIGITS_TO_NUM(h1, h2) ((XDIGIT_TO_NUM (h1) << 4) + XDIGIT_TO_NUM (h2))
+
+/* The reverse of the above: convert a number in the [0, 16) range to
+   the ASCII representation of the corresponding hexadecimal digit.
+   `+ 0' is there so you can't accidentally use it as an lvalue.  */
+#define XNUM_TO_DIGIT(x) ("0123456789ABCDEF"[x] + 0)
+#define XNUM_TO_digit(x) ("0123456789abcdef"[x] + 0)
+
+/* Copy the data delimited with BEG and END to alloca-allocated
+   storage, and zero-terminate it.  Arguments are evaluated only once,
+   in the order BEG, END, PLACE.  */
+#define BOUNDED_TO_ALLOCA(beg, end, place) do {	\
+        const char *BTA_beg = (beg);			\
+        int BTA_len = (end) - BTA_beg;          \
+        char **BTA_dest = &(place);             \
+        *BTA_dest = alloca (BTA_len + 1);		\
+        memcpy (*BTA_dest, BTA_beg, BTA_len);   \
+        (*BTA_dest)[BTA_len] = '\0';			\
+    } while (0)
+
+/* Return non-zero if string bounded between BEG and END is equal to
+   STRING_LITERAL.  The comparison is case-sensitive.  */
+#define BOUNDED_EQUAL(beg, end, string_literal)                     \
+    ((end) - (beg) == sizeof (string_literal) - 1                   \
+     && !memcmp (beg, string_literal, sizeof (string_literal) - 1))
+
+/* The same as above, except the comparison is case-insensitive. */
+#define BOUNDED_EQUAL_NO_CASE(beg, end, string_literal)                 \
+    ((end) - (beg) == sizeof (string_literal) - 1                       \
+     && !strncasecmp (beg, string_literal, sizeof (string_literal) - 1))
+
+/* Like ptr=strdup(str), but allocates the space for PTR on the stack.
+   This cannot be an expression because this is not portable:
+   #define STRDUP_ALLOCA(str) (strcpy (alloca (strlen (str) + 1), str))
+   The problem is that some compilers can't handle alloca() being an
+   argument to a function.  */
+
+#define STRDUP_ALLOCA(ptr, str) do {                        \
+        char **SA_dest = &(ptr);                            \
+        const char *SA_src = (str);                         \
+        *SA_dest = (char *)alloca (strlen (SA_src) + 1);	\
+        strcpy (*SA_dest, SA_src);                          \
+    } while (0)
+
+/* Generally useful if you want to avoid arbitrary size limits but
+   don't need a full dynamic array.  Assumes that BASEVAR points to a
+   malloced array of TYPE objects (or possibly a NULL pointer, if
+   SIZEVAR is 0), with the total size stored in SIZEVAR.  This macro
+   will realloc BASEVAR as necessary so that it can hold at least
+   NEEDED_SIZE objects.  The reallocing is done by doubling, which
+   ensures constant amortized time per element.  */
+
+#define DO_REALLOC(basevar, sizevar, needed_size, type)	do {            \
+        long DR_needed_size = (needed_size);                            \
+        long DR_newsize = 0;                                            \
+        while ((sizevar) < (DR_needed_size)) {                          \
+            DR_newsize = sizevar << 1;                                  \
+            if (DR_newsize < 16)                                        \
+                DR_newsize = 16;                                        \
+            (sizevar) = DR_newsize;                                     \
+        }                                                               \
+        if (DR_newsize)                                                 \
+            basevar = xrealloc (basevar, DR_newsize * sizeof (type));   \
+    } while (0)
+
+/* Used to print pointers (usually for debugging).  Print pointers
+   using printf ("0x%0*lx", PTR_FORMAT (p)).  (%p is too unpredictable;
+   some implementations prepend 0x, while some don't, and most don't
+   0-pad the address.)  */
+#define PTR_FORMAT(p) (int) (2 * sizeof (void *)), (unsigned long) (p)
+
+/* Find the maximum buffer length needed to print an integer of type `x'
+   in base 10. 24082 / 10000 = 8*log_{10}(2).  */
+#define MAX_INT_TO_STRING_LEN(x) ((sizeof(x) * 24082 / 10000) + 2)
+
 #endif /* WGET_H */
 

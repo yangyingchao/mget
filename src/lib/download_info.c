@@ -58,7 +58,8 @@ void dinfo_destroy(dinfo** info)
     FIFZ(info);
 }
 
-bool dinfo_create(const char *url, const file_name * fn, int nc, dinfo** info)
+bool dinfo_create(const char *url, const file_name * fn,
+                  mget_option* opt, dinfo** info)
 {
     url_info *ui    = NULL;
     char     *fpath = NULL;
@@ -131,8 +132,17 @@ bool dinfo_create(const char *url, const file_name * fn, int nc, dinfo** info)
         //       space reserved by this magic number should be filled by extra
         //       information: auth, proxy, ....
 
-        uint16 ebl = PA(strlen(url), 4) + PA(strlen(fpath), 4) + 512;
-        size_t md_size = MH_SIZE() + (sizeof(data_chunk) * nc) + (size_t)ebl;
+        PDEBUG ("creating empty metadata using: %s -- %s --%s --%s\n",
+                url, fpath, opt->user, opt->passwd);
+
+        uint16 ebl = PA(strlen(url), 4) + PA(strlen(fpath), 4) +
+                     (opt->user ? PA(strlen(opt->user), 4) : 0) +
+                     (opt->passwd ? PA(strlen(opt->passwd), 4) : 0) +
+                     512;
+        PDEBUG ("ebl: %lu\n", ebl);
+        size_t md_size = MH_SIZE() + (sizeof(data_chunk)*opt->max_connections) + (size_t)ebl;
+        PDEBUG ("size: %lu\n", md_size);
+
         dInfo->fm_md = fm_create(tfn, md_size);
         dInfo->md = (metadata*)dInfo->fm_md->addr;
 
@@ -147,10 +157,10 @@ bool dinfo_create(const char *url, const file_name * fn, int nc, dinfo** info)
         hd->last_time    = get_time_s();
         hd->acc_time     = 0;
         hd->status       = RS_INIT;
-        hd->nr_user      = nc;
+        hd->nr_user      = opt->max_connections;
         hd->nr_effective = 0;
         hd->eb_length    = ebl;
-        hd->acon         = nc;
+        hd->acon         = opt->max_connections;
 
         pmd->body = (data_chunk *) pmd->raw_data;
         char *ptr = pmd->raw_data + CHUNK_SIZE(pmd);
@@ -166,7 +176,26 @@ bool dinfo_create(const char *url, const file_name * fn, int nc, dinfo** info)
             sprintf(pmd->fn, "%s", fpath);
         }
 
+        PDEBUG ("fn: %s\n", pmd->fn);
+
+
         ptr += strlen(pmd->fn) + 1;
+        pmd->user = ptr;
+        if (opt->user)
+        {
+            sprintf(pmd->user, opt->user);
+        }
+
+        PDEBUG ("user: %s\n", pmd->user);
+
+        ptr += strlen(pmd->user) + 1;
+        pmd->passwd = ptr;
+        if (opt->user)
+        {
+            sprintf(pmd->passwd, opt->passwd);
+        }
+        PDEBUG ("passwd: %s\n", pmd->passwd);
+
         pmd->mime = ptr;
         /* ptr += strlen(pmd->mime) + 1; */
         /* pmd->ht = NULL;		// TODO: Initialize hash table based on ptr. */
