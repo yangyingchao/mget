@@ -162,7 +162,58 @@ static uint32 secure_connection_write(connection * conn, char *buf,
 }
 #endif
 
+
+static socklen_t
+sockaddr_size (const struct sockaddr *sa)
+{
+    switch (sa->sa_family)
+    {
+        case AF_INET:
+            return sizeof (struct sockaddr_in);
+#ifdef ENABLE_IPV6
+        case AF_INET6:
+            return sizeof (struct sockaddr_in6);
+#endif
+        default:
+            abort ();
+    }
+}
+
+static void
+sockaddr_set_data (struct sockaddr *sa, ip_address *ip, int port)
+{
+    switch (ip->family)
+    {
+        case AF_INET:
+        {
+            struct sockaddr_in *sin = (struct sockaddr_in *)sa;
+            XZERO (*sin);
+            sin->sin_family = AF_INET;
+            sin->sin_port = htons (port);
+            sin->sin_addr = ip->data.d4;
+            break;
+        }
+#ifdef ENABLE_IPV6
+        case AF_INET6:
+        {
+            struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sa;
+            xzero (*sin6);
+            sin6->sin6_family = AF_INET6;
+            sin6->sin6_port = htons (port);
+            sin6->sin6_addr = ip->data.d6;
+#ifdef HAVE_SOCKADDR_IN6_SCOPE_ID
+            sin6->sin6_scope_id = ip->ipv6_scope;
+#endif
+            break;
+        }
+#endif /* ENABLE_IPV6 */
+        default:
+            abort ();
+    }
+}
+
 static hash_table *g_addr_cache = NULL;
+
 
 connection *connection_get(const url_info * ui)
 {
@@ -177,52 +228,72 @@ connection *connection_get(const url_info * ui)
         goto ret;
     }
 
-    addr_entry *addr = GET_HASH_ENTRY(addr_entry, g_addr_cache, ui->host);
+    addr_entry *addr = NULL;
+    if (ui->addr)
+    {
+        struct sockaddr_storage ss;
+        struct sockaddr *sa = (struct sockaddr *)&ss;
+        /* Store the sockaddr info to SA.  */
+        sockaddr_set_data (sa, ui->addr, ui->port);
 
-    if (addr) {
-        conn->addr = addr->addr;
-        conn->sock = socket(conn->addr->ai_family, conn->addr->ai_socktype,
-                            conn->addr->ai_protocol);
-        if (connect (conn->sock, conn->addr->ai_addr,
-                     conn->addr->ai_addrlen) == -1) {
+        /* Create the socket of the family appropriate for the address.  */
+        conn->sock = socket (sa->sa_family, SOCK_STREAM, 0);
+        if (conn->sock < 0)
+            goto err;
+        if (connect (conn->sock, sa, sockaddr_size (sa) == -1)) {
             perror("Failed to connect");
             goto err;
         }
-    } else {
-        addr = ZALLOC1(addr_entry);
-        address hints;
+    }
+    else
+    {
+        addr = GET_HASH_ENTRY(addr_entry, g_addr_cache, ui->host);
 
-        memset(&hints, 0, sizeof(hints));
-        hints.ai_family = AF_INET;	//AF_UNSPEC;
-        hints.ai_socktype = SOCK_STREAM;
-        hints.ai_flags = 0;
-        hints.ai_protocol = 0;
-        logprintf(LOG_ALWAYS, "Resolving host: %s ...\n", ui->host);
-        int ret = getaddrinfo(ui->host, ui->sport, &hints, &addr->infos);
-
-        if (ret)
-            goto err;
-        address *rp = NULL;
-
-        for (rp = addr->infos; rp != NULL; rp = rp->ai_next) {
-            conn->sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-            if (conn->sock == -1) {
-                continue;
+        if (addr) {
+            conn->addr = addr->addr;
+            conn->sock = socket(conn->addr->ai_family, conn->addr->ai_socktype,
+                                conn->addr->ai_protocol);
+            if (connect (conn->sock, conn->addr->ai_addr,
+                         conn->addr->ai_addrlen) == -1) {
+                perror("Failed to connect");
+                goto err;
             }
-            if (connect(conn->sock, rp->ai_addr, rp->ai_addrlen) != -1) {
-                conn->connected = true;
-                break;
-            }
-            close(conn->sock);
-        }
+        } else {
+            addr = ZALLOC1(addr_entry);
+            address hints;
 
-        if (rp != NULL) {
-            addr->addr = rp;
-            if (!hash_table_insert(g_addr_cache, (char*)ui->host, addr)) {
-                addr_entry_destroy(addr);
-                fprintf(stderr, "Failed to insert cache: %s\n", ui->host);
+            memset(&hints, 0, sizeof(hints));
+            hints.ai_family = AF_INET;	//AF_UNSPEC;
+            hints.ai_socktype = SOCK_STREAM;
+            hints.ai_flags = 0;
+            hints.ai_protocol = 0;
+            logprintf(LOG_ALWAYS, "Resolving host: %s ...\n", ui->host);
+            int ret = getaddrinfo(ui->host, ui->sport, &hints, &addr->infos);
+
+            if (ret)
+                goto err;
+            address *rp = NULL;
+
+            for (rp = addr->infos; rp != NULL; rp = rp->ai_next) {
+                conn->sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+                if (conn->sock == -1) {
+                    continue;
+                }
+                if (connect(conn->sock, rp->ai_addr, rp->ai_addrlen) != -1) {
+                    conn->connected = true;
+                    break;
+                }
+                close(conn->sock);
             }
 
+            if (rp != NULL) {
+                addr->addr = rp;
+                if (!hash_table_insert(g_addr_cache, (char*)ui->host, addr)) {
+                    addr_entry_destroy(addr);
+                    fprintf(stderr, "Failed to insert cache: %s\n", ui->host);
+                }
+
+            }
         }
     }
 

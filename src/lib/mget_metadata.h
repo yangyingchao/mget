@@ -50,18 +50,19 @@ typedef struct metadata_head {
     uint32 iden;        // TMD0                                          -- 04
     uint32 version;     // Major, Minor, Patch, NULL                     -- 08
     uint64 package_size;    // size of package;                          -- 16
-    uint64 last_time;       // last time used.                           -- 24
-    uint32 acc_time;        // accumulated time in this downloading.     -- 28
+    uint64 chunk_size;      // size of single chunk                      -- 24
+    uint64 last_time;       // last time used.                           -- 32
+    uint32 acc_time;        // accumulated time in this downloading.     -- 36
 
-    uint8 status;       // status.                                       -- 29
-    uint8 nr_user;      // number of chunks set by user.                 -- 30
-    uint8 nr_effective; // number of chunks that are effective.          -- 31
-    uint8 acon;         // active connections.                           -- 32
+    uint8 status;       // status.                                       -- 37
+    uint8 nr_user;      // number of chunks set by user.                 -- 38
+    uint8 nr_effective; // number of chunks that are effective.          -- 39
+    uint8 acon;         // active connections.                           -- 40
 
-    uint16 eb_length;   // length of extra body: url_len+mime_len+others -- 34
+    uint16 eb_length;   // length of extra body: url_len+mime_len+others -- 42
 
-    uint8 reserved[14]; // reserved ...                                  -- 48
-} mh;				// up to 48 bytes
+    uint8 reserved[22]; // reserved ...                                  -- 64
+} mh;				// up to 64 bytes
 
 // Byte/     0       |       1       |       2       |       3       |
 // ***/              |               |               |               |

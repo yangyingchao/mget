@@ -64,7 +64,8 @@ fd_read_line (ftp_connection* conn)
         p = memchr(bq->r, '\n', bq->w - bq->r);
         if (!p)
         {
-            uint32 rd = conn->conn->ci.reader(conn->conn, bq->w, bq->x - bq->w, NULL);
+            uint32 rd = conn->conn->ci.reader(conn->conn, bq->w,
+                                              bq->x - bq->w, NULL);
             if (rd != -1)
             {
                 bq->w += rd;

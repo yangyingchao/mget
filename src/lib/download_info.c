@@ -173,23 +173,25 @@ bool dinfo_create(const char *url, const file_name * fn,
         }
 
         ptr += strlen(pmd->fn) + 1;
-        pmd->user = ptr;
+
         if (opt->user)
         {
-            sprintf(pmd->user, opt->user);
+            pmd->user = ptr;
+            sprintf(pmd->user, "%s", opt->user);
+            ptr += strlen(pmd->user) + 1;
         }
 
         PDEBUG ("user: %s\n", pmd->user);
 
-        ptr += strlen(pmd->user) + 1;
-        pmd->passwd = ptr;
-        if (opt->user)
+        if (opt->passwd)
         {
-            sprintf(pmd->passwd, opt->passwd);
+            pmd->passwd = ptr;
+            sprintf(pmd->passwd, "%s", opt->passwd);
+            ptr += strlen(pmd->user) + 1;
         }
         PDEBUG ("passwd: %s\n", pmd->passwd);
 
-        pmd->mime = ptr;
+        /* pmd->mime = ptr; */
         /* ptr += strlen(pmd->mime) + 1; */
         /* pmd->ht = NULL;		// TODO: Initialize hash table based on ptr. */
     }
@@ -221,7 +223,8 @@ bool dinfo_ready(dinfo* info)
             info->md->hd.package_size && info->md->hd.status);
 }
 
-extern bool chunk_split(uint64 start, uint64 size, int *num, data_chunk ** dc);
+extern bool chunk_split(uint64 start, uint64 size, int *num,
+                        uint64* cs, data_chunk ** dc);
 
 bool dinfo_update_metadata(uint64 size, dinfo* info)
 {
@@ -232,13 +235,14 @@ bool dinfo_update_metadata(uint64 size, dinfo* info)
     mh*         hd = &md->hd;
     data_chunk* dc = NULL;
     int nc         = hd->nr_user;
-
-    if (!md || !chunk_split(0, size, &nc, &dc) || !dc) {
+    uint64 cs = 0;
+    if (!md || !chunk_split(0, size, &nc, &cs, &dc) || !dc) {
         PDEBUG("return err.\n");
         return false;
     }
 
     hd->package_size = size;
+    hd->chunk_size    = cs;
     hd->nr_effective = nc;
     hd->acon         = nc;
 

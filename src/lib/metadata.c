@@ -92,8 +92,8 @@ bool  metadata_create_from_url(const char* url,
                               metadata** md)
 {
     data_chunk *dc = NULL;
-
-    if (!md || !chunk_split(0, size, &nc, &dc) || !dc) {
+    uint64 cs = 0;
+    if (!md || !chunk_split(0, size, &nc, &cs, &dc) || !dc) {
         PDEBUG("return err.\n");
         return false;
     }
@@ -111,6 +111,7 @@ bool  metadata_create_from_url(const char* url,
         sprintf(((char *) &hd->iden), "TMD");
         hd->version      = GET_VERSION();
         hd->package_size = size;
+        hd->chunk_size   = cs;
         hd->last_time    = get_time_s();
         hd->acc_time     = 0;
         hd->status       = RS_INIT;
@@ -226,7 +227,8 @@ void metadata_display(metadata * md)
     fprintf(stderr, "%s finished...\n\n", stringify_size(recv));
 }
 
-bool chunk_split(uint64 start, uint64 size, int *num, data_chunk ** dc)
+bool chunk_split(uint64 start, uint64 size, int *num,
+                 uint64* chunk_size, data_chunk ** dc)
 {
     if (!size || !dc || !num) {
         return false;
@@ -245,6 +247,7 @@ bool chunk_split(uint64 start, uint64 size, int *num, data_chunk ** dc)
              MIN_CHUNK_SIZE;
     }
 
+    *chunk_size = cs;
     uint32 total_size = *num * sizeof(data_chunk);
 
     *dc = (data_chunk *) malloc(total_size);

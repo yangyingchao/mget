@@ -53,6 +53,8 @@ typedef struct _ftp_connection
     byte_queue* bq;
     enum stype rs;
     char* id;
+
+    connection* data_conn;
 } ftp_connection;
 
 extern char ftp_last_respline[];

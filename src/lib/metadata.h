@@ -32,7 +32,7 @@ extern "C" {
 #endif
 
 #define PA(X, N)       ((X % N) ? (N * ((X/N) + 1)):X)
-#define MH_SIZE()      48
+#define MH_SIZE()      sizeof(mh)
 #define MD_SIZE(X)     (MH_SIZE()+sizeof(void*)*6+sizeof(data_chunk)*(X->hd.nr_user)+PA(X->hd.eb_length,4))
 #define CHUNK_NUM(X)       (X->hd.nr_effective)
 #define CHUNK_SIZE(X)      (sizeof(data_chunk)*(X->hd.nr_user))
@@ -45,7 +45,7 @@ typedef struct _metadata_wrapper {
     bool from_file;
 } metadata_wrapper;
 
-bool chunk_split(uint64 start, uint64 size, int *num, data_chunk ** dc);
+bool chunk_split(uint64, uint64, int*, uint64*, data_chunk **);
 bool metadata_create_from_file(const char *fn, metadata** md, fh_map** fm_md);
 bool metadata_create_from_url(const char *url,
                               const char *fn,

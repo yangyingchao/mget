@@ -30,7 +30,24 @@
 #include "mget_utils.h"
 #include "wftp.h"
 
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+
 #define DEFAULT_FTP_CONNECTIONS       8
+
+
+typedef struct _connection_operation_param_ftp {
+    void *addr;			//base addr;
+    data_chunk *dp;
+    url_info *ui;
+    hash_table *ht;
+    void (*cb) (metadata*, void*);
+    metadata *md;
+    int idx;
+    void* user_data;
+} co_param_ftp;
 
 /* This function accepts an pointer of connection pointer, on return. When 302
  * is detected, it will modify both ui and conn to ensure a valid connection
@@ -214,15 +231,218 @@ ret:
     return 0;
 }
 
-typedef struct _connection_operation_param_ftp {
-    void *addr;			//base addr;
-    data_chunk *dp;
-    url_info *ui;
-    hash_table *ht;
-    void (*cb) (metadata*, void*);
-    metadata *md;
-    void* user_data;
-} co_param_ftp;
+#define print_address(X)   inet_ntoa ((X)->data.d4)
+
+
+uerr_t get_ftp_data_connection(dinfo* info, ftp_connection* conn,
+                               co_param_ftp* param)
+{
+    /* Login to the server: */
+    conn->conn = connection_get(info->ui);
+    if (!conn->conn)
+    {
+        return FTPRERR;
+    }
+
+    uerr_t err = ftp_login (conn, info->md->user, info->md->passwd);
+    /* FTPRERR, FTPSRVERR, WRITEFAILED, FTPLOGREFUSED, FTPLOGINC */
+    switch (err)
+    {
+        case FTPRERR:
+            logputs (LOG_VERBOSE, "\n");
+            logputs (LOG_NOTQUIET, _("\
+Error in server response, closing control ftp_connection.\n"));
+        case FTPSRVERR:
+            logputs (LOG_VERBOSE, "\n");
+            logputs (LOG_NOTQUIET, _("Error in server greeting.\n"));
+            return err;
+        case WRITEFAILED:
+            logputs (LOG_VERBOSE, "\n");
+            logputs (LOG_NOTQUIET,
+                     _("Write failed, closing control ftp_connection.\n"));
+            return err;
+        case FTPLOGREFUSED:
+            logputs (LOG_VERBOSE, "\n");
+            logputs (LOG_NOTQUIET, _("The server refuses login.\n"));
+            return FTPLOGREFUSED;
+        case FTPLOGINC:
+            logputs (LOG_VERBOSE, "\n");
+            logputs (LOG_NOTQUIET, _("Login incorrect.\n"));
+            return FTPLOGINC;
+        case FTPOK:
+            /* if (!opt.server_response) */
+            /*     logputs (LOG_VERBOSE, _("Logged in!\n")); */
+            break;
+        default:
+            abort ();
+    }
+
+    /* Third: Get the system type */
+    err = ftp_syst (conn, &conn->rs);
+    /* FTPRERR */
+    switch (err)
+    {
+        case FTPRERR:
+            logputs (LOG_VERBOSE, "\n");
+            logputs (LOG_NOTQUIET, _("\
+Error in server response, closing control ftp_connection.\n"));
+            return err;
+        case FTPSRVERR:
+            logputs (LOG_VERBOSE, "\n");
+            logputs (LOG_NOTQUIET,
+                     _("Server error, can't determine system type.\n"));
+            break;
+        case FTPOK:
+            /* Everything is OK.  */
+            break;
+        default:
+            abort ();
+    }
+
+    /* Fifth: Set the FTP type.  */
+    char type_char = ftp_process_type (NULL);
+    logprintf (LOG_VERBOSE, "==> TYPE %c ... ", type_char);
+    err = ftp_type (conn, type_char);
+    /* FTPRERR, WRITEFAILED, FTPUNKNOWNTYPE */
+    switch (err)
+    {
+        case FTPRERR:
+            logputs (LOG_VERBOSE, "\n");
+            logputs (LOG_NOTQUIET, _("\
+Error in server response, closing control ftp_connection.\n"));
+            return err;
+        case WRITEFAILED:
+            logputs (LOG_VERBOSE, "\n");
+            logputs (LOG_NOTQUIET,
+                     _("Write failed, closing control ftp_connection.\n"));
+            return err;
+        case FTPUNKNOWNTYPE:
+            logputs (LOG_VERBOSE, "\n");
+            logprintf (LOG_NOTQUIET,
+                       _("Unknown type `%c', closing control ftp_connection.\n"),
+                       type_char);
+            return err;
+        case FTPOK:
+            /* Everything is OK.  */
+            break;
+        default:
+            abort ();
+    }
+
+    uint64 size = 0;
+    err = ftp_size (conn, info->ui->uri, &size);
+    /* FTPRERR */
+    switch (err)
+    {
+        case FTPRERR:
+        case FTPSRVERR:
+            logputs (LOG_VERBOSE, "\n");
+            logputs (LOG_NOTQUIET, _("\
+Error in server response, closing control ftp_connection.\n"));
+            return err;
+        case FTPOK:
+            /* got_expected_bytes = true; */
+            /* Everything is OK.  */
+            break;
+        default:
+            abort ();
+    }
+
+    if (size != info->md->hd.package_size) {
+        abort();
+    }
+
+    uint64 offset = param->idx * param->md->hd.chunk_size +
+                    param->dp->cur_pos - param->dp->start_pos;
+    err = ftp_rest (conn, offset);
+
+    /* FTPRERR, WRITEFAILED, FTPRESTFAIL */
+    switch (err)
+    {
+        case FTPRERR:
+            logputs (LOG_VERBOSE, "\n");
+            logputs (LOG_NOTQUIET, _("\
+Error in server response, closing control ftp_connection.\n"));
+            return err;
+        case WRITEFAILED:
+            logputs (LOG_VERBOSE, "\n");
+            logputs (LOG_NOTQUIET,
+                     _("Write failed, closing control ftp_connection.\n"));
+            return err;
+        case FTPRESTFAIL:
+            logputs (LOG_VERBOSE, _("\nREST failed, starting from scratch.\n"));
+            break;
+        case FTPOK:
+            break;
+        default:
+            abort ();
+    }
+
+    //TODO: Add support to PORT mode.
+    ip_address passive_addr;
+    int        passive_port;
+    err = ftp_pasv (conn, &passive_addr, &passive_port);
+    /* FTPRERR, WRITEFAILED, FTPNOPASV, FTPINVPASV */
+    switch (err)
+    {
+        case FTPRERR:
+            logputs (LOG_VERBOSE, "\n");
+            logputs (LOG_NOTQUIET, _("\
+Error in server response, closing control ftp_connection.\n"));
+            return err;
+        case WRITEFAILED:
+            logputs (LOG_VERBOSE, "\n");
+            logputs (LOG_NOTQUIET,
+                     _("Write failed, closing control ftp_connection.\n"));
+            return err;
+        case FTPNOPASV:
+            logputs (LOG_VERBOSE, "\n");
+            logputs (LOG_NOTQUIET, _("Cannot initiate PASV transfer.\n"));
+            break;
+        case FTPINVPASV:
+            logputs (LOG_VERBOSE, "\n");
+            logputs (LOG_NOTQUIET, _("Cannot parse PASV response.\n"));
+            break;
+        case FTPOK:
+            break;
+        default:
+            abort ();
+    }   /* switch (err) */
+
+    PDEBUG ("err: %d\n", err);
+
+    if (err==FTPOK)
+    {
+        url_info ui;
+        memset(&ui, 0, sizeof(url_info));
+        ui.eprotocol = UP_FTP;
+        ui.addr = &passive_addr;
+        ui.port = passive_port;
+
+        DEBUGP (("trying to connect to %s port %d\n",
+                 print_address (&passive_addr), passive_port));
+        conn->data_conn = connection_get(&ui);
+        /* dtsock = connect_to_ip (&passive_addr, passive_port, NULL); */
+        /* if (dtsock < 0) */
+        /* { */
+        /*     int save_errno = errno; */
+        /*     fd_close (conn); */
+        /*     con->conn = -1; */
+        /*     logprintf (LOG_VERBOSE, _("couldn't connect to %s port %d: %s\n"), */
+        /*                print_address (&passive_addr), passive_port, */
+        /*                strerror (save_errno)); */
+        /*     return (retryable_socket_connect_error (save_errno) */
+        /*             ? CONERROR : CONIMPOSSIBLE); */
+        /* } */
+
+        /* pasv_mode_open = true;  /\* Flag to avoid accept port *\/ */
+        /* if (!opt.server_response) */
+        /*     logputs (LOG_VERBOSE, _("done.    ")); */
+    } /* err==FTP_OK */
+
+    return FTPOK;
+}
+
 
 int ftp_read_sock(connection * conn, void *priv)
 {
@@ -304,13 +524,15 @@ int process_ftp_request(dinfo* info,
     if (dinfo_ready(info))
         goto start;
 
+    PDEBUG ("C: %p -- %p\n",info->md->user, info->md->passwd);
+
     if (!info->md->user)
     {
-        info->md->user = "anonymous";
+        info->md->user = strdup("anonymous");
     }
     if (!info->md->passwd)
     {
-        info->md->passwd = "anonymous";
+        info->md->passwd = strdup("anonymous");
     }
 
     ftp_connection* fconn = ZALLOC1(ftp_connection);
@@ -328,6 +550,11 @@ int process_ftp_request(dinfo* info,
     if (!total_size) {
         fprintf(stderr, "Can't get remote file size: %s\n", ui->furl);
         return -1;
+    }
+
+    if (!can_split)
+    {
+        fprintf(stderr, "Can't split.....\n");
     }
 
     PDEBUG("total_size: %llu\n", total_size);
@@ -354,10 +581,8 @@ start: ;
     if (md->hd.status == RS_FINISHED) {
         goto ret;
     }
-// TODO: Remove this ifdef!
-#if 0
 
-md->hd.status = RS_STARTED;
+    md->hd.status = RS_STARTED;
     if (cb) {
         (*cb) (md, user_data);
     }
@@ -369,10 +594,14 @@ md->hd.status = RS_STARTED;
         return -1;
     }
 
-    bool need_request = false;
-    connection* conn = NULL;
+    bool     need_request = false;
+    ftp_connection* conn  = NULL;
+    ftp_connection* conns = ZALLOC(ftp_connection, md->hd.nr_effective);
+    uerr_t          uerr   = FTPOK;
 
     for (int i = 0; i < md->hd.nr_effective; ++i) {
+        PDEBUG ("i = %d\n", i);
+
         data_chunk *dp = &md->body[i];
 
         if (dp->cur_pos >= dp->end_pos) {
@@ -380,30 +609,28 @@ md->hd.status = RS_STARTED;
         }
 
         need_request = true;
-
-        if (!conn) {
-            conn = connection_get(ui);
-            if (!conn) {
-                fprintf(stderr, "Failed to create connection!!\n");
-                goto ret;
-            }
-        }
+        conn = conns++;
 
         co_param_ftp *param = ZALLOC1(co_param_ftp);
 
         param->addr      = info->fm_file->addr;
+        param->idx       = i;
         param->dp        = md->body + i;
         param->ui        = ui;
         param->md        = md;
         param->cb        = cb;
         param->user_data = user_data;
 
-        conn->rf = ftp_read_sock;
-        conn->wf = ftp_write_sock;
-        conn->priv = param;
+        uerr = get_ftp_data_connection(info, conn, param);
+        if (uerr != FTPOK) {
+            goto ret;
+        }
 
-        connection_add_to_group(sg, conn);
-        conn = NULL;
+        conn->data_conn->rf = ftp_read_sock;
+        conn->data_conn->wf = ftp_write_sock;
+        conn->data_conn->priv = param;
+
+        connection_add_to_group(sg, conn->data_conn);
     }
 
     if (!need_request) {
@@ -412,8 +639,8 @@ md->hd.status = RS_STARTED;
     }
 
     PDEBUG("Performing...\n");
-    int ret = connection_perform(sg);
-    PDEBUG("ret = %d\n", ret);
+    /* int ret = connection_perform(sg); */
+    /* PDEBUG("ret = %d\n", ret); */
 
     dinfo_sync(info);
 
@@ -435,7 +662,6 @@ md->hd.status = RS_STARTED;
     }
 
     md->hd.acc_time += get_time_s() - md->hd.last_time;
-#endif // End of #if 0
 
 ret:
     metadata_display(md);

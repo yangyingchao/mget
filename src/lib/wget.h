@@ -90,26 +90,6 @@ struct address_list;
 
 /* This struct defines an IP address, tagged with family type.  */
 
-typedef struct {
-    /* Address family, one of AF_INET or AF_INET6. */
-    int family;
-
-    /* The actual data, in the form of struct in_addr or in6_addr: */
-    union {
-        struct in_addr d4;		/* IPv4 address */
-#ifdef ENABLE_IPV6
-        struct in6_addr d6;		/* IPv6 address */
-#endif
-    } data;
-
-    /* Under IPv6 getaddrinfo also returns scope_id.  Since it's
-       IPv6-specific it strictly belongs in the above union, but we put
-       it here for simplicity.  */
-#if defined ENABLE_IPV6 && defined HAVE_SOCKADDR_IN6_SCOPE_ID
-    int ipv6_scope;
-#endif
-} ip_address;
-
 /* IP_INADDR_DATA macro returns a void pointer that can be interpreted
    as a pointer to struct in_addr in IPv4 context or a pointer to
    struct in6_addr in IPv4 context.  This pointer can be passed to
