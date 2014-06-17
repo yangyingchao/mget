@@ -63,6 +63,12 @@ void sigterm_handler(int signum)
     fprintf(stderr, "Saving temporary data...\n");
 }
 
+void sigterm_handler2(int sig, siginfo_t* si, void* param)
+{
+    control_byte = true;
+    fprintf(stderr, "Saving temporary data...\n");
+}
+
 void show_progress(metadata* md, void* user_data)
 {
     static int    idx       = 0;
@@ -265,15 +271,14 @@ int main(int argc, char *argv[])
 
         struct sigaction act;
 
-        act.sa_handler   = sigterm_handler;
-        act.sa_sigaction = NULL;
+        /* act.sa_handler   = sigterm_handler; */
+        act.sa_sigaction = sigterm_handler2;
+        /* act.sa_sigaction = NULL; */
         sigemptyset(&act.sa_mask);
-        act.sa_flags     = 0;
+        act.sa_flags     = SA_SIGINFO;
         int ret = sigaction(SIGINT, &act, NULL);
 
         PDEBUG("ret = %d\n", ret);
-
-        signal(SIGINT, sigterm_handler);
 
         int retry_time = 0;
         bool result = true;

@@ -430,56 +430,6 @@ Error in server response, closing control ftp_connection.\n"));
     return FTPOK;
 }
 
-
-int ftp_read_sock(connection * conn, void *priv)
-{
-    if (!priv) {
-        return -1;
-    }
-
-    //todo: Ensure we read all data stored in this connection.
-    co_param_ftp   *param = (co_param_ftp *) priv;
-    data_chunk *dp    = (data_chunk *) param->dp;
-
-    if (dp->cur_pos >= dp->end_pos)  {
-        return 0;
-    }
-
-    void *addr = param->addr + dp->cur_pos;
-    int rd;
-    do {
-        rd = conn->ci.reader(conn, param->addr + dp->cur_pos,
-                             dp->end_pos - dp->cur_pos, NULL);
-    } while (rd == -1 && errno == EINTR);
-    if (rd > 0) {
-        dp->cur_pos += rd;
-        if (param->cb) {
-            (*(param->cb)) (param->md, param->user_data);
-        }
-    } else if (rd == 0) {
-        PDEBUG("Read returns 0: showing chunk: "
-               "retuned zero: dp: %p : %llX -- %llX\n",
-               dp, dp->cur_pos, dp->end_pos);
-    } else {
-        PDEBUG("read returns %d\n", rd);
-        if (errno != EAGAIN) {
-            fprintf(stderr, "read returns %d: %s\n", rd, strerror(errno));
-            rd = COF_AGAIN;
-        }
-    }
-
-    if (dp->cur_pos >= dp->end_pos) {
-        PDEBUG("Finished chunk: %p\n", dp);
-        rd = COF_FINISHED;
-    } else if (!rd) {
-        rd = COF_CLOSED;
-        PDEBUG("retuned zero: dp: %p : %llX -- %llX\n",
-               dp, dp->cur_pos, dp->end_pos);
-    }
-
-    return rd;
-}
-
 void* ftp_download_thread(void* arg)
 {
     co_param_ftp* param = (co_param_ftp*)arg;
@@ -539,8 +489,9 @@ Error in server response, closing control ftp_connection.\n"));
         void *addr = param->addr + dp->cur_pos;
         int rd = conn->data_conn->ci.reader(conn->data_conn, param->addr + dp->cur_pos,
                                         dp->end_pos - dp->cur_pos, NULL);
-        if (++i%78 ==0)
-            PDEBUG ("%d bytes written to %08llX..\n", rd, dp->cur_pos);
+        if (++i%100 ==0)
+            PDEBUG ("%lld bytes received..\n",
+                    dp->cur_pos - dp->start_pos);
 
         if (rd > 0) {
             dp->cur_pos += rd;
@@ -704,10 +655,6 @@ start: ;
         md->hd.status = RS_FINISHED;
         goto ret;
     }
-
-    PDEBUG("Performing...\n");
-    /* int ret = connection_perform(sg); */
-    /* PDEBUG("ret = %d\n", ret); */
 
     dinfo_sync(info);
 
