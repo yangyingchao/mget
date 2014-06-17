@@ -35,6 +35,7 @@ as that of the covered work.  */
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
+#include "log.h"
 
 #include <string.h>
 #include <unistd.h>
@@ -176,20 +177,12 @@ ftp_request (const char *command, const char *value)
     else
         res = concat_strings (command, "\r\n", (char *) 0);
     // TODO: Remove this ifdef!
-#if 0
 
-    if (opt.server_response)
-    {
-        /* Hack: don't print out password.  */
-        if (strncmp (res, "PASS", 4) != 0)
-            logprintf (LOG_ALWAYS, "--> %s\n", res);
-        else
-            logputs (LOG_ALWAYS, "--> PASS Turtle Power!\n\n");
-    }
+    /* Hack: don't print out password.  */
+    if (strncmp (res, "PASS", 4) != 0)
+        fprintf (stderr, "--> %s\n", res);
     else
-        DEBUGP (("\n--> %s\n", res));
-#endif // End of #if 0
-
+        fprintf (stderr, "--> PASS Turtle Power!\n\n");
     return res;
 }
 

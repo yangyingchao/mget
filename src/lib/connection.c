@@ -191,8 +191,8 @@ sockaddr_set_data (struct sockaddr *sa, ip_address* ip, int port)
         {
             struct sockaddr_in *sin = (struct sockaddr_in *)sa;
             XZERO (*sin);
-            sin->sin_family = AF_INET;
-            sin->sin_port = htons (port);
+            sin->sin_family = PF_INET;
+            sin->sin_port = htons (21);
             sin->sin_addr = ip->data.d4;
             break;
         }
@@ -228,29 +228,39 @@ connection* connection_get(const url_info* ui)
 
     connection_p* conn = ZALLOC1(connection_p);
 
-    if (!ui || !ui->host) {
+    if (!ui || (!ui->host && !ui->addr)) {
+        PDEBUG ("invalid ui.\n");
         goto ret;
     }
+
+    PDEBUG ("%p -- %p\n", ui, ui->addr);
 
     addr_entry *addr = NULL;
     if (ui->addr)
     {
-        struct sockaddr_storage ss;
-        struct sockaddr *sa = (struct sockaddr *)&ss;
-        /* Store the sockaddr info to SA.  */
-        sockaddr_set_data (sa, ui->addr, ui->port);
-
-        DEBUGP (("trying to connect to %s port %lu\n",
-                 print_address (ui->addr), ui->port));
-
-        /* Create the socket of the family appropriate for the address.  */
-        conn->sock = socket (sa->sa_family, SOCK_STREAM, 0);
-        if (conn->sock < 0)
+        conn->sock = socket(AF_INET, SOCK_STREAM, 0);
+        if (conn->sock == -1) {
             goto err;
-        PDEBUG ("sock: %d\n", conn->sock);
+        }
+        PDEBUG ("AA0\n");
 
-        if (connect (conn->sock, sa, sockaddr_size (sa) == -1)) {
-            perror("Failed to connect");
+
+        struct sockaddr_in sa;
+        if ((conn->sock = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
+            perror("socket");
+            goto err;
+        }
+
+        bzero(&sa, sizeof sa);
+
+        sa.sin_family = AF_INET;
+        sa.sin_port = htons(ui->port);
+        sa.sin_addr = ui->addr->data.d4;
+        DEBUGP (("AA:trying to connect to %s port %lu\n",
+                 print_address (ui->addr), ui->port));
+        if (connect(conn->sock, (struct sockaddr *)&sa, sizeof sa) < 0) {
+            perror("connect");
+            close(conn->sock);
             goto err;
         }
     }

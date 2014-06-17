@@ -33,6 +33,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <pthread.h>
 
 
 #define DEFAULT_FTP_CONNECTIONS       8
@@ -46,6 +47,7 @@ typedef struct _connection_operation_param_ftp {
     void (*cb) (metadata*, void*);
     metadata *md;
     int idx;
+    dinfo* info;
     void* user_data;
 } co_param_ftp;
 
@@ -232,9 +234,11 @@ ret:
 }
 
 
-uerr_t get_ftp_data_connection(dinfo* info, ftp_connection* conn,
-                               co_param_ftp* param)
+static inline uerr_t get_data_connection(dinfo* info,
+                                         co_param_ftp* param,
+                                         ftp_connection** pconn)
 {
+    ftp_connection* conn = ZALLOC1(ftp_connection);
     /* Login to the server: */
     conn->conn = connection_get(info->ui);
     if (!conn->conn)
@@ -407,40 +411,22 @@ Error in server response, closing control ftp_connection.\n"));
             abort ();
     }   /* switch (err) */
 
-    PDEBUG ("err: %d\n", err);
+    url_info ui;
+    memset(&ui, 0, sizeof(url_info));
+    ui.eprotocol = UP_FTP;
+    ui.addr = &passive_addr;
+    ui.port = passive_port;
 
-    if (err==FTPOK)
+    PDEBUG ("A0: %p\n", ui.addr);
+
+    conn->data_conn = connection_get(&ui);
+    if (!conn->data_conn)
     {
-        url_info ui;
-        memset(&ui, 0, sizeof(url_info));
-        ui.eprotocol = UP_FTP;
-        ui.addr = &passive_addr;
-        ui.port = passive_port;
+        return FTPRERR;
+    }
 
-        conn->data_conn = connection_get(&ui);
-        if (!conn->data_conn)
-        {
-            return FTPRERR;
-        }
 
-        /* dtsock = connect_to_ip (&passive_addr, passive_port, NULL); */
-        /* if (dtsock < 0) */
-        /* { */
-        /*     int save_errno = errno; */
-        /*     fd_close (conn); */
-        /*     con->conn = -1; */
-        /*     logprintf (LOG_VERBOSE, _("couldn't connect to %s port %d: %s\n"), */
-        /*                print_address (&passive_addr), passive_port, */
-        /*                strerror (save_errno)); */
-        /*     return (retryable_socket_connect_error (save_errno) */
-        /*             ? CONERROR : CONIMPOSSIBLE); */
-        /* } */
-
-        /* pasv_mode_open = true;  /\* Flag to avoid accept port *\/ */
-        /* if (!opt.server_response) */
-        /*     logputs (LOG_VERBOSE, _("done.    ")); */
-    } /* err==FTP_OK */
-
+    *pconn = conn;
     return FTPOK;
 }
 
@@ -494,24 +480,101 @@ int ftp_read_sock(connection * conn, void *priv)
     return rd;
 }
 
-int ftp_write_sock(connection * conn, void *priv)
+void* ftp_download_thread(void* arg)
 {
-    PDEBUG("enter\n");
-    if (!priv) {
-        return -1;
+    co_param_ftp* param = (co_param_ftp*)arg;
+    if (!arg)
+    {
+        pthread_exit(0);
+        return NULL;
     }
+
+    ftp_connection* conn = NULL;
+    uerr_t err = get_data_connection(param->info, param, &conn);
+    data_chunk *dp    = (data_chunk *) param->dp;
+
+    err = ftp_retr (conn, param->info->ui->uri);
+    /* FTPRERR, WRITEFAILED, FTPNSFOD */
+    switch (err)
+    {
+        case FTPRERR:
+            logputs (LOG_VERBOSE, "\n");
+            logputs (LOG_NOTQUIET, _("\
+Error in server response, closing control ftp_connection.\n"));
+            return NULL;
+        case WRITEFAILED:
+            logputs (LOG_VERBOSE, "\n");
+            logputs (LOG_NOTQUIET,
+                     _("Write failed, closing control ftp_connection.\n"));
+            return NULL;
+        case FTPNSFOD:
+            logputs (LOG_VERBOSE, "\n");
+            logprintf (LOG_NOTQUIET, _("No such file.\n\n"));
+        case FTPOK:
+            break;
+        default:
+            abort ();
+    }
+
+    int i = 0;
+    PDEBUG ("chunk_info: base: %p -- %p, cur: %08llX, start: %08llX, end_pos: %08llX\n",
+            param->addr, dp->base_addr, dp->cur_pos, dp->start_pos, dp->end_pos);
 // TODO: Remove this ifdef!
 #if 0
-    co_param_ftp *cp = (co_param_ftp *) priv;
-    char     *hd = generate_request_header("GET", cp->ui, cp->dp->cur_pos,
-                                           cp->dp->end_pos);
-    size_t written = conn->ci.writer(conn, hd, strlen(hd), NULL);
+    char* buf = ZALLOC(char, 4096);
+    int rd = conn->data_conn->ci.reader(conn->data_conn, buf, 4096, NULL);
+    char fn[64] = {'\0'};
+    sprintf(fn, "%p.bin", buf);
+    FILE* fp = fopen(fn, "w");
+    if (fp)
+    {
+        size_t got = fwrite(buf, 1, rd, fp);
+        fclose(fp);
+    }
 
-    free(hd);
-    return written;
+    return NULL;
 #endif // End of #if 0
 
-    return 0;
+    while (dp->cur_pos < dp->end_pos) {
+        void *addr = param->addr + dp->cur_pos;
+        int rd = conn->data_conn->ci.reader(conn->data_conn, param->addr + dp->cur_pos,
+                                        dp->end_pos - dp->cur_pos, NULL);
+        if (++i%78 ==0)
+            PDEBUG ("%d bytes written to %08llX..\n", rd, dp->cur_pos);
+
+        if (rd > 0) {
+            dp->cur_pos += rd;
+            /* if (param->cb) { */
+            /*     (*(param->cb)) (param->md, param->user_data); */
+            /* } */
+        } else if (rd == 0) {
+            PDEBUG("Read returns 0: showing chunk: "
+                   "retuned zero: dp: %p : %llX -- %llX\n",
+                   dp, dp->cur_pos, dp->end_pos);
+        } else {
+            PDEBUG("read returns %d\n", rd);
+            if (errno != EAGAIN) {
+                fprintf(stderr, "read returns %d: %s\n", rd, strerror(errno));
+                rd = COF_AGAIN;
+            }
+        }
+
+        if (dp->cur_pos >= dp->end_pos) {
+            PDEBUG("Finished chunk: %p\n", dp);
+            rd = COF_FINISHED;
+            break;
+        } else if (!rd) {
+            rd = COF_CLOSED;
+            PDEBUG("retuned zero: dp: %p : %llX -- %llX\n",
+                   dp, dp->cur_pos, dp->end_pos);
+            break;
+        }
+    }
+
+    PDEBUG ("chunk_info: base: %p -- %p, cur: %08llX, start: %08llX, end_pos: %08llX\n",
+            param->addr, dp->base_addr, dp->cur_pos, dp->start_pos, dp->end_pos);
+
+    return NULL;
 }
 
 int process_ftp_request(dinfo* info,
@@ -588,18 +651,14 @@ start: ;
         (*cb) (md, user_data);
     }
 
-    connection_group *sg = connection_group_create(stop_flag);
-
-    if (!sg) {
-        fprintf(stderr, "Failed to craete sock group.\n");
-        return -1;
-    }
-
     bool     need_request = false;
     ftp_connection* conn  = NULL;
     ftp_connection* conns = ZALLOC(ftp_connection, md->hd.nr_effective);
-    uerr_t          uerr   = FTPOK;
+    pthread_t*      tids  = ZALLOC(pthread_t, md->hd.nr_effective);
+    uerr_t          uerr  = FTPOK;
 
+    // ftp protocol asks us to interactive a lots before opening data
+    // connections, start different threads for them.
     for (int i = 0; i < md->hd.nr_effective; ++i) {
         PDEBUG ("i = %d\n", i);
 
@@ -621,18 +680,25 @@ start: ;
         param->md        = md;
         param->cb        = cb;
         param->user_data = user_data;
+        param->info = info;
 
-        uerr = get_ftp_data_connection(info, conn, param);
-        if (uerr != FTPOK) {
-            goto ret;
+        int tr = pthread_create(tids+i, NULL, ftp_download_thread, param);
+        if (tr < 0)
+        {
+            perror("Failed to create threads!");
+            exit(1);
         }
-
-        conn->data_conn->rf = ftp_read_sock;
-        conn->data_conn->wf = ftp_write_sock;
-        conn->data_conn->priv = param;
-
-        connection_add_to_group(sg, conn->data_conn);
     }
+
+    uint64 ds = 0;
+    for (int i = 0; i < md->hd.nr_effective; i++) {
+        int tr = pthread_join(tids[i], NULL);
+        if (tr < 0)
+        {
+            fprintf(stderr, "failed to join thread\n");
+        }
+    }
+
 
     if (!need_request) {
         md->hd.status = RS_FINISHED;

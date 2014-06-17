@@ -267,11 +267,8 @@ return num;
 char *
 number_to_static_string (wgint number)
 {
-    static char ring[RING_SIZE][24];
-    static int ringpos;
-    char *buf = ring[ringpos];
-    number_to_string (buf, number);
-    ringpos = (ringpos + 1) % RING_SIZE;
+    char* buf = NULL;
+    asprintf(&buf, "%llu", number);
     return buf;
 }
 
