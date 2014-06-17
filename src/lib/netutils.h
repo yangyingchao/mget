@@ -68,7 +68,7 @@ typedef struct _url_info {
 	char protocol[8];
 	char host[64];
 	char sport[8];
-    struct ip_address* addr;
+    ip_address* addr;
 	char *bname;
 	char *uri;
 	char *furl;		/* full url. */

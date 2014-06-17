@@ -231,8 +231,6 @@ ret:
     return 0;
 }
 
-#define print_address(X)   inet_ntoa ((X)->data.d4)
-
 
 uerr_t get_ftp_data_connection(dinfo* info, ftp_connection* conn,
                                co_param_ftp* param)
@@ -419,9 +417,12 @@ Error in server response, closing control ftp_connection.\n"));
         ui.addr = &passive_addr;
         ui.port = passive_port;
 
-        DEBUGP (("trying to connect to %s port %d\n",
-                 print_address (&passive_addr), passive_port));
         conn->data_conn = connection_get(&ui);
+        if (!conn->data_conn)
+        {
+            return FTPRERR;
+        }
+
         /* dtsock = connect_to_ip (&passive_addr, passive_port, NULL); */
         /* if (dtsock < 0) */
         /* { */

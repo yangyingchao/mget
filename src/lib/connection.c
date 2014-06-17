@@ -31,6 +31,9 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #ifdef HAVE_GNUTLS
 #include "ssl.h"
@@ -180,7 +183,7 @@ sockaddr_size (const struct sockaddr *sa)
 }
 
 static void
-sockaddr_set_data (struct sockaddr *sa, ip_address *ip, int port)
+sockaddr_set_data (struct sockaddr *sa, ip_address* ip, int port)
 {
     switch (ip->family)
     {
@@ -212,17 +215,18 @@ sockaddr_set_data (struct sockaddr *sa, ip_address *ip, int port)
     }
 }
 
-static hash_table *g_addr_cache = NULL;
+static hash_table* g_addr_cache = NULL;
 
+#define print_address(X)   inet_ntoa ((X)->data.d4)
 
-connection *connection_get(const url_info * ui)
+connection* connection_get(const url_info* ui)
 {
     if (!g_addr_cache) {
         g_addr_cache = hash_table_create(64, addr_entry_destroy);	//TODO: add deallocation..
         assert(g_addr_cache);
     }
 
-    connection_p *conn = ZALLOC1(connection_p);
+    connection_p* conn = ZALLOC1(connection_p);
 
     if (!ui || !ui->host) {
         goto ret;
@@ -236,10 +240,15 @@ connection *connection_get(const url_info * ui)
         /* Store the sockaddr info to SA.  */
         sockaddr_set_data (sa, ui->addr, ui->port);
 
+        DEBUGP (("trying to connect to %s port %lu\n",
+                 print_address (ui->addr), ui->port));
+
         /* Create the socket of the family appropriate for the address.  */
         conn->sock = socket (sa->sa_family, SOCK_STREAM, 0);
         if (conn->sock < 0)
             goto err;
+        PDEBUG ("sock: %d\n", conn->sock);
+
         if (connect (conn->sock, sa, sockaddr_size (sa) == -1)) {
             perror("Failed to connect");
             goto err;
