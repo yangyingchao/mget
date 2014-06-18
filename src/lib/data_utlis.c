@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include "log.h"
 #include <string.h>
+#include "mget_config.h"
 
 mget_slis *mget_slis_append(mget_slis * l, void *data, free_func f)
 {
@@ -55,7 +56,7 @@ uint32 StringHashFunction(const char *str)
     return hash % HASH_SIZE;
 }
 
-void hash_table_destroy(hash_table * table)
+void hash_table_destroy(hash_table* table)
 {
     if (table) {
         if (table->entries) {
@@ -77,9 +78,9 @@ void hash_table_destroy(hash_table * table)
     }
 }
 
-hash_table *hash_table_create(uint32 hashSize, DestroyFunction dFunctor)
+hash_table*hash_table_create(uint32 hashSize, DestroyFunction dFunctor)
 {
-    hash_table *table = malloc(sizeof(hash_table));
+    hash_table*table = malloc(sizeof(hash_table));
 
     if (table) {
         memset(table, 0, sizeof(hash_table));
@@ -102,7 +103,7 @@ hash_table *hash_table_create(uint32 hashSize, DestroyFunction dFunctor)
     return table;
 }
 
-bool hash_table_insert(hash_table * table, char *key, void *val)
+bool hash_table_insert(hash_table* table, char *key, void *val, uint32 len)
 {
     bool ret = false;
 
@@ -117,7 +118,9 @@ bool hash_table_insert(hash_table * table, char *key, void *val)
             if (entry->key == NULL) {
                 entry->key = d_key;
                 entry->val = val;
+                entry->val_len = len;
                 ret = true;
+                table->occupied ++;
                 break;
             }
         }
@@ -129,7 +132,7 @@ bool hash_table_insert(hash_table * table, char *key, void *val)
 
   @return void*
 */
-void *hash_table_entry_get(hash_table * table, const char *key)
+void *hash_table_entry_get(hash_table* table, const char *key)
 {
     TableEntry *entry = NULL;
     uint32 index = table->hashFunctor(key);
@@ -151,8 +154,87 @@ void *hash_table_entry_get(hash_table * table, const char *key)
     return NULL;
 }
 
-void dump_hash_table(hash_table * ht, void *buffer)
+uint32 dump_hash_table(hash_table* ht, void *buffer, uint32 buffer_size)
 {
+    if (!buffer || buffer_size <= 3 * sizeof(int))
+    {
+        return -1;
+    }
+
+    char* ptr = buffer;
+
+    // Version Number
+    *(int*)ptr = GET_VERSION();
+    ptr += sizeof(int);
+
+    // Capacity.
+    *(int*)ptr = ht->capacity;
+    ptr += sizeof(int);
+
+    *(int*)ptr = ht->occupied;
+    ptr += sizeof(int);
+
+    TableEntry *entry = NULL;
+    for (int i = 0; i < ht->capacity; i++) {
+        entry = &ht->entries[i];
+        if (entry->key && entry->val)
+        {
+            int key_len = (int)strlen(entry->key);
+            if (ptr -(char*)buffer + 2*sizeof(int) + key_len + entry->val_len)
+            {
+                return -1;
+            }
+
+            *(int*)ptr = strlen(entry->key);
+            ptr += sizeof(int);
+            *(int*)ptr = entry->val_len;
+            memcpy(ptr, entry->val, entry->val_len);
+            ptr += entry->val_len;
+        }
+    }
+
+    return ptr - (char*)buffer;
+}
+
+hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size)
+{
+    if (!buffer || buffer_size <= 3 * sizeof(int))
+    {
+        return NULL;
+    }
+
+    // version checking.
+    char* ptr = buffer;
+
+    if (*(int*)ptr != GET_VERSION())
+    {
+        fprintf(stderr, "WARNING: version changed!!!\n"
+                " You're reading hash tables of old version!!\n");
+    }
+
+    ptr += sizeof(int);
+
+    hash_table* ht = hash_table_create(*(int*)ptr, NULL);
+    ptr += sizeof(int);
+
+    int i = 0, total = *(int*)ptr;
+    ptr += sizeof(int);
+    while (i++ < total) {
+        // XXX: check memory regions.
+        int key_len = *(int*)ptr;
+        char* key = ZALLOC(char, key_len+1);
+        ptr += sizeof(int);
+        memcpy(key, ptr, key_len);
+
+        int val_len = *(int*)ptr;
+        void* val = ZALLOC(char, val_len+1);
+        ptr += sizeof(int);
+        memcpy(val, ptr, val_len);
+
+        hash_table_insert(ht, key, val, val_len);
+    }
+
+    return ht;
 }
 
 

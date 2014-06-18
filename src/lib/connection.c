@@ -307,7 +307,8 @@ connection* connection_get(const url_info* ui)
 
             if (rp != NULL) {
                 addr->addr = rp;
-                if (!hash_table_insert(g_addr_cache, (char*)ui->host, addr)) {
+                if (!hash_table_insert(g_addr_cache, (char*)ui->host, addr,
+                                       sizeof(*addr))) {
                     addr_entry_destroy(addr);
                     fprintf(stderr, "Failed to insert cache: %s\n", ui->host);
                 }

@@ -74,7 +74,7 @@ int dissect_header(const char *buffer, size_t length, hash_table ** ht)
 
     char *key = strdup("Status");
 
-    hash_table_insert(pht, key, strdup(value));
+    hash_table_insert(pht, key, strdup(value), strlen(value));
     ptr += n;
 
     num = sscanf(value, "%d", &stat);
@@ -86,7 +86,7 @@ int dissect_header(const char *buffer, size_t length, hash_table ** ht)
         memset(k, 0, 256);
         memset(v, 0, 256);
         if (sscanf((const char *) ptr, "%[^:]: %[^\r\n]\r\n%n", k, v, &n)) {
-            hash_table_insert(pht, strdup(k), strdup(v));
+            hash_table_insert(pht, strdup(k), strdup(v), strlen(v));
             ldsize += n;
             ptr += n;
         }
