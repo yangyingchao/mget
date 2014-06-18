@@ -135,6 +135,7 @@ void print_help()
         "\t-r:  resume a previous download using stored metadata.\n",
         "\t-u:  set user name.\n",
         "\t-p:  set user password.\n",
+        "\t-s:  show metadata of unfinished task.\n",
         "\t-h:  show this help.\n",
         "\n",
         NULL
@@ -245,17 +246,7 @@ int main(int argc, char *argv[])
 
     if (view_only) {
         if (file_existp(target)) {
-            printf("showing tmd file: %s, TBD...\n", target);
-            // TODO: Remove this ifdef!
-#if 0
-
-            metadata_wrapper mw;
-
-            metadata_create_from_file(target, &mw);
-            metadata_display(mw.md);
-            metadata_destroy(&mw);
-#endif // End of #if 0
-
+            metadata_inspect(target);
         } else {
             printf("File: %s not exists!\n", target);
         }

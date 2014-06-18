@@ -48,7 +48,6 @@ bool metadata_create_from_file(const char *fn, metadata** md, fh_map** fm_md)
 
     if ((fh = fhandle_create(fn, FHM_DEFAULT)) &&
         (fm = fhandle_mmap(fh, 0, fh->size))) {
-        PDEBUG ("A\n");
 
         *fm_md = fm;
         metadata* pmd = (metadata *) fm->addr;
@@ -70,8 +69,6 @@ bool metadata_create_from_file(const char *fn, metadata** md, fh_map** fm_md)
         /* pmd->ht = NULL;	//TODO: parse and initialize hash table. */
         return true;
     }
-    PDEBUG ("B\n");
-
 
     if (fm) {
         fhandle_munmap(&fm);
@@ -203,9 +200,9 @@ void metadata_display(metadata * md)
         return;
     }
 
-    fprintf(stderr, "size: %08llX (%.2f)M, nc: %d,url: %p -- %s\n",
+    fprintf(stderr, "size: %08llX (%.2f)M, nc: %d,url: %s, user: %p, passwd: %p\n",
             md->hd.package_size, (float) md->hd.package_size / (1 * M),
-            md->hd.nr_effective, md->url, md->url);
+            md->hd.nr_effective, md->url, md->user, md->passwd);
 
     uint64 recv = 0;
 
@@ -273,6 +270,19 @@ bool chunk_split(uint64 start, uint64 size, int *num,
 metadata* metadata_create_empty()
 {
     return NULL;
+}
+
+void metadata_inspect(const char*path)
+{
+    metadata* md = NULL;
+    fh_map*   fm = NULL;
+    if (!metadata_create_from_file(path, &md, &fm))
+    {
+        printf ("Failed to create metadata from file: %s\n", path);
+        return;
+    }
+
+    metadata_display(md);
 }
 
 /*

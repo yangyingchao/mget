@@ -88,6 +88,8 @@ typedef struct _metadata {
     char raw_data[0];		// start to body of raw_data.
 } metadata;
 
+void metadata_inspect(const char*);
+
 #ifdef __cplusplus
 }
 #endif
