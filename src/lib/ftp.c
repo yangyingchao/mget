@@ -68,9 +68,9 @@ uerr_t get_remote_file_size_ftp(dinfo* info, ftp_connection* conn,
     /* First: Establish the control ftp_connection, already done.  */
 
     /* Second: Login with proper USER/PASS sequence.  */
-    logprintf (LOG_VERBOSE, "Logging in as %s ... \n", info->md->user);
+    logprintf (LOG_VERBOSE, "Logging in as %s ... \n", info->md->ptrs->user);
 
-    uerr_t err = ftp_login (conn, info->md->user, info->md->passwd);
+    uerr_t err = ftp_login (conn, info->md->ptrs->user, info->md->ptrs->passwd);
 
     /* FTPRERR, FTPSRVERR, WRITEFAILED, FTPLOGREFUSED, FTPLOGINC */
     switch (err)
@@ -246,7 +246,7 @@ static inline uerr_t get_data_connection(dinfo* info,
         return FTPRERR;
     }
 
-    uerr_t err = ftp_login (conn, info->md->user, info->md->passwd);
+    uerr_t err = ftp_login (conn, info->md->ptrs->user, info->md->ptrs->passwd);
     /* FTPRERR, FTPSRVERR, WRITEFAILED, FTPLOGREFUSED, FTPLOGINC */
     switch (err)
     {
@@ -539,15 +539,15 @@ int process_ftp_request(dinfo* info,
     if (dinfo_ready(info))
         goto start;
 
-    PDEBUG ("C: %p -- %p\n",info->md->user, info->md->passwd);
+    PDEBUG ("C: %p -- %p\n",info->md->ptrs->user, info->md->ptrs->passwd);
 
-    if (!info->md->user)
+    if (!info->md->ptrs->user)
     {
-        info->md->user = strdup("anonymous");
+        info->md->ptrs->user = strdup("anonymous");
     }
-    if (!info->md->passwd)
+    if (!info->md->ptrs->passwd)
     {
-        info->md->passwd = strdup("anonymous");
+        info->md->ptrs->passwd = strdup("anonymous");
     }
 
     ftp_connection* fconn = ZALLOC1(ftp_connection);
@@ -613,7 +613,7 @@ start: ;
     for (int i = 0; i < md->hd.nr_effective; ++i) {
         PDEBUG ("i = %d\n", i);
 
-        data_chunk *dp = &md->body[i];
+        data_chunk *dp = &md->ptrs->body[i];
 
         if (dp->cur_pos >= dp->end_pos) {
             continue;
@@ -626,7 +626,7 @@ start: ;
 
         param->addr      = info->fm_file->addr;
         param->idx       = i;
-        param->dp        = md->body + i;
+        param->dp        = md->ptrs->body + i;
         param->ui        = ui;
         param->md        = md;
         param->cb        = cb;
@@ -658,7 +658,7 @@ start: ;
 
     dinfo_sync(info);
 
-    data_chunk *dp = md->body;
+    data_chunk *dp = md->ptrs->body;
     bool finished = true;
 
     for (int i = 0; i < CHUNK_NUM(md); ++i) {

@@ -103,8 +103,8 @@ bool dinfo_create(const char *url, const file_name * fn,
 
         // Destroy url info and recreate using url stored in mw.
         url_info_destroy(&ui);
-        if (!parse_url(dInfo->md->url, &ui)) {
-            fprintf(stderr, "Failed to parse stored url: %s.\n", dInfo->md->url);
+        if (!parse_url(dInfo->md->ptrs->url, &ui)) {
+            fprintf(stderr, "Failed to parse stored url: %s.\n", dInfo->md->ptrs->url);
             if (url) {
                 fprintf(stderr, "Removing old metadata and retring...\n");
                 url_info_destroy(&ui);
@@ -133,11 +133,10 @@ bool dinfo_create(const char *url, const file_name * fn,
         PDEBUG ("creating empty metadata using: %s -- %s --%s --%s\n",
                 url, fpath, opt->user, opt->passwd);
 
-        uint16 ebl = PA(strlen(url), 4) + PA(strlen(fpath), 4) +
-                     (opt->user ? PA(strlen(opt->user), 4) : 0) +
-                     (opt->passwd ? PA(strlen(opt->passwd), 4) : 0) +
-                     512;
-        size_t md_size = MH_SIZE() + (sizeof(data_chunk)*opt->max_connections) + (size_t)ebl;
+        uint16 ebl = 1024;
+        size_t md_size = MH_SIZE() + sizeof(void*) +
+                         (sizeof(data_chunk)*opt->max_connections) +
+                         PA(ebl, 4);
 
         dInfo->fm_md = fm_create(tfn, md_size);
         dInfo->md = (metadata*)dInfo->fm_md->addr;
@@ -146,6 +145,8 @@ bool dinfo_create(const char *url, const file_name * fn,
         metadata* pmd = dInfo->md;
         memset(pmd, 0, md_size);
         mh *hd = &pmd->hd;
+        hash_table* ht = hash_table_create(128, free);
+        mp* ptrs = ZALLOC1(mp);
 
         sprintf(((char *) &hd->iden), "TMD");
         hd->version      = GET_VERSION();
@@ -158,42 +159,43 @@ bool dinfo_create(const char *url, const file_name * fn,
         hd->eb_length    = ebl;
         hd->acon         = opt->max_connections;
 
-        pmd->body = (data_chunk *) pmd->raw_data;
-        char *ptr = pmd->raw_data + CHUNK_SIZE(pmd);
+        pmd->ptrs = ptrs;
+        ptrs->body      = (data_chunk *) pmd->raw_data;
+        ptrs->ht        = ht;
+        ptrs->ht_buffer = (char*)(pmd->raw_data) +
+                          sizeof(data_chunk) * pmd->hd.nr_user;
 
-        pmd->url = ptr;
+
         if (url) {
-            sprintf(pmd->url, "%s", url);
+            ptrs->url = strdup(url);
+            hash_table_insert(ptrs->ht, strdup(K_URL), ptrs->url,
+                              strlen(url));
         }
 
-        ptr += strlen(pmd->url) + 1;
-        pmd->fn = ptr;
-        if (fn) {
-            sprintf(pmd->fn, "%s", fpath);
-        }
-
-        ptr += strlen(pmd->fn) + 1;
+        if (fpath) {
+            char *tmp = get_basename(fpath);
+            ptrs->fn = strdup(tmp);
+            free(tmp);
+            hash_table_insert(ptrs->ht, strdup(K_FN), ptrs->fn,
+                              strlen(ptrs->fn));
+       }
 
         if (opt->user)
         {
-            pmd->user = ptr;
-            sprintf(pmd->user, "%s", opt->user);
-            ptr += strlen(pmd->user) + 1;
+            pmd->ptrs->user = strdup(opt->user);
+            hash_table_insert(ptrs->ht, strdup(K_USR), ptrs->user,
+                              strlen(ptrs->fn));
         }
 
-        PDEBUG ("user: %s\n", pmd->user);
+        PDEBUG ("user: %s\n", pmd->ptrs->user);
 
         if (opt->passwd)
         {
-            pmd->passwd = ptr;
-            sprintf(pmd->passwd, "%s", opt->passwd);
-            ptr += strlen(pmd->user) + 1;
+            pmd->ptrs->passwd = strdup(opt->passwd);
+            hash_table_insert(ptrs->ht, strdup(K_PASSWD), ptrs->passwd,
+                              strlen(ptrs->fn));
         }
-        PDEBUG ("passwd: %s\n", pmd->passwd);
-
-        /* pmd->mime = ptr; */
-        /* ptr += strlen(pmd->mime) + 1; */
-        /* pmd->ht = NULL;		// TODO: Initialize hash table based on ptr. */
+        PDEBUG ("passwd: %s\n", pmd->ptrs->passwd);
     }
 
     // create fm for downloaded file.
@@ -228,8 +230,12 @@ extern bool chunk_split(uint64 start, uint64 size, int *num,
 
 bool dinfo_update_metadata(uint64 size, dinfo* info)
 {
+    PDEBUG ("enter\n");
+
     if (!info || !info->md)
         return false;
+
+    PDEBUG ("enter 2\n");
 
     metadata*   md = info->md;
     mh*         hd = &md->hd;
@@ -248,8 +254,28 @@ bool dinfo_update_metadata(uint64 size, dinfo* info)
 
     for (int i = 0; i < nc; ++i) {
         data_chunk *p = dc + i;
-        md->body[i] = *p;
+        md->ptrs->body[i] = *p;
     }
+
+    hash_table* ht = md->ptrs->ht;
+    assert(ht != NULL);
+
+#define DINFO_UPDATE_HASH(K, V)                 \
+    PDEBUG("showing: %s - %s: \n", (K), ((V)));              \
+    if (V)                                                 \
+        hash_table_insert(ht, strdup(K), (V), strlen(V))
+
+    DINFO_UPDATE_HASH(K_URL, md->ptrs->url);
+    DINFO_UPDATE_HASH(K_FN, md->ptrs->fn);
+    DINFO_UPDATE_HASH(K_USR, md->ptrs->user);
+    DINFO_UPDATE_HASH(K_PASSWD, md->ptrs->passwd);
+
+#undef DINFO_UPDATE_HASH
+
+    dump_hash_table(ht, md->ptrs->ht_buffer, md->hd.eb_length);
+
+    PDEBUG ("chunk: %p -- %p, ht_buffer: %p\n",
+            md->raw_data, md->ptrs->body, md->ptrs->ht_buffer);
 
     // now update fm_file.
     fm_remap(&info->fm_file, size);

@@ -30,6 +30,7 @@ extern "C" {
 #include "mget_types.h"
 #include "mget_macros.h"
 #include "mget_utils.h"
+#include "mget_metadata.h"
 
 typedef void (*free_func) (void *);
 
@@ -95,14 +96,14 @@ typedef struct _TableEntry {
     uint32 val_len; // length of value.
 } TableEntry;
 
-typedef struct _hash_table {
+struct _hash_table {
     int capacity;
     int occupied;
     TableEntry *entries;
 
     HashFunction hashFunctor;
     DestroyFunction deFunctor;
-} hash_table;
+};
 
 
 // Functions.
@@ -120,6 +121,13 @@ void *hash_table_entry_get(hash_table* table, const char *key);
  */
 uint32 dump_hash_table(hash_table* ht, void *buffer, uint32 buffer_size);
 hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size);
+
+/**
+ * @name calculate_hash_table_size - calculate buffer size to hold hash table
+ * @param ht -  hash table.
+ * @return uint32
+ */
+uint32 calculate_hash_table_buffer(hash_table* ht);
 
 char *rstrip(char *str);
 

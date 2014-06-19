@@ -64,6 +64,8 @@ typedef struct metadata_head {
     uint8 reserved[22]; // reserved ...                                  -- 64
 } mh;				// up to 64 bytes
 
+typedef struct _hash_table hash_table;
+
 // Byte/     0       |       1       |       2       |       3       |
 // ***/              |               |               |               |
 // **|0 1 2 3 4 5 6 7|0 1 2 3 4 5 6 7|0 1 2 3 4 5 6 7|0 1 2 3 4 5 6 7|
@@ -77,15 +79,23 @@ typedef struct metadata_head {
 // **|            URL  FN  MIME   OTHERS   .....                     |
 // **+-------------------------------+-------------------------------+
 
-typedef struct _metadata {
-    mh hd;			// header, up to 48 bytes.
-    data_chunk *body;		// pointer to data_chunk
+typedef struct _metadata_ptrs
+{
+    data_chunk *body;   // pointer to data_chunk
+    char* ht_buffer;    // points to buffer for serialized hash_tables.
+    hash_table* ht;     // points to hash table.
     char *url;			// pointer to url
     char *fn;			// saved file name.
     char *user;
     char *passwd;
     char *mime;			// pointer to mime type
-    char raw_data[0];		// start to body of raw_data.
+} mp;
+
+
+typedef struct _metadata {
+    mh hd;			   // header, up to 64 bytes.
+    mp* ptrs;           // All pointers that can be calculated.
+    char raw_data[0];  // start to body of raw_data.
 } metadata;
 
 void metadata_inspect(const char*);

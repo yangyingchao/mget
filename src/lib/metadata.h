@@ -33,11 +33,14 @@ extern "C" {
 
 #define PA(X, N)       ((X % N) ? (N * ((X/N) + 1)):X)
 #define MH_SIZE()      sizeof(mh)
-#define MD_SIZE(X)     (MH_SIZE()+sizeof(void*)*6+sizeof(data_chunk)*(X->hd.nr_user)+PA(X->hd.eb_length,4))
+#define MD_SIZE(X)     (MH_SIZE()+sizeof(void*)+sizeof(data_chunk)*(X->hd.nr_user)+PA(X->hd.eb_length,4))
 #define CHUNK_NUM(X)       (X->hd.nr_effective)
 #define CHUNK_SIZE(X)      (sizeof(data_chunk)*(X->hd.nr_user))
-#define GET_URL(X)         (((char*)X->raw_data)+CHUNK_SIZE(X))
-#define GET_FN(X)         (GET_URL(X)+strlen(GET_URL(X))+1)
+
+#define K_URL       "URL"
+#define K_USR       "USER"
+#define K_PASSWD    "PASSWD"
+#define K_FN        "FN"
 
 typedef struct _metadata_wrapper {
     metadata *md;
@@ -47,12 +50,6 @@ typedef struct _metadata_wrapper {
 
 bool chunk_split(uint64, uint64, int*, uint64*, data_chunk **);
 bool metadata_create_from_file(const char *fn, metadata** md, fh_map** fm_md);
-bool metadata_create_from_url(const char *url,
-                              const char *fn,
-                              uint64      size,
-                              int         nc,
-                              mget_slis*  lst,
-                              metadata** md);
 void metadata_destroy(metadata_wrapper * mw);
 void metadata_display(metadata * md);
 

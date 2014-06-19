@@ -374,7 +374,7 @@ start: ;
     bool need_request = false;
 
     for (int i = 0; i < md->hd.nr_effective; ++i) {
-        data_chunk *dp = &md->body[i];
+        data_chunk *dp = &md->ptrs->body[i];
 
         if (dp->cur_pos >= dp->end_pos) {
             continue;
@@ -393,7 +393,7 @@ start: ;
         co_param *param = ZALLOC1(co_param);
 
         param->addr      = info->fm_file->addr;
-        param->dp        = md->body + i;
+        param->dp        = md->ptrs->body + i;
         param->ui        = ui;
         param->md        = md;
         param->cb        = cb;
@@ -418,7 +418,7 @@ start: ;
 
     dinfo_sync(info);
 
-    data_chunk *dp = md->body;
+    data_chunk *dp = md->ptrs->body;
     bool finished = true;
 
     for (int i = 0; i < CHUNK_NUM(md); ++i) {

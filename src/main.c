@@ -79,7 +79,7 @@ void show_progress(metadata* md, void* user_data)
         char *date = current_time_str();
 
         printf("%s - %s saved in %s [%.02fKB/s] ...\n",
-               date, md->fn,
+               date, md->ptrs->fn,
                stringify_time(md->hd.acc_time),
                (double) (md->hd.package_size) / K / md->hd.acc_time);
         free(date);
@@ -96,7 +96,7 @@ void show_progress(metadata* md, void* user_data)
             idx++;
         }
     } else {
-        data_chunk *dp    = md->body;
+        data_chunk *dp    = md->ptrs->body;
         uint64      total = md->hd.package_size;
         uint64      recv  = 0;
 
