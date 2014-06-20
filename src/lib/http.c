@@ -1,4 +1,4 @@
-/** mget_http.c --- implementation of libmget using raw socket
+/** mget_http.c --- implementation of libmget using http
  *
  * Copyright (C) 2013 Yang,Ying-chao
  *
@@ -32,7 +32,7 @@
 #define BUF_SIZE                 4096
 
 
-static inline char *generate_request_header(const char *method, url_info * uri,
+static inline char *generate_request_header(const char* method, url_info* uri,
                                             uint64 start_pos, uint64 end_pos)
 {
     static char buffer[BUF_SIZE];
@@ -74,7 +74,7 @@ int dissect_header(const char *buffer, size_t length, hash_table ** ht)
 
     char *key = strdup("Status");
 
-    hash_table_insert(pht, key, strdup(value));
+    hash_table_insert(pht, key, strdup(value), strlen(value));
     ptr += n;
 
     num = sscanf(value, "%d", &stat);
@@ -86,7 +86,7 @@ int dissect_header(const char *buffer, size_t length, hash_table ** ht)
         memset(k, 0, 256);
         memset(v, 0, 256);
         if (sscanf((const char *) ptr, "%[^:]: %[^\r\n]\r\n%n", k, v, &n)) {
-            hash_table_insert(pht, strdup(k), strdup(v));
+            hash_table_insert(pht, strdup(k), strdup(v), strlen(v));
             ldsize += n;
             ptr += n;
         }
@@ -202,7 +202,7 @@ typedef struct _connection_operation_param {
     void (*cb) (metadata*, void*);
     metadata *md;
     void* user_data;
-} so_param;
+} co_param;
 
 int http_read_sock(connection * conn, void *priv)
 {
@@ -210,7 +210,7 @@ int http_read_sock(connection * conn, void *priv)
         return -1;
     }
     //todo: Ensure we read all data stored in this connection.
-    so_param   *param = (so_param *) priv;
+    co_param   *param = (co_param *) priv;
     data_chunk *dp    = (data_chunk *) param->dp;
 
     if (dp->cur_pos >= dp->end_pos)  {
@@ -294,7 +294,7 @@ int http_write_sock(connection * conn, void *priv)
         return -1;
     }
 
-    so_param *cp = (so_param *) priv;
+    co_param *cp = (co_param *) priv;
     char     *hd = generate_request_header("GET", cp->ui, cp->dp->cur_pos,
                                            cp->dp->end_pos);
     size_t written = conn->ci.writer(conn, hd, strlen(hd), NULL);
@@ -329,8 +329,8 @@ int process_http_request(dinfo* info, dp_callback cb, bool * stop_flag,
     PDEBUG("total_size: %llu\n", total_size);
 
     /*
-      If it goes here, means metadata is not ready, get nc (number of connections)
-      from download_info, and recreate metadata.
+      If it goes here, means metadata is not ready, get nc (number of
+      connections) from download_info, and recreate metadata.
      */
 
     int nc = info->md ? info->md->hd.nr_user : DEFAULT_HTTP_CONNECTIONS;
@@ -372,10 +372,9 @@ start: ;
     }
 
     bool need_request = false;
+    data_chunk *dp = md->ptrs->body;
 
-    for (int i = 0; i < md->hd.nr_effective; ++i) {
-        data_chunk *dp = &md->body[i];
-
+    for (int i = 0; i < md->hd.nr_effective; ++i, ++dp) {
         if (dp->cur_pos >= dp->end_pos) {
             continue;
         }
@@ -390,10 +389,10 @@ start: ;
             }
         }
 
-        so_param *param = ZALLOC1(so_param);
+        co_param *param = ZALLOC1(co_param);
 
         param->addr      = info->fm_file->addr;
-        param->dp        = md->body + i;
+        param->dp        = dp;
         param->ui        = ui;
         param->md        = md;
         param->cb        = cb;
@@ -418,15 +417,14 @@ start: ;
 
     dinfo_sync(info);
 
-    data_chunk *dp = md->body;
+    dp = md->ptrs->body;
     bool finished = true;
 
-    for (int i = 0; i < CHUNK_NUM(md); ++i) {
+    for (int i = 0; i < CHUNK_NUM(md); ++i, ++dp) {
         if (dp->cur_pos < dp->end_pos) {
             finished = false;
             break;
         }
-        dp++;
     }
 
     if (finished) {

@@ -162,12 +162,14 @@ char *get_basename(const char *fname)
 
 bool file_existp(const char *path)
 {
+    PDEBUG ("path: %s\n", path);
+
     if (!path)
         return false;
 
-    int ret;
+    int ret = access(path, F_OK);
+    PDEBUG ("ret: %d\n", ret);
 
-    ret = access(path, F_OK);
     if (ret < 0)
         return false;
     struct stat sb;

@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include "log.h"
 #include <string.h>
+#include "mget_config.h"
 
 mget_slis *mget_slis_append(mget_slis * l, void *data, free_func f)
 {
@@ -55,7 +56,7 @@ uint32 StringHashFunction(const char *str)
     return hash % HASH_SIZE;
 }
 
-void hash_table_destroy(hash_table * table)
+void hash_table_destroy(hash_table* table)
 {
     if (table) {
         if (table->entries) {
@@ -77,9 +78,9 @@ void hash_table_destroy(hash_table * table)
     }
 }
 
-hash_table *hash_table_create(uint32 hashSize, DestroyFunction dFunctor)
+hash_table*hash_table_create(uint32 hashSize, DestroyFunction dFunctor)
 {
-    hash_table *table = malloc(sizeof(hash_table));
+    hash_table*table = malloc(sizeof(hash_table));
 
     if (table) {
         memset(table, 0, sizeof(hash_table));
@@ -102,10 +103,9 @@ hash_table *hash_table_create(uint32 hashSize, DestroyFunction dFunctor)
     return table;
 }
 
-bool hash_table_insert(hash_table * table, char *key, void *val)
+bool hash_table_insert(hash_table* table, char *key, void *val, uint32 len)
 {
     bool ret = false;
-
     if (table && key && val) {
         uint32 i;
         char *d_key = strdup(key);
@@ -113,15 +113,29 @@ bool hash_table_insert(hash_table * table, char *key, void *val)
         // Insert entry into the first open slot starting from index.
         for (i = table->hashFunctor(d_key); i < table->capacity; ++i) {
             TableEntry *entry = &table->entries[i];
-
-            if (entry->key == NULL) {
+            if (entry->key)
+            {
+                if (!strcmp(key, entry->key))
+                {
+                    return false;
+                }
+            }
+            else {
                 entry->key = d_key;
                 entry->val = val;
+                entry->val_len = len;
                 ret = true;
+                table->occupied ++;
                 break;
             }
         }
     }
+
+    if (!ret)
+    {
+        PDEBUG ("Failed to insert: %s -- %s\n", key, (char*)val);
+    }
+
     return ret;
 }
 
@@ -129,7 +143,7 @@ bool hash_table_insert(hash_table * table, char *key, void *val)
 
   @return void*
 */
-void *hash_table_entry_get(hash_table * table, const char *key)
+void *hash_table_entry_get(hash_table* table, const char *key)
 {
     TableEntry *entry = NULL;
     uint32 index = table->hashFunctor(key);
@@ -151,10 +165,113 @@ void *hash_table_entry_get(hash_table * table, const char *key)
     return NULL;
 }
 
-void dump_hash_table(hash_table * ht, void *buffer)
+uint32 dump_hash_table(hash_table* ht, void *buffer, uint32 buffer_size)
 {
+    if (!buffer || buffer_size <= 3 * sizeof(int))
+    {
+        return -1;
+    }
+
+    PDEBUG ("Dumping to %p\n", buffer);
+
+    char* ptr = buffer;
+
+    // Version Number
+    *(int*)ptr = GET_VERSION();
+    ptr += sizeof(int);
+
+    // Capacity.
+    *(int*)ptr = ht->capacity;
+    ptr += sizeof(int);
+
+    *(int*)ptr = ht->occupied;
+    ptr += sizeof(int);
+
+    TableEntry *entry = NULL;
+    for (int i = 0; i < ht->capacity; i++) {
+        entry = &ht->entries[i];
+
+        if (entry->key && entry->val)
+        {
+            int key_len = (int)strlen(entry->key);
+            //todo: check buffer size.
+
+            *(int*)ptr = key_len;
+            ptr += sizeof(int);
+            memcpy(ptr, entry->key, key_len);
+            ptr += key_len;
+
+            *(int*)ptr = entry->val_len;
+            ptr += sizeof(int);
+            memcpy(ptr, entry->val, entry->val_len);
+            ptr += entry->val_len;
+        }
+    }
+
+    return ptr - (char*)buffer;
 }
 
+hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size)
+{
+    if (!buffer || buffer_size <= 3 * sizeof(int))
+    {
+        return NULL;
+    }
+
+    // version checking.
+    char* ptr = buffer;
+
+    if (*(int*)ptr != GET_VERSION())
+    {
+        fprintf(stderr, "WARNING: version changed!!!\n"
+                " You're reading hash tables of old version!!"
+                " -- %d: %d\n", *(int*)ptr, GET_VERSION());
+    }
+
+    ptr += sizeof(int);
+
+    hash_table* ht = hash_table_create(*(int*)ptr, NULL);
+    ptr += sizeof(int);
+
+    int i = 0, total = *(int*)ptr;
+    ptr += sizeof(int);
+    while (i++ < total) {
+        assert(ptr - (char*)buffer <= buffer_size);
+
+        int key_len = *(int*)ptr;
+        char* key = ZALLOC(char, key_len+1);
+        ptr += sizeof(int);
+
+        memcpy(key, ptr, key_len);
+        ptr += key_len;
+
+        int val_len = *(int*)ptr;
+        void* val = ZALLOC(char, val_len+1);
+        ptr += sizeof(int);
+
+        memcpy(val, ptr, val_len);
+        ptr += val_len;
+
+        hash_table_insert(ht, key, val, val_len);
+    }
+
+    return ht;
+}
+
+uint32 calculate_hash_table_buffer(hash_table* ht)
+{
+    uint32 size = 3 * sizeof(int);
+    TableEntry* entry = NULL;
+    for (int i = 0; i < ht->capacity; i++) {
+        entry = ht->entries+i;
+        if (entry->key && entry->val)
+        {
+            size += 2 * sizeof(int) + strlen(entry->key) + entry->val_len;
+        }
+    }
+
+    return size;
+}
 
 char *rstrip(char *str)
 {
@@ -184,6 +301,19 @@ const char *stringify_size(uint64 sz)
     }
 
     return str_size;
+}
+
+byte_queue* bq_init(size_t size)
+{
+    byte_queue* bq = ZALLOC1(byte_queue);
+    bq->r = bq->w = bq->p = ZALLOC(byte, size);
+    bq->x = bq->p + size;
+    return  bq;
+}
+
+byte_queue* bq_resize(byte_queue* bq, size_t sz)
+{
+    return NULL;
 }
 
 /*

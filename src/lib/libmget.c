@@ -25,12 +25,13 @@
 #include <strings.h>
 #include "log.h"
 #include "http.h"
+#include "ftp.h"
 
-bool start_request(const char *url, const file_name* fn, int nc,
+bool start_request(const char *url, const file_name* fn, mget_option* opt,
                    dp_callback cb, bool* stop_flag, void* user_data)
 {
     dinfo* info = NULL;
-    bool   ret  = dinfo_create(url, fn, nc, &info);
+    bool   ret  = dinfo_create(url, fn, opt, &info);
     if (!ret)
     {
         fprintf(stderr, "Failed to create download info\n");
@@ -41,11 +42,13 @@ bool start_request(const char *url, const file_name* fn, int nc,
         case UP_HTTP:
         case UP_HTTPS:
         {
-            int ret = process_http_request(info, cb, stop_flag, user_data);
-
-            if (ret == 0) {
-                break;
-            }
+            ret = !process_http_request(info, cb, stop_flag, user_data);
+            break;
+        }
+        case UP_FTP:
+        {
+            ret = !process_ftp_request(info, cb, stop_flag, user_data);
+            break;
         }
         default:
         {

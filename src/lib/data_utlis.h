@@ -30,6 +30,7 @@ extern "C" {
 #include "mget_types.h"
 #include "mget_macros.h"
 #include "mget_utils.h"
+#include "mget_metadata.h"
 
 typedef void (*free_func) (void *);
 
@@ -92,29 +93,57 @@ typedef uint32(*HashFunction) (const char *key);
 typedef struct _TableEntry {
     char *key;
     void *val;
+    uint32 val_len; // length of value.
 } TableEntry;
 
-typedef struct _hash_table {
+struct _hash_table {
     int capacity;
+    int occupied;
     TableEntry *entries;
 
-    void *bufer;		// Serailized buffer.
     HashFunction hashFunctor;
     DestroyFunction deFunctor;
-} hash_table;
+};
 
 
 // Functions.
-void hash_table_destroy(hash_table * table);
-hash_table *hash_table_create(uint32 size, DestroyFunction dFunctor);
-bool hash_table_insert(hash_table * table, char *key, void *val);
-void *hash_table_entry_get(hash_table * table, const char *key);
+void hash_table_destroy(hash_table* table);
+hash_table*hash_table_create(uint32 size, DestroyFunction dFunctor);
+bool hash_table_insert(hash_table* table, char *key, void *val, uint32 val_len);
+void *hash_table_entry_get(hash_table* table, const char *key);
 
-void dump_hash_table(hash_table * ht, void *buffer);
+/**
+ * @name dump_hash_table - Dump hash table to buffer.
+ * @param ht -  ht to be dumpped.
+ * @param buffer - buffer
+ * @param buffer_size - buffer size 
+ * @return uint32: size used, or -1 if not enough space.
+ */
+uint32 dump_hash_table(hash_table* ht, void *buffer, uint32 buffer_size);
+hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size);
+
+/**
+ * @name calculate_hash_table_size - calculate buffer size to hold hash table
+ * @param ht -  hash table.
+ * @return uint32
+ */
+uint32 calculate_hash_table_buffer(hash_table* ht);
 
 char *rstrip(char *str);
 
 #define GET_HASH_ENTRY(T, H, K)       ((T*)hash_table_entry_get(H, K))
+
+
+typedef struct _byte_queue
+{
+    byte* p; // start of buffer
+    byte* r; // read ptr
+    byte* w; // write ptr
+    byte* x; // end of buffer
+} byte_queue;
+
+byte_queue* bq_init(size_t size);
+byte_queue* bq_resize(byte_queue* bq, size_t sz);
 
 #ifdef __cplusplus
 }

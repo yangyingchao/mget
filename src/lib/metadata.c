@@ -35,8 +35,11 @@
 
 #define SHOW_CHUNK(p)    PDEBUG ("%p, cur_pos: %08llX, end_pos: %08llX\n",p,p->cur_pos, p->end_pos)
 
+
 bool metadata_create_from_file(const char *fn, metadata** md, fh_map** fm_md)
 {
+    PDEBUG ("enter with fn: %s\n", fn);
+
     bool     ret = false;
     fhandle *fh  = NULL;
     fh_map  *fm  = NULL;
@@ -46,30 +49,32 @@ bool metadata_create_from_file(const char *fn, metadata** md, fh_map** fm_md)
 
     if ((fh = fhandle_create(fn, FHM_DEFAULT)) &&
         (fm = fhandle_mmap(fh, 0, fh->size))) {
-        PDEBUG ("A\n");
 
         *fm_md = fm;
         metadata* pmd = (metadata *) fm->addr;
         *md = pmd;
 
+        mp* ptrs = ZALLOC1(mp);
+        pmd->ptrs = ptrs;
+
         //TODO: version checks....
-        pmd->body = (data_chunk *) pmd->raw_data;
-        char *ptr = GET_URL(pmd);
+        ptrs->body = (data_chunk*) pmd->raw_data;
+        ptrs->ht_buffer = (char*)(pmd->raw_data) +
+                          sizeof(data_chunk) * pmd->hd.nr_user;
 
-        pmd->url = ptr;
+        ptrs->ht = hash_table_create_from_buffer(pmd->ptrs->ht_buffer, pmd->hd.eb_length);
+        if (!ptrs->ht)
+        {
+            fprintf(stderr, "Failed to create hash table from buffer.\n");
+        }
 
-        ptr += strlen(pmd->url) + 1;
-        pmd->fn = ptr;
+        ptrs->url = (char*)hash_table_entry_get(pmd->ptrs->ht, K_URL);
+        ptrs->fn = (char*)hash_table_entry_get(pmd->ptrs->ht, K_FN);
+        ptrs->user = (char*)hash_table_entry_get(pmd->ptrs->ht, K_USR);
+        ptrs->passwd = (char*)hash_table_entry_get(pmd->ptrs->ht, K_PASSWD);
 
-        ptr += strlen(pmd->fn) + 1;
-        pmd->mime = ptr;
-
-        /* ptr += strlen(pmd->mime) + 1; */
-        /* pmd->ht = NULL;	//TODO: parse and initialize hash table. */
         return true;
     }
-    PDEBUG ("B\n");
-
 
     if (fm) {
         fhandle_munmap(&fm);
@@ -90,61 +95,67 @@ bool  metadata_create_from_url(const char* url,
                               metadata** md)
 {
     data_chunk *dc = NULL;
-
-    if (!md || !chunk_split(0, size, &nc, &dc) || !dc) {
+    uint64 cs = 0;
+    if (!md || !chunk_split(0, size, &nc, &cs, &dc) || !dc) {
         PDEBUG("return err.\n");
         return false;
     }
 
-    uint16 ebl = PA(strlen(url), 4) + 512;	// TODO: calculate real eb_length from lst.
+    uint16 ebl = 1024;	// TODO: calculate real eb_length from lst.
     size_t md_size = MH_SIZE() + (sizeof(data_chunk) * nc) + ebl;
 
-    metadata *pmd = (metadata *) malloc(md_size);
+    metadata* pmd = (metadata *) malloc(md_size);
+    mp* ptrs = ZALLOC1(mp);
 
-    if (pmd) {
-        *md = pmd;
-        memset(pmd, 0, md_size);
-        mh *hd = &pmd->hd;
-
-        sprintf(((char *) &hd->iden), "TMD");
-        hd->version      = GET_VERSION();
-        hd->package_size = size;
-        hd->last_time    = get_time_s();
-        hd->acc_time     = 0;
-        hd->status       = RS_INIT;
-        hd->nr_user      = nc;
-        hd->nr_effective = 0;
-        hd->eb_length    = ebl;
-        hd->acon         = nc;
-
-        pmd->body = (data_chunk *) pmd->raw_data;
-        char *ptr = pmd->raw_data + CHUNK_SIZE(pmd);
-
-        pmd->url = ptr;
-        if (url) {
-            sprintf(pmd->url, "%s", url);
-        }
-
-        ptr += strlen(pmd->url) + 1;
-        pmd->fn = ptr;
-        if (fn) {
-            char *tmp = get_basename(fn);
-
-            sprintf(pmd->fn, "%s", tmp);
-            free(tmp);
-        }
-
-        ptr += strlen(pmd->fn) + 1;
-        pmd->mime = ptr;
-
-        /* ptr += strlen(pmd->mime) + 1; */
-        /* pmd->ht = NULL;		// TODO: Initialize hash table based on ptr. */
-
-        for (int i = 0; i < nc; ++i) {
-            data_chunk *p = dc + i;
-            pmd->body[i] = *p;
-        }
+    if (!pmd || !ptrs) {
+        FIF(pmd);
+        FIF(ptrs);
+        return false;
     }
+
+    *md = pmd;
+    memset(pmd, 0, md_size);
+    pmd->ptrs = ptrs;
+    mh* hd    = &pmd->hd;
+
+    sprintf(((char *) &hd->iden), "TMD");
+    hd->version      = GET_VERSION();
+    hd->package_size = size;
+    hd->chunk_size   = cs;
+    hd->last_time    = get_time_s();
+    hd->acc_time     = 0;
+    hd->status       = RS_INIT;
+    hd->nr_user      = nc;
+    hd->nr_effective = 0;
+    hd->eb_length    = ebl;
+    hd->acon         = nc;
+
+    ptrs->ht = hash_table_create(128, free);
+    ptrs->body = (data_chunk*) (pmd->raw_data);
+    if (url) {
+        ptrs->url = strdup(url);
+        hash_table_insert(ptrs->ht, strdup(K_URL), ptrs->url, strlen(url));
+    }
+
+    if (fn) {
+        char *tmp = get_basename(fn);
+        ptrs->fn = strdup(tmp);
+        free(tmp);
+        hash_table_insert(ptrs->ht, strdup(K_FN), ptrs->fn, strlen(ptrs->fn));
+    }
+
+    /* ptr += strlen(pmd->mime) + 1; */
+    /* pmd->ptrs->ht = NULL;		// TODO: Initialize hash table based on ptr. */
+
+    data_chunk *p = ptrs->body;
+    for (int i = 0; i < nc; ++i, ++p, ++dc) {
+        *p = *dc;
+    }
+
+    PDEBUG ("A\n");
+
+    metadata_display(*md);
+    PDEBUG ("A2\n");
     return true;
 }
 
@@ -200,14 +211,17 @@ void metadata_display(metadata * md)
         return;
     }
 
-    fprintf(stderr, "size: %08llX (%.2f)M, nc: %d,url: %p -- %s\n",
+    fprintf(stderr, "size: %08llX (%.2f)M, nc: %d,url: %s, user: %p, passwd: %p\n",
             md->hd.package_size, (float) md->hd.package_size / (1 * M),
-            md->hd.nr_effective, md->url, md->url);
+            md->hd.nr_effective, md->ptrs->url,
+            md->ptrs->user, md->ptrs->passwd);
 
+    fprintf(stderr, "ptrs: raw_data: %p, chunk: %p, hash_buffer: %p\n",
+            md->raw_data, md->ptrs->body, md->ptrs->ht_buffer);
     uint64 recv = 0;
 
-    for (uint8 i = 0; i < md->hd.nr_effective; ++i) {
-        data_chunk *cp = &md->body[i];
+    data_chunk* cp = (data_chunk*)md->raw_data;
+    for (uint8 i = 0; i < md->hd.nr_effective; ++i, ++cp) {
         uint64 chunk_recv = cp->cur_pos - cp->start_pos;
         uint64 chunk_size = cp->end_pos - cp->start_pos;
         char *cs = strdup(stringify_size(chunk_size));
@@ -224,7 +238,8 @@ void metadata_display(metadata * md)
     fprintf(stderr, "%s finished...\n\n", stringify_size(recv));
 }
 
-bool chunk_split(uint64 start, uint64 size, int *num, data_chunk ** dc)
+bool chunk_split(uint64 start, uint64 size, int *num,
+                 uint64* chunk_size, data_chunk ** dc)
 {
     if (!size || !dc || !num) {
         return false;
@@ -243,6 +258,7 @@ bool chunk_split(uint64 start, uint64 size, int *num, data_chunk ** dc)
              MIN_CHUNK_SIZE;
     }
 
+    *chunk_size = cs;
     uint32 total_size = *num * sizeof(data_chunk);
 
     *dc = (data_chunk *) malloc(total_size);
@@ -268,6 +284,19 @@ bool chunk_split(uint64 start, uint64 size, int *num, data_chunk ** dc)
 metadata* metadata_create_empty()
 {
     return NULL;
+}
+
+void metadata_inspect(const char* path)
+{
+    metadata* md = NULL;
+    fh_map*   fm = NULL;
+    if (!metadata_create_from_file(path, &md, &fm))
+    {
+        printf ("Failed to create metadata from file: %s\n", path);
+        return;
+    }
+
+    metadata_display(md);
 }
 
 /*

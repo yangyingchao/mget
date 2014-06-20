@@ -39,7 +39,7 @@ typedef struct _dinfo
     fh_map*   fm_file;
 } dinfo;
 
-bool dinfo_create(const char *url, const file_name* fn, int nc, dinfo** info);
+bool dinfo_create(const char *url, const file_name* fn, mget_option* opt, dinfo** info);
 void dinfo_destroy(dinfo** info);
 bool dinfo_ready(dinfo* info);
 

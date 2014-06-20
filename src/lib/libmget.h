@@ -37,6 +37,14 @@ typedef struct _file_name {
     char *basen;
 } file_name;
 
+typedef struct _mget_option
+{
+    int max_connections;
+    char* user;
+    char* passwd;
+    bool recursive; //@todo:
+} mget_option;
+
 // dp stands for download_progress
 typedef void (*dp_callback) (metadata * md, void* user_data);
 
@@ -55,7 +63,7 @@ typedef struct _mget_callbacks
  * @param stop_flag - Flag to control when to stop.
  * @return bool
  */
-bool start_request(const char *url, const file_name* fn, int nc,
+bool start_request(const char *url, const file_name* fn, mget_option* opt,
                    dp_callback cb, bool * stop_flag, void* user_data);
 
 #ifdef __cplusplus

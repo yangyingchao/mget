@@ -1,7 +1,6 @@
-
-/** mget_http.h --- interface of libmget to download data from http server.
+/** ftp.h --- interface of libmget to download data from ftp server.
  *
- * Copyright (C) 2013 Yang,Ying-chao
+ * Copyright (C) 2014 Yang,Ying-chao
  *
  * Author: Yang,Ying-chao <yangyingchao@gmail.com>
  *
@@ -21,36 +20,23 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#ifndef _HTTP_H_
-#define _HTTP_H_
+#ifndef _FTP_H_
+#define _FTP_H_
 
 #include "libmget.h"
 #include "download_info.h"
 
 /**
- * @name process_http_request - Begin process http request.
+ * @name process_ftp_request - Begin process ftp request.
  * @param ui -  url information, should not be NULL.
  * @param info -  information about metadata and file.
  * @param cb - Callback function to notify progress.
  * @param stop_flag - A flag used by http handler to check if need to stop.
  * @return int
  */
-int process_http_request(dinfo* info,
-                         dp_callback cb,
-                         bool* stop_flag,
-                         void* user_data);
+int process_ftp_request(dinfo* info,
+                        dp_callback cb,
+                        bool* stop_flag,
+                        void* user_data);
 
-#endif				/* _HTTP_H_ */
-
-/*
- * Editor modelines
- *
- * Local Variables:
- * c-basic-offset: 4
- * tab-width: 4
- * indent-tabs-mode: nil
- * fill-column: 78
- * End:
- *
- * vim: set noet ts=4 sw=4:
- */
+#endif /* _FTP_H_ */

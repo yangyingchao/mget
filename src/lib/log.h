@@ -70,6 +70,10 @@ const char *escnonprint_uri(const char *);
 #define PDEBUG(fmt, args...)
 #endif				/* _DEBUG_H_ */
 
+#define DEBUGP(X)       PDEBUG X;
+
+
+#define _(X)       (X)
 
 #endif				/* LOG_H */
 

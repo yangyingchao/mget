@@ -317,9 +317,6 @@ void log_set_warc_log_fp(FILE * fp)
 
 void logputs(enum log_options o, const char *s)
 {
-    // TODO: Remove this ifdef!
-#if 0
-
     FILE *fp;
     FILE *warcfp;
 
@@ -336,8 +333,6 @@ void logputs(enum log_options o, const char *s)
         logflush();
     else
         needs_flushing = true;
-#endif				// End of #if 0
-
 }
 
 struct logvprintf_state {
@@ -500,29 +495,29 @@ bool log_set_save_context(bool savep)
 
 void logprintf(enum log_options o, const char *fmt, ...)
 {
-    /* va_list args; */
-    /* va_start (args, fmt); */
-    /* vfprintf(stdout, fmt, args); */
-    /* va_end (args); */
-
     va_list args;
-    struct logvprintf_state lpstate;
-    bool done;
+    va_start (args, fmt);
+    vfprintf(stdout, fmt, args);
+    va_end (args);
 
-    check_redirect_output();
-    if (inhibit_logging)
-        return;
+    /* va_list args; */
+    /* struct logvprintf_state lpstate; */
+    /* bool done; */
 
-    XZERO(lpstate);
-    do {
-        va_start(args, fmt);
-        done = log_vprintf_internal(&lpstate, fmt, args);
-        va_end(args);
+    /* check_redirect_output(); */
+    /* if (inhibit_logging) */
+    /*     return; */
 
-        if (done && errno == EPIPE)
-            exit(1);
-    }
-    while (!done);
+    /* XZERO(lpstate); */
+    /* do { */
+    /*     va_start(args, fmt); */
+    /*     done = log_vprintf_internal(&lpstate, fmt, args); */
+    /*     va_end(args); */
+
+    /*     if (done && errno == EPIPE) */
+    /*         exit(1); */
+    /* } */
+    /* while (!done); */
 }
 
 

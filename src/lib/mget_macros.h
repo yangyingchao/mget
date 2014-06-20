@@ -40,6 +40,7 @@
 
 #define xfree(X) FIF(X)
 #define xrealloc(X, Y)       XREALLOC(X, Y)
+#define XALLOC(N)       ZALLOC(char, N)
 
 
 #endif				/* _MACROS_H_ */

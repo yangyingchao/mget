@@ -63,6 +63,12 @@ void sigterm_handler(int signum)
     fprintf(stderr, "Saving temporary data...\n");
 }
 
+void sigterm_handler2(int sig, siginfo_t* si, void* param)
+{
+    control_byte = true;
+    fprintf(stderr, "Saving temporary data...\n");
+}
+
 void show_progress(metadata* md, void* user_data)
 {
     static int    idx       = 0;
@@ -73,7 +79,7 @@ void show_progress(metadata* md, void* user_data)
         char *date = current_time_str();
 
         printf("%s - %s saved in %s [%.02fKB/s] ...\n",
-               date, md->fn,
+               date, md->ptrs->fn,
                stringify_time(md->hd.acc_time),
                (double) (md->hd.package_size) / K / md->hd.acc_time);
         free(date);
@@ -90,7 +96,7 @@ void show_progress(metadata* md, void* user_data)
             idx++;
         }
     } else {
-        data_chunk *dp    = md->body;
+        data_chunk *dp    = md->ptrs->body;
         uint64      total = md->hd.package_size;
         uint64      recv  = 0;
 
@@ -127,6 +133,9 @@ void print_help()
         "\t-o:  set file name to store download data."
         "If not provided, mget will name it.\n",
         "\t-r:  resume a previous download using stored metadata.\n",
+        "\t-u:  set user name.\n",
+        "\t-p:  set user password.\n",
+        "\t-s:  show metadata of unfinished task.\n",
         "\t-h:  show this help.\n",
         "\n",
         NULL
@@ -152,15 +161,19 @@ int main(int argc, char *argv[])
 
     bool view_only = false;
     int  opt       = 0;
-    int  nc        = 5;                 // default number of connections.
 
     file_name fn;
-    char *target = NULL;
-    bool resume = false;
+    char  *target = NULL;
+    bool   resume = false;
+    char*  user   = NULL;
+    char*  passwd = NULL;
+    mget_option opts;
+    memset(&opts, 0, sizeof(mget_option));
+    opts.max_connections = 5;
 
     memset(&fn, 0, sizeof(file_name));
 
-    while ((opt = getopt(argc, argv, "hj:d:o:r:sv")) != -1) {
+    while ((opt = getopt(argc, argv, "hj:d:o:r:svu:p:")) != -1) {
         switch (opt) {
             case 'h':
             {
@@ -179,14 +192,25 @@ int main(int argc, char *argv[])
             }
             case 'j':
             {
-                nc = atoi(optarg);
-                if (nc > MAX_NC) {
+                opts.max_connections = atoi(optarg);
+                if (opts.max_connections > MAX_NC) {
                     printf("Max connections: "
                            "specified: %d, allowed: %d, "
-                           "set it to max...\n", nc, MAX_NC);
-                    nc = MAX_NC;
+                           "set it to max...\n", opts.max_connections, MAX_NC);
+                    opts.max_connections = MAX_NC;
                 }
 
+                break;
+            }
+            case 'u':
+            {
+                opts.user = strdup(optarg);
+                break;
+            }
+            case 'p':
+            {
+                fprintf(stderr, "%s \n", optarg);
+                opts.passwd = strdup(optarg);
                 break;
             }
             case 'o':
@@ -222,17 +246,7 @@ int main(int argc, char *argv[])
 
     if (view_only) {
         if (file_existp(target)) {
-            printf("showing tmd file: %s, TBD...\n", target);
-            // TODO: Remove this ifdef!
-#if 0
-
-            metadata_wrapper mw;
-
-            metadata_create_from_file(target, &mw);
-            metadata_display(mw.md);
-            metadata_destroy(&mw);
-#endif // End of #if 0
-
+            metadata_inspect(target);
         } else {
             printf("File: %s not exists!\n", target);
         }
@@ -248,20 +262,19 @@ int main(int argc, char *argv[])
 
         struct sigaction act;
 
-        act.sa_handler   = sigterm_handler;
-        act.sa_sigaction = NULL;
+        /* act.sa_handler   = sigterm_handler; */
+        act.sa_sigaction = sigterm_handler2;
+        /* act.sa_sigaction = NULL; */
         sigemptyset(&act.sa_mask);
-        act.sa_flags     = 0;
+        act.sa_flags     = SA_SIGINFO;
         int ret = sigaction(SIGINT, &act, NULL);
 
         PDEBUG("ret = %d\n", ret);
 
-        signal(SIGINT, sigterm_handler);
-
         int retry_time = 0;
         bool result = true;
         while (retry_time++ < MAX_RETRY_TIMES && !control_byte) {
-            if ((result = start_request(target, &fn, nc, show_progress,
+            if ((result = start_request(target, &fn, &opts, show_progress,
                                         &control_byte, NULL))) {
                 break;
             }
