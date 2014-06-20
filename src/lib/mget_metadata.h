@@ -93,9 +93,9 @@ typedef struct _metadata_ptrs
 
 
 typedef struct _metadata {
-    mh hd;			   // header, up to 64 bytes.
-    mp* ptrs;           // All pointers that can be calculated.
-    char raw_data[0];  // start to body of raw_data.
+    mh   hd;                            // header, up to 64 bytes.
+    mp*  ptrs;                          // All pointers that can be calculated.
+    char raw_data[0];                   // start to body of raw_data.
 } metadata;
 
 void metadata_inspect(const char*);

@@ -58,7 +58,7 @@ bool metadata_create_from_file(const char *fn, metadata** md, fh_map** fm_md)
         pmd->ptrs = ptrs;
 
         //TODO: version checks....
-        ptrs->body = (data_chunk *) pmd->raw_data;
+        ptrs->body = (data_chunk*) pmd->raw_data;
         ptrs->ht_buffer = (char*)(pmd->raw_data) +
                           sizeof(data_chunk) * pmd->hd.nr_user;
 
@@ -131,7 +131,7 @@ bool  metadata_create_from_url(const char* url,
     hd->acon         = nc;
 
     ptrs->ht = hash_table_create(128, free);
-    ptrs->body = (data_chunk *) pmd->raw_data;
+    ptrs->body = (data_chunk*) (pmd->raw_data);
     if (url) {
         ptrs->url = strdup(url);
         hash_table_insert(ptrs->ht, strdup(K_URL), ptrs->url, strlen(url));
@@ -147,9 +147,9 @@ bool  metadata_create_from_url(const char* url,
     /* ptr += strlen(pmd->mime) + 1; */
     /* pmd->ptrs->ht = NULL;		// TODO: Initialize hash table based on ptr. */
 
-    for (int i = 0; i < nc; ++i) {
-        data_chunk *p = dc + i;
-        ptrs->body[i] = *p;
+    data_chunk *p = ptrs->body;
+    for (int i = 0; i < nc; ++i, ++p, ++dc) {
+        *p = *dc;
     }
 
     PDEBUG ("A\n");
@@ -220,8 +220,8 @@ void metadata_display(metadata * md)
             md->raw_data, md->ptrs->body, md->ptrs->ht_buffer);
     uint64 recv = 0;
 
-    for (uint8 i = 0; i < md->hd.nr_effective; ++i) {
-        data_chunk* cp = (data_chunk*)md->raw_data;
+    data_chunk* cp = (data_chunk*)md->raw_data;
+    for (uint8 i = 0; i < md->hd.nr_effective; ++i, ++cp) {
         uint64 chunk_recv = cp->cur_pos - cp->start_pos;
         uint64 chunk_size = cp->end_pos - cp->start_pos;
         char *cs = strdup(stringify_size(chunk_size));
@@ -286,7 +286,7 @@ metadata* metadata_create_empty()
     return NULL;
 }
 
-void metadata_inspect(const char*path)
+void metadata_inspect(const char* path)
 {
     metadata* md = NULL;
     fh_map*   fm = NULL;

@@ -113,8 +113,14 @@ bool hash_table_insert(hash_table* table, char *key, void *val, uint32 len)
         // Insert entry into the first open slot starting from index.
         for (i = table->hashFunctor(d_key); i < table->capacity; ++i) {
             TableEntry *entry = &table->entries[i];
-
-            if (entry->key == NULL) {
+            if (entry->key)
+            {
+                if (!strcmp(key, entry->key))
+                {
+                    return false;
+                }
+            }
+            else {
                 entry->key = d_key;
                 entry->val = val;
                 entry->val_len = len;
@@ -234,15 +240,21 @@ hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size)
         int key_len = *(int*)ptr;
         char* key = ZALLOC(char, key_len+1);
         ptr += sizeof(int);
-        fprintf(stderr, "Key: %s\n", ptr);
+        PDEBUG ("Key: %p -- %s\n", ptr, ptr);
+
         memcpy(key, ptr, key_len);
+        ptr += key_len;
 
         int val_len = *(int*)ptr;
         void* val = ZALLOC(char, val_len+1);
         ptr += sizeof(int);
+        PDEBUG ("Val: %p -- %s\n", ptr, ptr);
+
         memcpy(val, ptr, val_len);
+        ptr += val_len;
 
         hash_table_insert(ht, key, val, val_len);
+        PDEBUG ("oo\n");
     }
 
     return ht;

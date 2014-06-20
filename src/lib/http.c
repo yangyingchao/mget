@@ -372,10 +372,9 @@ start: ;
     }
 
     bool need_request = false;
+    data_chunk *dp = md->ptrs->body;
 
-    for (int i = 0; i < md->hd.nr_effective; ++i) {
-        data_chunk *dp = &md->ptrs->body[i];
-
+    for (int i = 0; i < md->hd.nr_effective; ++i, ++dp) {
         if (dp->cur_pos >= dp->end_pos) {
             continue;
         }
@@ -393,7 +392,7 @@ start: ;
         co_param *param = ZALLOC1(co_param);
 
         param->addr      = info->fm_file->addr;
-        param->dp        = md->ptrs->body + i;
+        param->dp        = dp;
         param->ui        = ui;
         param->md        = md;
         param->cb        = cb;
@@ -418,15 +417,14 @@ start: ;
 
     dinfo_sync(info);
 
-    data_chunk *dp = md->ptrs->body;
+    dp = md->ptrs->body;
     bool finished = true;
 
-    for (int i = 0; i < CHUNK_NUM(md); ++i) {
+    for (int i = 0; i < CHUNK_NUM(md); ++i, ++dp) {
         if (dp->cur_pos < dp->end_pos) {
             finished = false;
             break;
         }
-        dp++;
     }
 
     if (finished) {

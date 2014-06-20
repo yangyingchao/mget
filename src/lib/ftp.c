@@ -602,18 +602,16 @@ start: ;
         (*cb) (md, user_data);
     }
 
-    bool     need_request = false;
-    ftp_connection* conn  = NULL;
-    ftp_connection* conns = ZALLOC(ftp_connection, md->hd.nr_effective);
-    pthread_t*      tids  = ZALLOC(pthread_t, md->hd.nr_effective);
-    uerr_t          uerr  = FTPOK;
-
+    bool             need_request = false;
+    ftp_connection*  conn         = NULL;
+    ftp_connection*  conns        = ZALLOC(ftp_connection, md->hd.nr_effective);
+    pthread_t*       tids         = ZALLOC(pthread_t, md->hd.nr_effective);
+    uerr_t           uerr         = FTPOK;
+    data_chunk      *dp           = md->ptrs->body;
     // ftp protocol asks us to interactive a lots before opening data
     // connections, start different threads for them.
-    for (int i = 0; i < md->hd.nr_effective; ++i) {
+    for (int i = 0; i < md->hd.nr_effective; ++i, ++dp) {
         PDEBUG ("i = %d\n", i);
-
-        data_chunk *dp = &md->ptrs->body[i];
 
         if (dp->cur_pos >= dp->end_pos) {
             continue;
@@ -626,7 +624,7 @@ start: ;
 
         param->addr      = info->fm_file->addr;
         param->idx       = i;
-        param->dp        = md->ptrs->body + i;
+        param->dp        = dp;
         param->ui        = ui;
         param->md        = md;
         param->cb        = cb;
@@ -658,15 +656,14 @@ start: ;
 
     dinfo_sync(info);
 
-    data_chunk *dp = md->ptrs->body;
+    dp = md->ptrs->body;
     bool finished = true;
 
-    for (int i = 0; i < CHUNK_NUM(md); ++i) {
+    for (int i = 0; i < CHUNK_NUM(md); ++i, ++dp) {
         if (dp->cur_pos < dp->end_pos) {
             finished = false;
             break;
         }
-        dp++;
     }
 
     if (finished) {

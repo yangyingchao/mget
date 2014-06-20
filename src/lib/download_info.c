@@ -160,7 +160,7 @@ bool dinfo_create(const char *url, const file_name * fn,
         hd->acon         = opt->max_connections;
 
         pmd->ptrs = ptrs;
-        ptrs->body      = (data_chunk *) pmd->raw_data;
+        ptrs->body      = (data_chunk*)pmd->raw_data;
         ptrs->ht        = ht;
         ptrs->ht_buffer = (char*)(pmd->raw_data) +
                           sizeof(data_chunk) * pmd->hd.nr_user;
@@ -252,9 +252,10 @@ bool dinfo_update_metadata(uint64 size, dinfo* info)
     hd->nr_effective = nc;
     hd->acon         = nc;
 
-    for (int i = 0; i < nc; ++i) {
+    data_chunk* np = md->ptrs->body;
+    for (int i = 0; i < nc; ++i, ++np) {
         data_chunk *p = dc + i;
-        md->ptrs->body[i] = *p;
+        *np = *p;
     }
 
     hash_table* ht = md->ptrs->ht;
