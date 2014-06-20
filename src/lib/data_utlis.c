@@ -130,9 +130,10 @@ bool hash_table_insert(hash_table* table, char *key, void *val, uint32 len)
             }
         }
     }
+
     if (!ret)
     {
-        PDEBUG ("Failed to insert: %s -- %s\n", key, val);
+        PDEBUG ("Failed to insert: %s -- %s\n", key, (char*)val);
     }
 
     return ret;
@@ -192,7 +193,6 @@ uint32 dump_hash_table(hash_table* ht, void *buffer, uint32 buffer_size)
 
         if (entry->key && entry->val)
         {
-            PDEBUG ("Dump: %s -- %s\n", entry->key, entry->val);
             int key_len = (int)strlen(entry->key);
             //todo: check buffer size.
 
@@ -237,10 +237,10 @@ hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size)
     ptr += sizeof(int);
     while (i++ < total) {
         assert(ptr - (char*)buffer <= buffer_size);
+
         int key_len = *(int*)ptr;
         char* key = ZALLOC(char, key_len+1);
         ptr += sizeof(int);
-        PDEBUG ("Key: %p -- %s\n", ptr, ptr);
 
         memcpy(key, ptr, key_len);
         ptr += key_len;
@@ -248,13 +248,11 @@ hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size)
         int val_len = *(int*)ptr;
         void* val = ZALLOC(char, val_len+1);
         ptr += sizeof(int);
-        PDEBUG ("Val: %p -- %s\n", ptr, ptr);
 
         memcpy(val, ptr, val_len);
         ptr += val_len;
 
         hash_table_insert(ht, key, val, val_len);
-        PDEBUG ("oo\n");
     }
 
     return ht;

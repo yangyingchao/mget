@@ -168,7 +168,7 @@ bool dinfo_create(const char *url, const file_name * fn,
 
         if (url) {
             ptrs->url = strdup(url);
-            hash_table_insert(ptrs->ht, strdup(K_URL), ptrs->url,
+            hash_table_insert(ptrs->ht, K_URL, ptrs->url,
                               strlen(url));
         }
 
@@ -176,26 +176,23 @@ bool dinfo_create(const char *url, const file_name * fn,
             char *tmp = get_basename(fpath);
             ptrs->fn = strdup(tmp);
             free(tmp);
-            hash_table_insert(ptrs->ht, strdup(K_FN), ptrs->fn,
+            hash_table_insert(ptrs->ht, K_FN, ptrs->fn,
                               strlen(ptrs->fn));
        }
 
         if (opt->user)
         {
             pmd->ptrs->user = strdup(opt->user);
-            hash_table_insert(ptrs->ht, strdup(K_USR), ptrs->user,
+            hash_table_insert(ptrs->ht, K_USR, ptrs->user,
                               strlen(ptrs->fn));
         }
-
-        PDEBUG ("user: %s\n", pmd->ptrs->user);
 
         if (opt->passwd)
         {
             pmd->ptrs->passwd = strdup(opt->passwd);
-            hash_table_insert(ptrs->ht, strdup(K_PASSWD), ptrs->passwd,
+            hash_table_insert(ptrs->ht, K_PASSWD, ptrs->passwd,
                               strlen(ptrs->fn));
         }
-        PDEBUG ("passwd: %s\n", pmd->ptrs->passwd);
     }
 
     // create fm for downloaded file.
@@ -264,7 +261,7 @@ bool dinfo_update_metadata(uint64 size, dinfo* info)
 #define DINFO_UPDATE_HASH(K, V)                 \
     PDEBUG("showing: %s - %s: \n", (K), ((V)));              \
     if (V)                                                 \
-        hash_table_insert(ht, strdup(K), (V), strlen(V))
+        hash_table_insert(ht, (K), (V), strlen(V))
 
     DINFO_UPDATE_HASH(K_URL, md->ptrs->url);
     DINFO_UPDATE_HASH(K_FN, md->ptrs->fn);
