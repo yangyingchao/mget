@@ -34,16 +34,12 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <sys/select.h>
 
 #ifdef HAVE_GNUTLS
 #include "ssl.h"
 #endif
 
-#ifdef HAVE_EPOLL
-#include <sys/epoll.h>
-#else
-#include <sys/select.h>
-#endif
 
 typedef struct addrinfo address;
 
@@ -362,121 +358,6 @@ void connection_put(connection * sock)
     FIF(CONN2CONNP(sock));
 }
 
-#ifdef HAVE_EPOLL
-static inline int do_perform_epoll(connection_group* group)
-{
-    int cnt = group->cnt;
-    int epl = epoll_create(cnt);
-    if (epl == -1) {
-        perror("epool_create");
-        return -1;
-    }
-
-    struct epoll_event *events = ZALLOC(struct epoll_event, cnt);
-
-    //TODO: Add sockets to Epoll
-    connection_list *p = group->lst;
-    PDEBUG("p: %p, next: %p\n", p, p->next);
-    while (p && p->conn) {
-        PDEBUG("p: %p, next: %p\n", p, p->next);
-        connection_p *conn = (connection_p *) p->conn;
-
-        if ((conn->sock != 0) && conn->conn.rf && conn->conn.wf) {
-            fcntl(conn->sock, F_SETFD, O_NONBLOCK);
-            struct epoll_event ev;
-
-            ev.events = EPOLLIN | EPOLLOUT;
-            ev.data.ptr = conn;
-            if (epoll_ctl(epl, EPOLL_CTL_ADD, conn->sock, &ev) == -1) {
-                perror("epoll_ctl: listen_sock");
-                exit(EXIT_FAILURE);
-            }
-        }
-        p = (connection_list *) p->next;
-    }
-
-    int nfds = 0;
-
-    PDEBUG("%p: %d\n", group->cflag, *group->cflag);
-    while (!(*(group->cflag))) {
-        nfds = epoll_wait(epl, events, cnt, 1000);	// set timeout to 1 second.
-        if (nfds == -1) {
-            perror("epoll_pwait");
-            break;
-        }
-
-        if (nfds == 0) {
-            // fprintf(stderr, "time out ....\n");
-            continue;
-        }
-
-        for (int i = 0; i < nfds; ++i) {
-            connection_p *pconn    = (connection_p *) events[i].data.ptr;
-            int           ret      = 0;
-            bool          need_mod = false;
-
-            if (events[i].events & EPOLLOUT) {// Ready to send..
-                ret = pconn->conn.wf((connection *) pconn, pconn->conn.priv);
-                need_mod = true;
-            }
-
-            if (events[i].events & EPOLLIN) { // Ready to read..
-                ret = pconn->conn.rf((connection *) pconn, pconn->conn.priv);
-            }
-
-            switch (ret)
-            {
-                case COF_CLOSED:
-                {
-                    pconn->closed = true;
-                }
-                case COF_FAILED:
-                case COF_FINISHED:
-                {
-                    PDEBUG("remove socket...\n");
-                    struct epoll_event ev;
-
-                    ev.events = EPOLLIN | EPOLLOUT;
-                    ev.data.ptr = pconn;
-                    if (epoll_ctl(epl, EPOLL_CTL_DEL, pconn->sock,
-                                  &ev) == -1) {
-                        perror("epoll_ctl: conn_sock");
-                        exit(EXIT_FAILURE);
-                    }
-                    /* close(pconn->sock); */
-                    cnt--;
-                    PDEBUG("remaining sockets: %d\n", cnt);
-                    break;
-                }
-                case COF_AGAIN:
-                default:
-                {
-                    if (need_mod) {
-                        struct epoll_event ev;
-                        ev.events = EPOLLIN;
-                        ev.data.ptr = pconn;
-                        epoll_ctl(epl, EPOLL_CTL_MOD, pconn->sock, &ev);
-                    }
-                    break;
-                }
-            }
-        }
-
-        if (cnt == 0) {
-            break;
-        }
-
-        if (*(group->cflag)) {
-            fprintf(stderr, "Stop because control_flag set to 1!!!\n");
-            break;
-        }
-    }
-
-    return cnt;
-}
-
-#else
-
 static inline int do_perform_select(connection_group* group)
 {
     int    maxfd = 0;
@@ -590,7 +471,6 @@ static inline int do_perform_select(connection_group* group)
     }
     return cnt;
 }
-#endif
 
 int connection_perform(connection_group* group)
 {
@@ -602,11 +482,7 @@ int connection_perform(connection_group* group)
     if (!cnt)
         return -1;
 
-#ifdef HAVE_EPOLL
-    cnt = do_perform_epoll(group);
-#else
     cnt = do_perform_select(group);
-#endif
 
     return cnt;
 }
