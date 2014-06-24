@@ -41,6 +41,8 @@
 
 #define FPUTS( s, f) fputs( (s), (f))
 
+enum log_options g_log_level = LOG_NONVERBOSE;
+
 /* This file implements support for "logging".  Logging means printing
    output, plus several additional features:
 
@@ -495,29 +497,27 @@ bool log_set_save_context(bool savep)
 
 void logprintf(enum log_options o, const char *fmt, ...)
 {
-    va_list args;
-    va_start (args, fmt);
-    vfprintf(stdout, fmt, args);
-    va_end (args);
+    if (o >= g_log_level)
+    {
+        va_list args;
+        struct logvprintf_state lpstate;
+        bool done;
 
-    /* va_list args; */
-    /* struct logvprintf_state lpstate; */
-    /* bool done; */
+        check_redirect_output();
+        if (inhibit_logging)
+            return;
 
-    /* check_redirect_output(); */
-    /* if (inhibit_logging) */
-    /*     return; */
+        XZERO(lpstate);
+        do {
+            va_start(args, fmt);
+            done = log_vprintf_internal(&lpstate, fmt, args);
+            va_end(args);
 
-    /* XZERO(lpstate); */
-    /* do { */
-    /*     va_start(args, fmt); */
-    /*     done = log_vprintf_internal(&lpstate, fmt, args); */
-    /*     va_end(args); */
-
-    /*     if (done && errno == EPIPE) */
-    /*         exit(1); */
-    /* } */
-    /* while (!done); */
+            if (done && errno == EPIPE)
+                exit(1);
+        }
+        while (!done);
+    }
 }
 
 
