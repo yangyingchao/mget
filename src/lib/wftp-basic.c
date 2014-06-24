@@ -79,7 +79,8 @@ fd_read_line (ftp_connection* conn)
         }
     }
 
-    fprintf(stderr, "MSG: %s\n", bq->r);
+    PDEBUG("MSG: %s\n", bq->r);
+
     if (p)
     {
         size_t size = p - bq->r;
@@ -178,11 +179,7 @@ ftp_request (const char *command, const char *value)
         res = concat_strings (command, "\r\n", (char *) 0);
     // TODO: Remove this ifdef!
 
-    /* Hack: don't print out password.  */
-    if (strncmp (res, "PASS", 4) != 0)
-        fprintf (stderr, "--> %s\n", res);
-    else
-        fprintf (stderr, "--> PASS Turtle Power!\n\n");
+    PDEBUG ("--> %s\n", res);
     return res;
 }
 
