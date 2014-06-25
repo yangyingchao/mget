@@ -341,18 +341,11 @@ int process_http_request(dinfo* info, dp_callback cb, bool * stop_flag,
 
     PDEBUG("metadata created from url: %s\n", ui->furl);
 
-    /* fhandle *fh = fhandle_create(tfn, FHM_CREATE); */
-
-    /* mw.fm = fhandle_mmap(fh, 0, MD_SIZE(mw.md)); */
-    /* mw.from_file = false; */
-    /* memset(mw.fm->addr, 0, MD_SIZE(mw.md)); */
-
-    /* associate_wrapper(&mw); */
-
 start: ;
     metadata* md = info->md;
     metadata_display(md);
 
+restart:
     dinfo_sync(info);
 
     if (md->hd.status == RS_FINISHED) {
@@ -425,6 +418,11 @@ start: ;
             finished = false;
             break;
         }
+    }
+
+    if (!finished && stop_flag && !*stop_flag) // errors occurred, restart
+    {
+        goto restart;
     }
 
     if (finished) {
