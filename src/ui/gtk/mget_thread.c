@@ -75,7 +75,7 @@ void update_progress(metadata* md, void* user_data)
 
     static char fname[1024];
     memset(fname, 0, 1024);
-    sprintf(fname, "%s", md->fn);
+    sprintf(fname, "%s", md->ptrs->fn);
     char* bname = basename(fname);
 
     if (req->sts.last_status != md->hd.status) {
@@ -133,7 +133,7 @@ void update_progress(metadata* md, void* user_data)
         }
     }
     else {
-        data_chunk *dp    = md->body;
+        data_chunk *dp    = md->ptrs->body;
         uint64      total = md->hd.package_size;
         uint64      recv  = 0;
 
@@ -180,7 +180,7 @@ static void* worker_thread(void* param)
     fprintf(stderr, "url: %s\n",request->request.url);
     int r = start_request(request->request.url,
                           &request->request.fn,
-                          request->request.nc,
+                          &request->request.opts,
                           update_progress,
                           &request->request.flag,
                           param);
