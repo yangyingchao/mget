@@ -127,11 +127,14 @@ new_window_cb (GSimpleAction *action,
                gpointer       user_data)
 {
     GmApp *self = GM_APP (user_data);
-    GtkWidget *window;
+    static GtkWidget *window = NULL;
 
-    window = gm_window_new (self);
-    gtk_application_add_window (GTK_APPLICATION (self), GTK_WINDOW (window));
-    gtk_widget_show_all (window);
+    if (!window)
+    {
+        window = gm_window_new (self);
+        gtk_application_add_window (GTK_APPLICATION (self), GTK_WINDOW (window));
+        gtk_widget_show_all (window);
+    }
 }
 
 static void

@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include "log.h"
 #include <string.h>
+#include <ctype.h>
 #include "mget_config.h"
 
 mget_slis *mget_slis_append(mget_slis * l, void *data, free_func f)
@@ -314,6 +315,14 @@ byte_queue* bq_init(size_t size)
 byte_queue* bq_resize(byte_queue* bq, size_t sz)
 {
     return NULL;
+}
+
+
+void lowwer_case(char* p, size_t len)
+{
+    for (int i = 0; i < len; i++) {
+        p[i] = tolower(p[i]);
+    }
 }
 
 /*
