@@ -42,7 +42,6 @@
  */
 
 #define MAX_BUF 1024
-#define MSG "GET /149149704/python-mode.el-6.1.2.tar.gz HTTP/1.0\r\n\r\n"
 
 void log_func(int l, const char *msg)
 {

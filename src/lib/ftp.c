@@ -29,15 +29,15 @@
 #include "metadata.h"
 #include "mget_utils.h"
 #include "wftp.h"
+#include <fcntl.h>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <pthread.h>
+#include <sys/select.h>
 
-
-#define DEFAULT_FTP_CONNECTIONS       8
-
+#define DEFAULT_FTP_CONNECTIONS   1
 
 typedef struct _connection_operation_param_ftp {
     void *addr;			//base addr;
@@ -48,6 +48,7 @@ typedef struct _connection_operation_param_ftp {
     metadata *md;
     int idx;
     dinfo* info;
+    int fds[2];
     void* user_data;
 } co_param_ftp;
 
@@ -439,6 +440,9 @@ void* ftp_download_thread(void* arg)
         return NULL;
     }
 
+    (void)pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+    (void)pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
+
     ftp_connection* conn = NULL;
     uerr_t err = get_data_connection(param->info, param, &conn);
     data_chunk *dp    = (data_chunk *) param->dp;
@@ -469,35 +473,15 @@ Error in server response, closing control ftp_connection.\n"));
     int i = 0;
     PDEBUG ("chunk_info: base: %p -- %p, cur: %08llX, start: %08llX, end_pos: %08llX\n",
             param->addr, dp->base_addr, dp->cur_pos, dp->start_pos, dp->end_pos);
-// TODO: Remove this ifdef!
-#if 0
-    char* buf = ZALLOC(char, 4096);
-    int rd = conn->data_conn->ci.reader(conn->data_conn, buf, 4096, NULL);
-    char fn[64] = {'\0'};
-    sprintf(fn, "%p.bin", buf);
-    FILE* fp = fopen(fn, "w");
-    if (fp)
-    {
-        size_t got = fwrite(buf, 1, rd, fp);
-        fclose(fp);
-    }
-
-    return NULL;
-#endif // End of #if 0
 
     while (dp->cur_pos < dp->end_pos) {
         void *addr = param->addr + dp->cur_pos;
-        int rd = conn->data_conn->ci.reader(conn->data_conn, param->addr + dp->cur_pos,
-                                        dp->end_pos - dp->cur_pos, NULL);
-        if (++i%100 ==0)
-            PDEBUG ("%lld bytes received..\n",
-                    dp->cur_pos - dp->start_pos);
-
+        int rd = conn->data_conn->ci.reader(conn->data_conn,
+                                            param->addr + dp->cur_pos,
+                                            dp->end_pos - dp->cur_pos, NULL);
         if (rd > 0) {
             dp->cur_pos += rd;
-            /* if (param->cb) { */
-            /*     (*(param->cb)) (param->md, param->user_data); */
-            /* } */
+            write(param->fds[1], "R", 1);
         } else if (rd == 0) {
             PDEBUG("Read returns 0: showing chunk: "
                    "retuned zero: dp: %p : %llX -- %llX\n",
@@ -513,9 +497,11 @@ Error in server response, closing control ftp_connection.\n"));
         if (dp->cur_pos >= dp->end_pos) {
             PDEBUG("Finished chunk: %p\n", dp);
             rd = COF_FINISHED;
+            write(param->fds[1], "E", 1);
             break;
         } else if (!rd) {
             rd = COF_CLOSED;
+            write(param->fds[1], "E", 1);
             PDEBUG("retuned zero: dp: %p : %llX -- %llX\n",
                    dp, dp->cur_pos, dp->end_pos);
             break;
@@ -528,9 +514,11 @@ Error in server response, closing control ftp_connection.\n"));
     return NULL;
 }
 
+#define MAX(X,Y)       X > Y ? X : Y
+
 int process_ftp_request(dinfo* info,
                         dp_callback cb,
-                        bool* stop_flag,
+                        bool* cflag,
                         void* user_data)
 {
     PDEBUG("enter\n");
@@ -543,11 +531,11 @@ int process_ftp_request(dinfo* info,
 
     if (!info->md->ptrs->user)
     {
-        info->md->ptrs->user = strdup("anonymous");
+        info->md->ptrs->user = strdup("ftp");
     }
     if (!info->md->ptrs->passwd)
     {
-        info->md->ptrs->passwd = strdup("anonymous");
+        info->md->ptrs->passwd = strdup("ftp");
     }
 
     ftp_connection* fconn = ZALLOC1(ftp_connection);
@@ -603,25 +591,31 @@ start: ;
     }
 
     bool             need_request = false;
-    ftp_connection*  conn         = NULL;
-    ftp_connection*  conns        = ZALLOC(ftp_connection, md->hd.nr_effective);
-    pthread_t*       tids         = ZALLOC(pthread_t, md->hd.nr_effective);
-    uerr_t           uerr         = FTPOK;
-    data_chunk      *dp           = md->ptrs->body;
+    ftp_connection*  conn   = NULL;
+    ftp_connection*  conns  = ZALLOC(ftp_connection, md->hd.nr_effective);
+    pthread_t*       tids   = ZALLOC(pthread_t, md->hd.nr_effective);
+    uerr_t           uerr   = FTPOK;
+    data_chunk      *dp     = md->ptrs->body;
+    int              maxfd  = 0;
+    co_param_ftp*    params = ZALLOC(co_param_ftp, md->hd.nr_effective);
+    co_param_ftp    *param  = params;
+    int thread_number = 0;
+
+    fd_set rfds;
+    FD_ZERO(&rfds);
+
     // ftp protocol asks us to interactive a lots before opening data
     // connections, start different threads for them.
-    for (int i = 0; i < md->hd.nr_effective; ++i, ++dp) {
+    for (int i = 0; i < md->hd.nr_effective; ++i, ++dp, ++param) {
         PDEBUG ("i = %d\n", i);
 
         if (dp->cur_pos >= dp->end_pos) {
             continue;
         }
 
+        thread_number ++;
         need_request = true;
         conn = conns++;
-
-        co_param_ftp *param = ZALLOC1(co_param_ftp);
-
         param->addr      = info->fm_file->addr;
         param->idx       = i;
         param->dp        = dp;
@@ -630,7 +624,17 @@ start: ;
         param->cb        = cb;
         param->user_data = user_data;
         param->info = info;
+        if (pipe(param->fds) == -1)
+        {
+            fprintf(stderr, "Failed to create pipe: %s\n", strerror(errno));
+            return -1;
+        }
 
+        fcntl(param->fds[0], F_SETFD, O_NONBLOCK);
+        maxfd = MAX(maxfd, param->fds[0]);
+        PDEBUG ("max: %d, params->fds[0] = %d\n", maxfd, param->fds[0]);
+
+        FD_SET(param->fds[0], &rfds);
         int tr = pthread_create(tids+i, NULL, ftp_download_thread, param);
         if (tr < 0)
         {
@@ -639,7 +643,88 @@ start: ;
         }
     }
 
-    uint64 ds = 0;
+    maxfd++;
+
+    PDEBUG ("cflag: %p -- %d, thread_number: %d, maxfd: %d\n",
+            cflag, *cflag, thread_number, maxfd);
+
+    int active_threads = thread_number;
+    struct timeval tv;
+    while (!*cflag && active_threads) {
+        tv.tv_sec = 1;
+        tv.tv_usec = 0;
+        int nfds = select(maxfd, &rfds, NULL, NULL, &tv);
+        if (nfds == -1) {
+            perror("select fail:");
+            break;
+        }
+        for (int i = 0; i < md->hd.nr_effective; i++) {
+            param = params + i;
+            int fd = param->fds[0];
+            if (!nfds)
+            {
+                if (param->cb)
+                {
+                    (*(param->cb)) (param->md, param->user_data);
+                }
+                FD_SET(fd, &rfds);
+            }
+
+            else if (FD_ISSET(fd, &rfds)) {
+                static char buff[64];
+                memset(buff, 0, 64);
+                int rd = read(fd, buff, 64);
+                if (rd == -1)
+                {
+                    PDEBUG ("rd : %d, %d: %s\n",
+                            rd, errno, strerror(errno));
+                    ;
+                }
+                else if (!rd)
+                {
+                    ;
+                }
+                else
+                {
+                    for (int j = 0; j < fd; j++) {
+                        switch (buff[j])
+                        {
+                            case 'R':
+                            {
+                                (*(param->cb)) (param->md, param->user_data);
+                                if (param->cb) {
+                                    (*(param->cb)) (param->md, param->user_data);
+                                }
+                                FD_SET(fd, &rfds);
+                                break;
+                            }
+                            case 'E':
+                            {
+                                FD_CLR(fd, &rfds);
+                                active_threads --;
+                                break;
+                            }
+                            default:
+                            {
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+  loop:
+        if (*cflag) {
+            fprintf(stderr, "Stop because control_flag set to 1!!!\n");
+            break;
+        }
+    }
+
+    for (int i = 0; i < thread_number; i++) {
+        (void)pthread_cancel(tids[i]);
+    }
+
     for (int i = 0; i < md->hd.nr_effective; i++) {
         int tr = pthread_join(tids[i], NULL);
         if (tr < 0)
@@ -648,13 +733,13 @@ start: ;
         }
     }
 
-
     if (!need_request) {
         md->hd.status = RS_FINISHED;
         goto ret;
     }
 
     dinfo_sync(info);
+    sleep(1);
 
     dp = md->ptrs->body;
     bool finished = true;

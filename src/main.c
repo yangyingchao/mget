@@ -57,12 +57,6 @@ bool control_byte = false;
 
 static const int MAX_RETRY_TIMES = 3;
 
-void sigterm_handler(int signum)
-{
-    control_byte = true;
-    fprintf(stderr, "Saving temporary data...\n");
-}
-
 void sigterm_handler2(int sig, siginfo_t* si, void* param)
 {
     control_byte = true;
@@ -262,9 +256,7 @@ int main(int argc, char *argv[])
 
         struct sigaction act;
 
-        /* act.sa_handler   = sigterm_handler; */
         act.sa_sigaction = sigterm_handler2;
-        /* act.sa_sigaction = NULL; */
         sigemptyset(&act.sa_mask);
         act.sa_flags     = SA_SIGINFO;
         int ret = sigaction(SIGINT, &act, NULL);

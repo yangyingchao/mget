@@ -42,6 +42,8 @@ as that of the covered work.  */
 enum log_options { LOG_DEBUG, LOG_VERBOSE, LOG_NOTQUIET, LOG_NONVERBOSE,
                    LOG_ALWAYS };
 
+extern enum log_options g_log_level;
+
 void log_set_warc_log_fp(FILE *);
 
 void logprintf(enum log_options, const char *, ...);
