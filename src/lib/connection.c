@@ -127,6 +127,7 @@ static uint32 tcp_connection_write(connection * conn, char *buf,
     connection_p *pconn = (connection_p *) conn;
 
     if (pconn && pconn->sock && buf) {
+        PDEBUG ("begin write ....\n");
         return (uint32) write(pconn->sock, buf, size);
     }
     return 0;
@@ -284,6 +285,8 @@ connection* connection_get(const url_info* ui)
             hints.ai_protocol = 0;
             logprintf(LOG_ALWAYS, "Resolving host: %s ...\n", ui->host);
             int ret = getaddrinfo(ui->host, ui->sport, &hints, &addr->infos);
+
+            PDEBUG ("ret = %d, error: %s\n", ret, strerror(errno));
 
             if (ret)
                 goto err;

@@ -45,11 +45,14 @@ static inline char *generate_request_header(const char* method, url_info* uri,
     return strdup(buffer);
 }
 
+//@todo: should make sure header is complete before dissecting header!
 int dissect_header(const char *buffer, size_t length, hash_table ** ht)
 {
     if (!ht || !buffer) {
         return -1;
     }
+
+    PDEBUG ("buffer: %s\n", buffer);
 
     hash_table *pht = hash_table_create(256, free);
     if (!pht) {
@@ -80,9 +83,12 @@ int dissect_header(const char *buffer, size_t length, hash_table ** ht)
     num = sscanf(value, "%d", &stat);
     assert(num);
 
+    char *fptr = strstr(buffer, "\r\n\r\n");
     char k[256] = { '\0' };
     char v[256] = { '\0' };
-    while (ptr < buffer + length) {
+    while ((ptr < buffer + length) && fptr && ptr < fptr) {
+        PDEBUG ("Before: ptr: %p,fptr: %p, buffer: %p\n",
+                ptr, fptr, buffer+length);
         memset(k, 0, 256);
         memset(v, 0, 256);
         if (sscanf((const char *) ptr, "%[^:]: %[^\r\n]\r\n%n", k, v, &n)) {
@@ -91,6 +97,8 @@ int dissect_header(const char *buffer, size_t length, hash_table ** ht)
             ldsize += n;
             ptr += n;
         }
+        PDEBUG ("After: ptr: %p,fptr: %p, buffer: %p\n",
+                ptr, fptr, buffer+length);
     }
 
     return stat;
@@ -105,6 +113,8 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn)
         return 0;
     }
 
+    PDEBUG ("enter\n");
+
     char *hd = generate_request_header("GET", ui, 0, 0);
 
     (*conn)->ci.writer((*conn), hd, strlen(hd), NULL);
@@ -112,6 +122,8 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn)
 
     char buffer[4096];
     memset(buffer, 0, 4096);
+
+    PDEBUG ("reading...\n");
 
     size_t      rd   = (*conn)->ci.reader((*conn), buffer, 4096, NULL);
     hash_table *ht   = NULL;
@@ -319,6 +331,8 @@ int process_http_request(dinfo* info, dp_callback cb, bool * stop_flag,
         fprintf(stderr, "Failed to get socket!\n");
         return -1;
     }
+    PDEBUG ("conn : %p\n", conn);
+
 
     uint64 total_size = get_remote_file_size_http(info->ui, &conn);
 
