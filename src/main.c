@@ -263,19 +263,24 @@ int main(int argc, char *argv[])
 
         PDEBUG("ret = %d\n", ret);
 
-        int retry_time = 0;
-        bool result = true;
-        while (retry_time++ < MAX_RETRY_TIMES && !control_byte) {
-            if ((result = start_request(target, &fn, &opts, show_progress,
-                                        &control_byte, NULL))) {
-                break;
-            }
-        }
+        for (int i = optind; i < argc; i++) {
+            int  retry_time = 0;
+            bool result     = true;
+            control_byte    = false;
 
-        if (!result) {
-            printf ("Failed to download from: %s after %d times retry...\n",
-                    target, MAX_RETRY_TIMES);
-            return 1;
+            target = argv[i];
+            while (retry_time++ < MAX_RETRY_TIMES && !control_byte) {
+                if ((result = start_request(target, &fn, &opts, show_progress,
+                                            &control_byte, NULL))) {
+                    break;
+                }
+            }
+
+            if (!result) {
+                printf ("Failed to download from: %s after %d times retry...\n",
+                        target, MAX_RETRY_TIMES);
+                continue;
+            }
         }
     }
 

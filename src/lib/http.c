@@ -87,8 +87,6 @@ int dissect_header(const char *buffer, size_t length, hash_table ** ht)
     char k[256] = { '\0' };
     char v[256] = { '\0' };
     while ((ptr < buffer + length) && fptr && ptr < fptr) {
-        PDEBUG ("Before: ptr: %p,fptr: %p, buffer: %p\n",
-                ptr, fptr, buffer+length);
         memset(k, 0, 256);
         memset(v, 0, 256);
         if (sscanf((const char *) ptr, "%[^:]: %[^\r\n]\r\n%n", k, v, &n)) {
@@ -97,8 +95,6 @@ int dissect_header(const char *buffer, size_t length, hash_table ** ht)
             ldsize += n;
             ptr += n;
         }
-        PDEBUG ("After: ptr: %p,fptr: %p, buffer: %p\n",
-                ptr, fptr, buffer+length);
     }
 
     return stat;

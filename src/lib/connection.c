@@ -266,6 +266,8 @@ connection* connection_get(const url_info* ui)
         addr = GET_HASH_ENTRY(addr_entry, g_addr_cache, ui->host);
 
         if (addr) {
+            PDEBUG ("Using known address....\n");
+
             conn->addr = addr->addr;
             conn->sock = socket(conn->addr->ai_family, conn->addr->ai_socktype,
                                 conn->addr->ai_protocol);
