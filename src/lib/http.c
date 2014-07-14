@@ -30,6 +30,9 @@
 
 #define DEFAULT_HTTP_CONNECTIONS 5
 #define BUF_SIZE                 4096
+#define SIZE                     1024
+
+static const char* HEADER_END = "\r\n\r\n";
 
 
 static inline char *generate_request_header(const char* method, url_info* uri,
@@ -46,13 +49,22 @@ static inline char *generate_request_header(const char* method, url_info* uri,
 }
 
 //@todo: should make sure header is complete before dissecting header!
-int dissect_header(const char *buffer, size_t length, hash_table ** ht)
+int dissect_header(byte_queue* bq, hash_table ** ht)
 {
-    if (!ht || !buffer) {
+    if (!ht || !bq || !bq->r) {
         return -1;
     }
 
+    const char *buffer = bq->r;
+    size_t length = bq->w - bq->r;
+
     PDEBUG ("buffer: %s\n", buffer);
+    char *fptr = strstr(buffer, HEADER_END);
+    if (!fptr)  {
+        fprintf(stderr,
+                "Should only dissect header when header is complete\n");
+        abort();
+    }
 
     hash_table *pht = hash_table_create(256, free);
     if (!pht) {
@@ -83,7 +95,6 @@ int dissect_header(const char *buffer, size_t length, hash_table ** ht)
     num = sscanf(value, "%d", &stat);
     assert(num);
 
-    char *fptr = strstr(buffer, "\r\n\r\n");
     char k[256] = { '\0' };
     char v[256] = { '\0' };
     while ((ptr < buffer + length) && fptr && ptr < fptr) {
@@ -96,6 +107,8 @@ int dissect_header(const char *buffer, size_t length, hash_table ** ht)
             ptr += n;
         }
     }
+
+    bq->r = fptr + 4;
 
     return stat;
 }
@@ -121,9 +134,19 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn)
 
     PDEBUG ("reading...\n");
 
-    size_t      rd   = (*conn)->ci.reader((*conn), buffer, 4096, NULL);
+    // we are in blocking mode for now.
+    byte_queue* bq = bq_init(SIZE);
+    char* eptr = NULL;
+    int i = 1;
+    do {
+        bq         = bq_resize(bq, SIZE);
+        size_t rd  = (*conn)->ci.reader((*conn), bq->w, bq->x - bq->w, NULL);
+        bq->w     += rd;
+    } while ((eptr = strstr(bq->r, HEADER_END)) == NULL);
+
     hash_table *ht   = NULL;
-    int         stat = dissect_header(buffer, rd, &ht);
+    int         stat = dissect_header(bq, &ht);
+    bq_destroy(&bq);
 
     PDEBUG("stat: %d, description: %s\n",
            stat, (char *) hash_table_entry_get(ht, "status"));
@@ -206,7 +229,7 @@ typedef struct _connection_operation_param {
     data_chunk *dp;
     url_info *ui;
     bool header_finished;
-    char *hd;
+    byte_queue* bq;
     hash_table *ht;
     void (*cb) (metadata*, void*);
     metadata *md;
@@ -228,21 +251,19 @@ int http_read_sock(connection * conn, void *priv)
 
     void *addr = param->addr + dp->cur_pos;
     if (!param->header_finished) {
-        char buf[4096] = { '\0' };
-        memset(buf, 0, 4096);
-        size_t rd = conn->ci.reader(conn, buf, 4095, NULL);
+        size_t rd = conn->ci.reader(conn, param->bq->w,
+                                    param->bq->x - param->bq->w, NULL);
 
         if (rd) {
-            char *ptr = strstr(buf, "\r\n\r\n");
-
+            param->bq->w += rd;
+            char *ptr = strstr(param->bq->r, "\r\n\r\n");
             if (ptr == NULL) {
                 // Header not complete, store and return positive value.
-                param->hd = strdup(buf);
                 return 1;
             }
 
-            size_t ds = ptr - buf + 4;
-            int    r  = dissect_header(buf, ds, &param->ht);
+            size_t ds = (byte*)ptr - param->bq->r + 4;
+            int    r  = dissect_header(param->bq, &param->ht);
 
             if (r != 206 && r != 200) { /* Some server returns 200?? */
                 fprintf(stderr, "status code is %d!\n", r);
@@ -251,13 +272,23 @@ int http_read_sock(connection * conn, void *priv)
 
             ptr += 4;		// adjust to the tail of "\r\n\r\n"
 
+            if ((byte*)ptr != param->bq->r)
+            {
+                fprintf(stderr,
+                        "Pointer is not at the beginning of http body!!\n");
+                abort();
+            }
+
             param->header_finished = true;
 
-            size_t length = rd - ds;
+            size_t length = param->bq->w - param->bq->r;
+            PDEBUG ("LEN: %ld, bq->w - bq->r: %ld\n", length,
+                    param->bq->w - param->bq->r);
             if (length) {
-                memcpy(addr, ptr, length);
+                memcpy(addr, param->bq->r, length);
                 dp->cur_pos += length;
             }
+            bq_destroy(&param->bq);
         }
     }
 
@@ -342,7 +373,7 @@ int process_http_request(dinfo* info, dp_callback cb, bool * stop_flag,
     /*
       If it goes here, means metadata is not ready, get nc (number of
       connections) from download_info, and recreate metadata.
-     */
+    */
 
     int nc = info->md ? info->md->hd.nr_user : DEFAULT_HTTP_CONNECTIONS;
     if (!dinfo_update_metadata(total_size, info)) {
@@ -399,6 +430,7 @@ restart:
         param->dp        = dp;
         param->ui        = ui;
         param->md        = md;
+        param->bq        = bq_init(SIZE);
         param->cb        = cb;
         param->user_data = user_data;
 
