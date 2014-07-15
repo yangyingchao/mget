@@ -56,7 +56,6 @@ typedef struct _addr_entry {
 
 typedef struct _connection_p {
     connection conn;
-
     int      sock;
     char    *host;
     address *addr;
@@ -65,10 +64,19 @@ typedef struct _connection_p {
     bool     active;
     bool     closed;
     bool   busy;
+
     /* uint32 atime; */
 } connection_p;
 
+typedef struct _connection_p_list
+{
+    connection_p* next;
+    connection_p  conn;
+} connection_p_list;
+
+
 #define CONN2CONNP(X)       (connection_p*)(X)
+#define CONNP2CPL(X) (connection_p*)(X - offsetof(connection_p, conn))
 
 typedef struct _connection_list {
     mget_slist_head *next;
@@ -223,6 +231,8 @@ connection* connection_get(const url_info* ui)
         assert(g_addr_cache);
     }
 
+    //@todo: 1. create connection_p_list instead of connection_p
+    //       2. try to reuse existing connection, cache-index: host name.
     connection_p* conn = ZALLOC1(connection_p);
 
     if (!ui || (!ui->host && !ui->addr)) {
@@ -358,9 +368,34 @@ ret:
     return (connection *) conn;
 }
 
-void connection_put(connection * sock)
+static byte_queue* dq = NULL; // drop queue
+void connection_put(connection* conn)
 {
-    FIF(CONN2CONNP(sock));
+    if (!dq)
+    {
+        dq = bq_init(1024);
+    }
+
+    connection_p* pconn = (connection_p*)conn;
+    if (!fcntl(pconn->sock, F_SETFD, O_NONBLOCK))
+    {
+        while (true) {
+            int ret = conn->ci.reader(conn, dq->p, 1024, NULL);
+            if (ret == -1 && errno == EAGAIN)
+            {
+                break; // read buffer is clear...
+            }
+            else if (!ret) // closed ...
+            {
+                pconn->closed = true;
+            }
+        }
+    }
+
+    pconn->busy   = false;
+
+    //@todo: convert this conn_p to connection_p_list and cache it.
+    FIF(CONN2CONNP(conn));
 }
 
 static inline int do_perform_select(connection_group* group)
