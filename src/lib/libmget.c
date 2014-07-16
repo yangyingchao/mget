@@ -27,8 +27,8 @@
 #include "http.h"
 #include "ftp.h"
 
-bool start_request(const char *url, const file_name* fn, mget_option* opt,
-                   dp_callback cb, bool* stop_flag, void* user_data)
+mget_err start_request(const char *url, const file_name* fn, mget_option* opt,
+                       dp_callback cb, bool* stop_flag, void* user_data)
 {
     dinfo* info = NULL;
     bool   ret  = dinfo_create(url, fn, opt, &info);

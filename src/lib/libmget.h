@@ -54,6 +54,17 @@ typedef struct _mget_callbacks
     void (*progress_callback)();
 } mget_callbacks;
 
+
+typedef enum
+{
+    ME_OK = 0,
+    ME_HOST_ERR,
+    ME_RES_ERR, // should not retry
+    ME_CONN_ERR,
+    ME_GENERIC,
+    ME_ABORT,    // should not retry
+} mget_err;
+
 /**
  * @name start_request - start processing request.
  * @param url - Character url to be retrieved.
@@ -61,10 +72,10 @@ typedef struct _mget_callbacks
  * @param nc - Number of connections.
  * @param cb -  callback to report downloading progress.
  * @param stop_flag - Flag to control when to stop.
- * @return bool
+ * @return mget_err
  */
-bool start_request(const char *url, const file_name* fn, mget_option* opt,
-                   dp_callback cb, bool * stop_flag, void* user_data);
+mget_err start_request(const char *url, const file_name* fn, mget_option* opt,
+                       dp_callback cb, bool * stop_flag, void* user_data);
 
 #ifdef __cplusplus
 }

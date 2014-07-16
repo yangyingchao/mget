@@ -265,20 +265,21 @@ int main(int argc, char *argv[])
 
         for (int i = optind; i < argc; i++) {
             int  retry_time = 0;
-            bool result     = true;
+            mget_err result = ME_OK;
             control_byte    = false;
 
             target = argv[i];
             while (retry_time++ < MAX_RETRY_TIMES && !control_byte) {
-                if ((result = start_request(target, &fn, &opts, show_progress,
-                                            &control_byte, NULL))) {
+                result = start_request(target, &fn, &opts, show_progress,
+                                       &control_byte, NULL);
+                if (result == ME_OK || result == ME_ABORT || result == ME_RES_ERR) {
                     break;
                 }
             }
 
             if (!result) {
-                printf ("Failed to download from: %s after %d times retry...\n",
-                        target, MAX_RETRY_TIMES);
+                printf ("Failed to download from: %s, retried time:  %d.\n",
+                        target, retry_time);
                 continue;
             }
         }

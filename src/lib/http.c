@@ -129,9 +129,6 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn)
     (*conn)->ci.writer((*conn), hd, strlen(hd), NULL);
     free(hd);
 
-    char buffer[4096];
-    memset(buffer, 0, 4096);
-
     PDEBUG ("reading...\n");
 
     // we are in blocking mode for now.
@@ -146,7 +143,6 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn)
 
     hash_table *ht   = NULL;
     int         stat = dissect_header(bq, &ht);
-    bq_destroy(&bq);
 
     PDEBUG("stat: %d, description: %s\n",
            stat, (char *) hash_table_entry_get(ht, "status"));
@@ -160,7 +156,7 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn)
         {
             ptr = (char *) hash_table_entry_get(ht, "content-range");
             if (!ptr) {
-                fprintf(stderr, "Content Range not returned: %s!\n", buffer);
+                fprintf(stderr, "Content Range not returned: %s!\n", bq->p);
                 t = 0;
                 goto ret;
             }
@@ -209,7 +205,7 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn)
         default:
         {
             fprintf(stderr, "Not implemented for status code: %d\n", stat);
-            fprintf(stderr, "Response Header\n%s\n", buffer);
+            fprintf(stderr, "Response Header\n%s\n", bq->p);
             goto ret;
         }
     }
@@ -221,6 +217,7 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn)
     }
 
 ret:
+    bq_destroy(&bq);
     return t;
 }
 
@@ -343,8 +340,8 @@ int http_write_sock(connection * conn, void *priv)
     return written;
 }
 
-int process_http_request(dinfo* info, dp_callback cb, bool * stop_flag,
-                         void* user_data)
+mget_err process_http_request(dinfo* info, dp_callback cb, bool * stop_flag,
+                              void* user_data)
 {
     PDEBUG("enter\n");
 
@@ -356,7 +353,7 @@ int process_http_request(dinfo* info, dp_callback cb, bool * stop_flag,
     conn = connection_get(info->ui);
     if (!conn) {
         fprintf(stderr, "Failed to get socket!\n");
-        return -1;
+        return ME_CONN_ERR;
     }
     PDEBUG ("conn : %p\n", conn);
 
@@ -365,7 +362,7 @@ int process_http_request(dinfo* info, dp_callback cb, bool * stop_flag,
 
     if (!total_size) {
         fprintf(stderr, "Can't get remote file size: %s\n", ui->furl);
-        return -1;
+        return ME_RES_ERR;
     }
 
     PDEBUG("total_size: %llu\n", total_size);
@@ -378,7 +375,7 @@ int process_http_request(dinfo* info, dp_callback cb, bool * stop_flag,
     int nc = info->md ? info->md->hd.nr_user : DEFAULT_HTTP_CONNECTIONS;
     if (!dinfo_update_metadata(total_size, info)) {
         fprintf(stderr, "Failed to create metadata from url: %s\n", ui->furl);
-        return -1;
+        return ME_ABORT;
     }
 
     PDEBUG("metadata created from url: %s\n", ui->furl);
@@ -403,7 +400,7 @@ restart:
 
     if (!sg) {
         fprintf(stderr, "Failed to craete sock group.\n");
-        return -1;
+        return ME_GENERIC;
     }
 
     bool need_request = false;
@@ -483,7 +480,8 @@ ret:
     }
 
     PDEBUG("stopped.\n");
-    return 0;
+    return ME_OK;
+
 }
 
 /*
