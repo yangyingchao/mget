@@ -42,12 +42,12 @@ mget_err start_request(const char *url, const file_name* fn, mget_option* opt,
         case UP_HTTP:
         case UP_HTTPS:
         {
-            ret = !process_http_request(info, cb, stop_flag, user_data);
+            ret = process_http_request(info, cb, stop_flag, user_data);
             break;
         }
         case UP_FTP:
         {
-            ret = !process_ftp_request(info, cb, stop_flag, user_data);
+            ret = process_ftp_request(info, cb, stop_flag, user_data);
             break;
         }
         default:

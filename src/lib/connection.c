@@ -106,8 +106,8 @@ static uint32 tcp_connection_read(connection * conn, char *buf,
             }
         }
         else if (!rd)  {
-            PDEBUG ("Read connection: %p returns 0, connection closed...\n",
-                    pconn);
+            PDEBUG ("Read connection: %p, sock: %d returns 0, connection closed...\n",
+                    pconn, pconn->sock);
             pconn->closed = true;
         }
 
@@ -508,8 +508,8 @@ static inline int do_perform_select(connection_group* group)
                     case COF_FAILED:
                     case COF_FINISHED:
                     {
-                        PDEBUG("remove socket: %d, ret: %d...\n",
-                               pconn->sock, ret);
+                        PDEBUG("remove conn: %p socket: %d, ret: %d...\n",
+                               pconn, pconn->sock, ret);
                         FD_CLR(pconn->sock, &rfds);
                         /* close(pconn->sock); */
                         cnt--;
@@ -572,8 +572,6 @@ connection_group *connection_group_create(bool * flag)
     connection_group *group = ZALLOC1(connection_group);
 
     group->cflag = flag;
-
-    INIT_LIST(group->lst, slist_head);
 
     return group;
 }

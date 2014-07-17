@@ -484,9 +484,8 @@ ret:
         (*cb) (md, user_data);
     }
 
-    PDEBUG("stopped.\n");
+    PDEBUG("stopped, ret: %d.\n", ME_OK);
     return ME_OK;
-
 }
 
 /*

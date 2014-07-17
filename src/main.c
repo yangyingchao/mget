@@ -272,6 +272,8 @@ int main(int argc, char *argv[])
             while (retry_time++ < MAX_RETRY_TIMES && !control_byte) {
                 result = start_request(target, &fn, &opts, show_progress,
                                        &control_byte, NULL);
+                PDEBUG ("result : %d\n", result);
+
                 if (result == ME_OK || result == ME_ABORT || result == ME_RES_ERR) {
                     break;
                 }
