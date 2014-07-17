@@ -40,6 +40,7 @@
 #include "ssl.h"
 #endif
 
+#define MAX_CONNS_PER_HOST  32
 
 typedef struct addrinfo address;
 
@@ -55,38 +56,26 @@ typedef struct _addr_entry {
 } addr_entry;
 
 typedef struct _connection_p {
-    connection conn;
-    int      sock;
-    char    *host;
-    address *addr;
-    void    *priv;
-    bool     connected;
-    bool     active;
-    bool     closed;
-    bool   busy;
-
-    /* uint32 atime; */
+    connection  conn;
+    slist_head  lst;
+    int         sock;
+    int         port;
+    char*       host;
+    address*    addr;
+    void*       priv;
+    bool        connected;
+    bool        active;
+    bool        closed;
+    bool        busy;
 } connection_p;
 
-typedef struct _connection_p_list
-{
-    connection_p* next;
-    connection_p  conn;
-} connection_p_list;
-
-
-#define CONN2CONNP(X)       (connection_p*)(X)
-#define CONNP2CPL(X) (connection_p*)(X - offsetof(connection_p, conn))
-
-typedef struct _connection_list {
-    mget_slist_head *next;
-    connection *conn;
-} connection_list;
+#define CONN2CONNP(X) (connection_p*)(X)
+#define LIST2PCONN(X) (connection_p*)((char*)X - offsetof(connection_p, lst))
 
 struct _connection_group {
-    int cnt;			// count of sockets.
-    bool *cflag;		// control flag.
-    connection_list *lst;	// list of sockets.
+    int         cnt;                    // count of sockets.
+    bool*       cflag;                  // control flag.
+    slist_head* lst;                    // list of sockets.
 };
 
 void addr_entry_destroy(void *entry)
@@ -221,30 +210,30 @@ sockaddr_set_data (struct sockaddr *sa, ip_address* ip, int port)
 }
 
 static hash_table* g_addr_cache = NULL;
+static hash_table* g_conn_cache = NULL;
+
+typedef struct _connection_cache
+{
+    int count;
+    slist_head* lst;
+} ccache;
+
 
 #define print_address(X)   inet_ntoa ((X)->data.d4)
 
 connection* connection_get(const url_info* ui)
 {
-    if (!g_addr_cache) {
-        g_addr_cache = hash_table_create(64, addr_entry_destroy);	//TODO: add deallocation..
-        assert(g_addr_cache);
-    }
-
-    //@todo: 1. create connection_p_list instead of connection_p
-    //       2. try to reuse existing connection, cache-index: host name.
-    connection_p* conn = ZALLOC1(connection_p);
-
+    PDEBUG ("%p -- %p\n", ui, ui->addr);
     if (!ui || (!ui->host && !ui->addr)) {
         PDEBUG ("invalid ui.\n");
         goto ret;
     }
 
-    PDEBUG ("%p -- %p\n", ui, ui->addr);
-
+    connection_p* conn = NULL;
     addr_entry *addr = NULL;
     if (ui->addr)
     {
+        conn = ZALLOC1(connection_p);
         conn->sock = socket(AF_INET, SOCK_STREAM, 0);
         if (conn->sock == -1) {
             goto err;
@@ -273,8 +262,16 @@ connection* connection_get(const url_info* ui)
     }
     else
     {
-        addr = GET_HASH_ENTRY(addr_entry, g_addr_cache, ui->host);
+        //@todo: 1. try to reuse existing connection, in g_conn_cache.
 
+        conn = ZALLOC1(connection_p);
+
+        if (!g_addr_cache) {
+            g_addr_cache = hash_table_create(64, addr_entry_destroy);	//TODO: add deallocation..
+            assert(g_addr_cache);
+        }
+
+        addr = GET_HASH_ENTRY(addr_entry, g_addr_cache, ui->host);
         if (addr) {
             PDEBUG ("Using known address....\n");
 
@@ -329,6 +326,12 @@ connection* connection_get(const url_info* ui)
     }
 
     if (conn) {
+        if (ui->host)
+        {
+            conn->host = strdup(ui->host);
+        }
+
+        conn->port = ui->port;
         conn->active = true;
         switch (ui->eprotocol) {
             case UP_HTTPS:
@@ -362,6 +365,7 @@ err:
     fprintf(stderr, "Failed to get proper host address for: %s\n",
             ui->host);
     FIF(addr);
+    FIF(conn->host);
     FIF(conn);
     conn = NULL;
 ret:
@@ -377,6 +381,11 @@ void connection_put(connection* conn)
     }
 
     connection_p* pconn = (connection_p*)conn;
+    if (!pconn->host)
+    {
+        goto clean;
+    }
+
     if (!fcntl(pconn->sock, F_SETFD, O_NONBLOCK))
     {
         while (true) {
@@ -394,8 +403,37 @@ void connection_put(connection* conn)
 
     pconn->busy   = false;
 
+    if (!g_conn_cache)
+    {
+        g_conn_cache = hash_table_create(64, free);
+        assert(g_conn_cache);
+    }
+
+    ccache* cache = HASH_ENTRY_GET(ccache, g_conn_cache, pconn->host);
+    if (!cache)
+    {
+        cache = ZALLOC1(ccache);
+        cache->count++;
+        cache->lst   = &pconn->lst;
+        hash_table_insert(g_conn_cache, pconn->host, cache, sizeof(void*));
+    }
+    else if (cache->count >= MAX_CONNS_PER_HOST)
+    {
+        goto clean;
+    }
+    else
+    {
+        cache->count++;
+        pconn->lst.next = cache->lst;
+        cache->lst = &pconn->lst;
+    }
+
+    return;
+
     //@todo: convert this conn_p to connection_p_list and cache it.
-    FIF(CONN2CONNP(conn));
+clean:
+    FIF(pconn->host);
+    FIF(pconn);
 }
 
 static inline int do_perform_select(connection_group* group)
@@ -408,12 +446,12 @@ static inline int do_perform_select(connection_group* group)
     fd_set wfds;
     FD_ZERO(&wfds);
 
-    connection_list *p = group->lst;
+    slist_head* p = group->lst;
     PDEBUG("p: %p, next: %p\n", p, p->next);
-    while (p && p->conn) {
-        PDEBUG("p: %p, next: %p\n", p, p->next);
-        connection_p *conn = (connection_p *) p->conn;
-
+    while (p) {
+        connection_p* conn = LIST2PCONN(p);
+        PDEBUG("p: %p, conn: %p, sock: %d, off: %ld, next: %p\n",
+               p, conn, conn->sock, offsetof(connection_p, lst), p->next);
         if ((conn->sock != 0) && conn->conn.rf && conn->conn.wf) {
             fcntl(conn->sock, F_SETFD, O_NONBLOCK);
             FD_SET(conn->sock, &wfds);
@@ -421,7 +459,7 @@ static inline int do_perform_select(connection_group* group)
                 maxfd = conn->sock;
             }
         }
-        p = (connection_list *) p->next;
+        p = p->next;
     }
 
     maxfd++;
@@ -435,24 +473,25 @@ static inline int do_perform_select(connection_group* group)
         tv.tv_sec = 1;
         tv.tv_usec = 0;
         nfds = select(maxfd, &rfds, &wfds, NULL, &tv);
-
         if (nfds == -1) {
             perror("select fail:");
             break;
         }
 
         if (nfds == 0) {
-            /* fprintf(stderr, "time out ....\n"); */
+            fprintf(stderr, "time out ....\n");
         }
 
-        connection_list *p = group->lst;
+        slist_head* p = group->lst;
 
-        while (p && p->conn) {
-            connection_p *pconn = (connection_p *) p->conn;
-            int ret = 0;
+        while (p) {
+            connection_p* pconn = LIST2PCONN(p);
+            int           ret   = 0;
 
             if (FD_ISSET(pconn->sock, &wfds)) {
                 ret = pconn->conn.wf((connection *) pconn, pconn->conn.priv);
+                PDEBUG ("%d byte written\n", ret);
+
                 if (ret > 0) {
                     FD_CLR(pconn->sock, &wfds);
                     FD_SET(pconn->sock, &rfds);
@@ -491,7 +530,7 @@ static inline int do_perform_select(connection_group* group)
                 FD_SET(pconn->sock, &rfds);
             }
 
-            p = (connection_list *) p->next;
+            p = p->next;
         }
 
         if (cnt == 0) {
@@ -534,19 +573,19 @@ connection_group *connection_group_create(bool * flag)
 
     group->cflag = flag;
 
-    INIT_LIST(group->lst, connection_list);
+    INIT_LIST(group->lst, slist_head);
 
     return group;
 }
 
-void connection_group_destroy(connection_group * group)
+void connection_group_destroy(connection_group* group)
 {
-    connection_list *g = group->lst;
+    slist_head* g = group->lst;
 
     while (g) {
-        connection_list *ng = (connection_list *) g->next;
-
-        FIF(CONN2CONNP(g->conn));
+        slist_head*   ng    = g->next;
+        connection_p* pconn = LIST2PCONN(g);
+        connection_put((connection*)pconn);
         FIF(g);
         g = ng;
     }
@@ -554,18 +593,14 @@ void connection_group_destroy(connection_group * group)
     FIF(group);
 }
 
-void connection_add_to_group(connection_group * group, connection * sock)
+void connection_add_to_group(connection_group* group, connection* conn)
 {
     group->cnt++;
-    connection_list *tail = group->lst;
-
-    if (tail->conn) {
-        SEEK_LIST_TAIL(group->lst, tail, connection_list);
-    }
-    assert(tail->conn == NULL);
-    tail->conn = sock;
+    connection_p* pconn = CONN2CONNP(conn);
+    pconn->lst.next = group->lst;
+    group->lst = &pconn->lst;
     PDEBUG("Socket: %p added to group: %p, current count: %d\n",
-           sock, group, group->cnt);
+           conn, group, group->cnt);
 }
 
 /*

@@ -57,14 +57,19 @@ int dissect_header(byte_queue* bq, hash_table ** ht)
 
     const char *buffer = bq->r;
     size_t length = bq->w - bq->r;
-
-    PDEBUG ("buffer: %s\n", buffer);
     char *fptr = strstr(buffer, HEADER_END);
     if (!fptr)  {
         fprintf(stderr,
                 "Should only dissect header when header is complete\n");
         abort();
     }
+
+#ifdef DEBUG
+    size_t h_len = fptr - (char*)bq->r + 4;
+    char* bf = ZALLOC(char, h_len);
+    PDEBUG ("buffer: %s\n", strncpy(bf, bq->r, h_len-1));
+    FIF(bf);
+#endif
 
     hash_table *pht = hash_table_create(256, free);
     if (!pht) {
