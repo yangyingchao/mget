@@ -396,6 +396,7 @@ void connection_put(connection* conn)
             else if (!ret) // closed ...
             {
                 pconn->closed = true;
+                break;
             }
         }
     }
