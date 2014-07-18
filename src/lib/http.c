@@ -55,9 +55,8 @@ int dissect_header(byte_queue* bq, hash_table ** ht)
         return -1;
     }
 
-    const char *buffer = bq->r;
     size_t length = bq->w - bq->r;
-    char *fptr = strstr(buffer, HEADER_END);
+    char *fptr = strstr(bq->r, HEADER_END);
     if (!fptr)  {
         fprintf(stderr,
                 "Should only dissect header when header is complete\n");
@@ -78,7 +77,7 @@ int dissect_header(byte_queue* bq, hash_table ** ht)
 
     *ht = pht;
 
-    const char *ptr    = buffer;
+    const char *ptr    = strstr(bq->r, "HTTP/");
     int         n      = 0;
     int         num    = 0;
     int         stat   = 0;
@@ -102,7 +101,7 @@ int dissect_header(byte_queue* bq, hash_table ** ht)
 
     char k[256] = { '\0' };
     char v[256] = { '\0' };
-    while ((ptr < buffer + length) && fptr && ptr < fptr) {
+    while ((ptr < bq->r + length) && fptr && ptr < fptr) {
         memset(k, 0, 256);
         memset(v, 0, 256);
         if (sscanf((const char *) ptr, "%[^:]: %[^\r\n]\r\n%n", k, v, &n)) {
@@ -141,7 +140,7 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn)
     char* eptr = NULL;
     int i = 1;
     do {
-        bq         = bq_resize(bq, SIZE);
+        bq         = bq_enlarge(bq, SIZE);
         size_t rd  = (*conn)->ci.reader((*conn), bq->w, bq->x - bq->w, NULL);
         bq->w     += rd;
     } while ((eptr = strstr(bq->r, HEADER_END)) == NULL);
@@ -264,9 +263,7 @@ int http_read_sock(connection * conn, void *priv)
                 return 1;
             }
 
-            size_t ds = (byte*)ptr - param->bq->r + 4;
             int    r  = dissect_header(param->bq, &param->ht);
-
             if (r != 206 && r != 200) { /* Some server returns 200?? */
                 fprintf(stderr, "status code is %d!\n", r);
                 exit(1);

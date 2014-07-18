@@ -154,7 +154,7 @@ typedef struct _byte_queue
 byte_queue* bq_init(size_t size);
 
 // it will ensure there are at least sz bytes left for writting...
-byte_queue* bq_resize(byte_queue* bq, size_t sz);
+byte_queue* bq_enlarge(byte_queue* bq, size_t sz);
 void bq_destroy(byte_queue**);
 
 void lowwer_case(char* p, size_t len);

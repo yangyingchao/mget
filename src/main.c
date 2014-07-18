@@ -275,18 +275,16 @@ int main(int argc, char *argv[])
                 PDEBUG ("result : %d\n", result);
 
                 if (result == ME_OK || result == ME_ABORT || result == ME_RES_ERR) {
-                    break;
+                    goto fin;
                 }
             }
 
-            if (!result) {
-                printf ("Failed to download from: %s, retried time:  %d.\n",
-                        target, retry_time);
-                continue;
-            }
+            printf ("Failed to download from: %s, retried time:  %d.\n",
+                    target, retry_time);
         }
     }
 
+fin:
     return 0;
 }
 

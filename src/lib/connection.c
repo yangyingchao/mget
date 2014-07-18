@@ -96,7 +96,6 @@ static uint32 tcp_connection_read(connection * conn, char *buf,
 
     if (pconn && pconn->sock && buf) {
         uint32 rd = (uint32) read(pconn->sock, buf, size);
-
         if (rd == -1) {
             if (errno == EAGAIN) { // nothing to read, normal if non-blocking
                 ;
@@ -211,6 +210,7 @@ sockaddr_set_data (struct sockaddr *sa, ip_address* ip, int port)
 
 static hash_table* g_addr_cache = NULL;
 static hash_table* g_conn_cache = NULL;
+static byte_queue* dq = NULL; // drop queue
 
 typedef struct _connection_cache
 {
@@ -227,6 +227,11 @@ connection* connection_get(const url_info* ui)
     if (!ui || (!ui->host && !ui->addr)) {
         PDEBUG ("invalid ui.\n");
         goto ret;
+    }
+
+    if (!dq) // init this drop queue.
+    {
+        dq = bq_init(1024);
     }
 
     connection_p* conn = NULL;
@@ -372,14 +377,8 @@ ret:
     return (connection *) conn;
 }
 
-static byte_queue* dq = NULL; // drop queue
 void connection_put(connection* conn)
 {
-    if (!dq)
-    {
-        dq = bq_init(1024);
-    }
-
     connection_p* pconn = (connection_p*)conn;
     if (!pconn->host)
     {
@@ -453,7 +452,12 @@ static inline int do_perform_select(connection_group* group)
         PDEBUG("p: %p, conn: %p, sock: %d, off: %ld, next: %p\n",
                p, conn, conn->sock, offsetof(connection_p, lst), p->next);
         if ((conn->sock != 0) && conn->conn.rf && conn->conn.wf) {
-            fcntl(conn->sock, F_SETFD, O_NONBLOCK);
+            int ret = fcntl(conn->sock, F_SETFD, O_NONBLOCK);
+            if (ret == -1)
+            {
+                fprintf(stderr, "Failed to unblock socket!\n");
+                return -1;
+            }
             FD_SET(conn->sock, &wfds);
             if (maxfd < conn->sock) {
                 maxfd = conn->sock;

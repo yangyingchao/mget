@@ -313,7 +313,7 @@ byte_queue* bq_init(size_t size)
 }
 
 //@todo: align to page??
-byte_queue* bq_resize(byte_queue* bq, size_t sz)
+byte_queue* bq_enlarge(byte_queue* bq, size_t sz)
 {
     if (sz > bq->x - bq->w) {
         // simply add sz bytes at the end if necessary.
