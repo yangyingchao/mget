@@ -312,11 +312,33 @@ byte_queue* bq_init(size_t size)
     return  bq;
 }
 
-byte_queue* bq_resize(byte_queue* bq, size_t sz)
+//@todo: align to page??
+byte_queue* bq_enlarge(byte_queue* bq, size_t sz)
 {
-    return NULL;
+    if (sz > bq->x - bq->w) {
+        // simply add sz bytes at the end if necessary.
+        char* ptr = ZALLOC(char, bq->x + sz - bq->p);
+        if (ptr) {
+            memcpy(ptr, bq->p, bq->w - bq->p);
+            bq->r = (byte*)ptr + (bq->r - bq->p);
+            bq->w = (byte*)ptr + (bq->w - bq->p);
+            FIF(bq->p);
+            bq->p = ptr;
+            bq->x = ptr + sz;
+        }
+    }
+
+    return bq;
 }
 
+void bq_destroy(byte_queue** bq)
+{
+    if (bq && *bq)
+    {
+        FIF((*bq)->p);
+        FIFZ(bq);
+    }
+}
 
 void lowwer_case(char* p, size_t len)
 {

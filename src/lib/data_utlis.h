@@ -43,9 +43,9 @@ typedef struct _mget_slis {
 mget_slis *mget_slist_append(mget_slis * l, void *data, free_func f);
 void mget_slist_free(mget_slis * lst);
 
-typedef struct _mget_slist_head {
-    struct mget_slist_head *next;
-} mget_slist_head;
+typedef struct _slist_head {
+    struct _slist_head *next;
+} slist_head;
 
 #define INIT_LIST(instance, type) do {                                  \
         if (instance == NULL) {                                         \
@@ -67,7 +67,7 @@ typedef struct _mget_slist_head {
         {                                                   \
             if (ptr->next == NULL)                          \
             {                                               \
-                ptr->next = (mget_slist_head*)ZALLOC1(type);    \
+                ptr->next = (slist_head*)ZALLOC1(type);    \
                 ptr = (type*)ptr->next;                         \
                 break;                                      \
             }                                               \
@@ -112,6 +112,8 @@ hash_table*hash_table_create(uint32 size, DestroyFunction dFunctor);
 bool hash_table_insert(hash_table* table, char *key, void *val, uint32 val_len);
 void *hash_table_entry_get(hash_table* table, const char *key);
 
+#define HASH_ENTRY_GET(T, H, K) (T*)hash_table_entry_get((H),(K))
+
 /**
  * @name dump_hash_table - Dump hash table to buffer.
  * @param ht -  ht to be dumpped.
@@ -150,7 +152,10 @@ typedef struct _byte_queue
 } byte_queue;
 
 byte_queue* bq_init(size_t size);
-byte_queue* bq_resize(byte_queue* bq, size_t sz);
+
+// it will ensure there are at least sz bytes left for writting...
+byte_queue* bq_enlarge(byte_queue* bq, size_t sz);
+void bq_destroy(byte_queue**);
 
 void lowwer_case(char* p, size_t len);
 #ifdef __cplusplus

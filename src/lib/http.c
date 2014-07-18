@@ -30,6 +30,9 @@
 
 #define DEFAULT_HTTP_CONNECTIONS 5
 #define BUF_SIZE                 4096
+#define SIZE                     1024
+
+static const char* HEADER_END = "\r\n\r\n";
 
 
 static inline char *generate_request_header(const char* method, url_info* uri,
@@ -45,11 +48,27 @@ static inline char *generate_request_header(const char* method, url_info* uri,
     return strdup(buffer);
 }
 
-int dissect_header(const char *buffer, size_t length, hash_table ** ht)
+//@todo: should make sure header is complete before dissecting header!
+int dissect_header(byte_queue* bq, hash_table ** ht)
 {
-    if (!ht || !buffer) {
+    if (!ht || !bq || !bq->r) {
         return -1;
     }
+
+    size_t length = bq->w - bq->r;
+    char *fptr = strstr(bq->r, HEADER_END);
+    if (!fptr)  {
+        fprintf(stderr,
+                "Should only dissect header when header is complete\n");
+        abort();
+    }
+
+#ifdef DEBUG
+    size_t h_len = fptr - (char*)bq->r + 4;
+    char* bf = ZALLOC(char, h_len);
+    PDEBUG ("buffer: %s\n", strncpy(bf, bq->r, h_len-1));
+    FIF(bf);
+#endif
 
     hash_table *pht = hash_table_create(256, free);
     if (!pht) {
@@ -58,7 +77,7 @@ int dissect_header(const char *buffer, size_t length, hash_table ** ht)
 
     *ht = pht;
 
-    const char *ptr    = buffer;
+    const char *ptr    = strstr(bq->r, "HTTP/");
     int         n      = 0;
     int         num    = 0;
     int         stat   = 0;
@@ -82,7 +101,7 @@ int dissect_header(const char *buffer, size_t length, hash_table ** ht)
 
     char k[256] = { '\0' };
     char v[256] = { '\0' };
-    while (ptr < buffer + length) {
+    while ((ptr < bq->r + length) && fptr && ptr < fptr) {
         memset(k, 0, 256);
         memset(v, 0, 256);
         if (sscanf((const char *) ptr, "%[^:]: %[^\r\n]\r\n%n", k, v, &n)) {
@@ -92,6 +111,8 @@ int dissect_header(const char *buffer, size_t length, hash_table ** ht)
             ptr += n;
         }
     }
+
+    bq->r = fptr + 4;
 
     return stat;
 }
@@ -105,17 +126,27 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn)
         return 0;
     }
 
+    PDEBUG ("enter\n");
+
     char *hd = generate_request_header("GET", ui, 0, 0);
 
     (*conn)->ci.writer((*conn), hd, strlen(hd), NULL);
     free(hd);
 
-    char buffer[4096];
-    memset(buffer, 0, 4096);
+    PDEBUG ("reading...\n");
 
-    size_t      rd   = (*conn)->ci.reader((*conn), buffer, 4096, NULL);
+    // we are in blocking mode for now.
+    byte_queue* bq = bq_init(SIZE);
+    char* eptr = NULL;
+    int i = 1;
+    do {
+        bq         = bq_enlarge(bq, SIZE);
+        size_t rd  = (*conn)->ci.reader((*conn), bq->w, bq->x - bq->w, NULL);
+        bq->w     += rd;
+    } while ((eptr = strstr(bq->r, HEADER_END)) == NULL);
+
     hash_table *ht   = NULL;
-    int         stat = dissect_header(buffer, rd, &ht);
+    int         stat = dissect_header(bq, &ht);
 
     PDEBUG("stat: %d, description: %s\n",
            stat, (char *) hash_table_entry_get(ht, "status"));
@@ -129,7 +160,7 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn)
         {
             ptr = (char *) hash_table_entry_get(ht, "content-range");
             if (!ptr) {
-                fprintf(stderr, "Content Range not returned: %s!\n", buffer);
+                fprintf(stderr, "Content Range not returned: %s!\n", bq->p);
                 t = 0;
                 goto ret;
             }
@@ -178,7 +209,7 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn)
         default:
         {
             fprintf(stderr, "Not implemented for status code: %d\n", stat);
-            fprintf(stderr, "Response Header\n%s\n", buffer);
+            fprintf(stderr, "Response Header\n%s\n", bq->p);
             goto ret;
         }
     }
@@ -190,6 +221,7 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn)
     }
 
 ret:
+    bq_destroy(&bq);
     return t;
 }
 
@@ -198,7 +230,7 @@ typedef struct _connection_operation_param {
     data_chunk *dp;
     url_info *ui;
     bool header_finished;
-    char *hd;
+    byte_queue* bq;
     hash_table *ht;
     void (*cb) (metadata*, void*);
     metadata *md;
@@ -220,22 +252,18 @@ int http_read_sock(connection * conn, void *priv)
 
     void *addr = param->addr + dp->cur_pos;
     if (!param->header_finished) {
-        char buf[4096] = { '\0' };
-        memset(buf, 0, 4096);
-        size_t rd = conn->ci.reader(conn, buf, 4095, NULL);
+        size_t rd = conn->ci.reader(conn, param->bq->w,
+                                    param->bq->x - param->bq->w, NULL);
 
         if (rd) {
-            char *ptr = strstr(buf, "\r\n\r\n");
-
+            param->bq->w += rd;
+            char *ptr = strstr(param->bq->r, "\r\n\r\n");
             if (ptr == NULL) {
                 // Header not complete, store and return positive value.
-                param->hd = strdup(buf);
                 return 1;
             }
 
-            size_t ds = ptr - buf + 4;
-            int    r  = dissect_header(buf, ds, &param->ht);
-
+            int    r  = dissect_header(param->bq, &param->ht);
             if (r != 206 && r != 200) { /* Some server returns 200?? */
                 fprintf(stderr, "status code is %d!\n", r);
                 exit(1);
@@ -243,13 +271,23 @@ int http_read_sock(connection * conn, void *priv)
 
             ptr += 4;		// adjust to the tail of "\r\n\r\n"
 
+            if ((byte*)ptr != param->bq->r)
+            {
+                fprintf(stderr,
+                        "Pointer is not at the beginning of http body!!\n");
+                abort();
+            }
+
             param->header_finished = true;
 
-            size_t length = rd - ds;
+            size_t length = param->bq->w - param->bq->r;
+            PDEBUG ("LEN: %ld, bq->w - bq->r: %ld\n", length,
+                    param->bq->w - param->bq->r);
             if (length) {
-                memcpy(addr, ptr, length);
+                memcpy(addr, param->bq->r, length);
                 dp->cur_pos += length;
             }
+            bq_destroy(&param->bq);
         }
     }
 
@@ -304,8 +342,8 @@ int http_write_sock(connection * conn, void *priv)
     return written;
 }
 
-int process_http_request(dinfo* info, dp_callback cb, bool * stop_flag,
-                         void* user_data)
+mget_err process_http_request(dinfo* info, dp_callback cb, bool * stop_flag,
+                              void* user_data)
 {
     PDEBUG("enter\n");
 
@@ -317,14 +355,16 @@ int process_http_request(dinfo* info, dp_callback cb, bool * stop_flag,
     conn = connection_get(info->ui);
     if (!conn) {
         fprintf(stderr, "Failed to get socket!\n");
-        return -1;
+        return ME_CONN_ERR;
     }
+    PDEBUG ("conn : %p\n", conn);
+
 
     uint64 total_size = get_remote_file_size_http(info->ui, &conn);
 
     if (!total_size) {
         fprintf(stderr, "Can't get remote file size: %s\n", ui->furl);
-        return -1;
+        return ME_RES_ERR;
     }
 
     PDEBUG("total_size: %llu\n", total_size);
@@ -332,12 +372,12 @@ int process_http_request(dinfo* info, dp_callback cb, bool * stop_flag,
     /*
       If it goes here, means metadata is not ready, get nc (number of
       connections) from download_info, and recreate metadata.
-     */
+    */
 
     int nc = info->md ? info->md->hd.nr_user : DEFAULT_HTTP_CONNECTIONS;
     if (!dinfo_update_metadata(total_size, info)) {
         fprintf(stderr, "Failed to create metadata from url: %s\n", ui->furl);
-        return -1;
+        return ME_ABORT;
     }
 
     PDEBUG("metadata created from url: %s\n", ui->furl);
@@ -362,7 +402,7 @@ restart:
 
     if (!sg) {
         fprintf(stderr, "Failed to craete sock group.\n");
-        return -1;
+        return ME_GENERIC;
     }
 
     bool need_request = false;
@@ -389,6 +429,7 @@ restart:
         param->dp        = dp;
         param->ui        = ui;
         param->md        = md;
+        param->bq        = bq_init(SIZE);
         param->cb        = cb;
         param->user_data = user_data;
 
@@ -440,8 +481,8 @@ ret:
         (*cb) (md, user_data);
     }
 
-    PDEBUG("stopped.\n");
-    return 0;
+    PDEBUG("stopped, ret: %d.\n", ME_OK);
+    return ME_OK;
 }
 
 /*

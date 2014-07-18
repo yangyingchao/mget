@@ -40,6 +40,7 @@
 #include "ssl.h"
 #endif
 
+#define MAX_CONNS_PER_HOST  32
 
 typedef struct addrinfo address;
 
@@ -55,30 +56,26 @@ typedef struct _addr_entry {
 } addr_entry;
 
 typedef struct _connection_p {
-    connection conn;
-
-    int      sock;
-    char    *host;
-    address *addr;
-    void    *priv;
-    bool     connected;
-    bool     active;
-    bool     closed;
-    bool   busy;
-    /* uint32 atime; */
+    connection  conn;
+    slist_head  lst;
+    int         sock;
+    int         port;
+    char*       host;
+    address*    addr;
+    void*       priv;
+    bool        connected;
+    bool        active;
+    bool        closed;
+    bool        busy;
 } connection_p;
 
-#define CONN2CONNP(X)       (connection_p*)(X)
-
-typedef struct _connection_list {
-    mget_slist_head *next;
-    connection *conn;
-} connection_list;
+#define CONN2CONNP(X) (connection_p*)(X)
+#define LIST2PCONN(X) (connection_p*)((char*)X - offsetof(connection_p, lst))
 
 struct _connection_group {
-    int cnt;			// count of sockets.
-    bool *cflag;		// control flag.
-    connection_list *lst;	// list of sockets.
+    int         cnt;                    // count of sockets.
+    bool*       cflag;                  // control flag.
+    slist_head* lst;                    // list of sockets.
 };
 
 void addr_entry_destroy(void *entry)
@@ -99,7 +96,6 @@ static uint32 tcp_connection_read(connection * conn, char *buf,
 
     if (pconn && pconn->sock && buf) {
         uint32 rd = (uint32) read(pconn->sock, buf, size);
-
         if (rd == -1) {
             if (errno == EAGAIN) { // nothing to read, normal if non-blocking
                 ;
@@ -109,8 +105,8 @@ static uint32 tcp_connection_read(connection * conn, char *buf,
             }
         }
         else if (!rd)  {
-            PDEBUG ("Read connection: %p returns 0, connection closed...\n",
-                    pconn);
+            PDEBUG ("Read connection: %p, sock: %d returns 0, connection closed...\n",
+                    pconn, pconn->sock);
             pconn->closed = true;
         }
 
@@ -127,6 +123,7 @@ static uint32 tcp_connection_write(connection * conn, char *buf,
     connection_p *pconn = (connection_p *) conn;
 
     if (pconn && pconn->sock && buf) {
+        PDEBUG ("begin write ....\n");
         return (uint32) write(pconn->sock, buf, size);
     }
     return 0;
@@ -212,28 +209,36 @@ sockaddr_set_data (struct sockaddr *sa, ip_address* ip, int port)
 }
 
 static hash_table* g_addr_cache = NULL;
+static hash_table* g_conn_cache = NULL;
+static byte_queue* dq = NULL; // drop queue
+
+typedef struct _connection_cache
+{
+    int count;
+    slist_head* lst;
+} ccache;
+
 
 #define print_address(X)   inet_ntoa ((X)->data.d4)
 
 connection* connection_get(const url_info* ui)
 {
-    if (!g_addr_cache) {
-        g_addr_cache = hash_table_create(64, addr_entry_destroy);	//TODO: add deallocation..
-        assert(g_addr_cache);
-    }
-
-    connection_p* conn = ZALLOC1(connection_p);
-
+    PDEBUG ("%p -- %p\n", ui, ui->addr);
     if (!ui || (!ui->host && !ui->addr)) {
         PDEBUG ("invalid ui.\n");
         goto ret;
     }
 
-    PDEBUG ("%p -- %p\n", ui, ui->addr);
+    if (!dq) // init this drop queue.
+    {
+        dq = bq_init(1024);
+    }
 
+    connection_p* conn = NULL;
     addr_entry *addr = NULL;
     if (ui->addr)
     {
+        conn = ZALLOC1(connection_p);
         conn->sock = socket(AF_INET, SOCK_STREAM, 0);
         if (conn->sock == -1) {
             goto err;
@@ -262,9 +267,19 @@ connection* connection_get(const url_info* ui)
     }
     else
     {
-        addr = GET_HASH_ENTRY(addr_entry, g_addr_cache, ui->host);
+        //@todo: 1. try to reuse existing connection, in g_conn_cache.
 
+        conn = ZALLOC1(connection_p);
+
+        if (!g_addr_cache) {
+            g_addr_cache = hash_table_create(64, addr_entry_destroy);	//TODO: add deallocation..
+            assert(g_addr_cache);
+        }
+
+        addr = GET_HASH_ENTRY(addr_entry, g_addr_cache, ui->host);
         if (addr) {
+            PDEBUG ("Using known address....\n");
+
             conn->addr = addr->addr;
             conn->sock = socket(conn->addr->ai_family, conn->addr->ai_socktype,
                                 conn->addr->ai_protocol);
@@ -284,6 +299,8 @@ connection* connection_get(const url_info* ui)
             hints.ai_protocol = 0;
             logprintf(LOG_ALWAYS, "Resolving host: %s ...\n", ui->host);
             int ret = getaddrinfo(ui->host, ui->sport, &hints, &addr->infos);
+
+            PDEBUG ("ret = %d, error: %s\n", ret, strerror(errno));
 
             if (ret)
                 goto err;
@@ -314,6 +331,12 @@ connection* connection_get(const url_info* ui)
     }
 
     if (conn) {
+        if (ui->host)
+        {
+            conn->host = strdup(ui->host);
+        }
+
+        conn->port = ui->port;
         conn->active = true;
         switch (ui->eprotocol) {
             case UP_HTTPS:
@@ -347,15 +370,69 @@ err:
     fprintf(stderr, "Failed to get proper host address for: %s\n",
             ui->host);
     FIF(addr);
+    FIF(conn->host);
     FIF(conn);
     conn = NULL;
 ret:
     return (connection *) conn;
 }
 
-void connection_put(connection * sock)
+void connection_put(connection* conn)
 {
-    FIF(CONN2CONNP(sock));
+    connection_p* pconn = (connection_p*)conn;
+    if (!pconn->host)
+    {
+        goto clean;
+    }
+
+    if (!fcntl(pconn->sock, F_SETFD, O_NONBLOCK))
+    {
+        while (true) {
+            int ret = conn->ci.reader(conn, dq->p, 1024, NULL);
+            if (ret == -1 && errno == EAGAIN)
+            {
+                break; // read buffer is clear...
+            }
+            else if (!ret) // closed ...
+            {
+                pconn->closed = true;
+            }
+        }
+    }
+
+    pconn->busy   = false;
+
+    if (!g_conn_cache)
+    {
+        g_conn_cache = hash_table_create(64, free);
+        assert(g_conn_cache);
+    }
+
+    ccache* cache = HASH_ENTRY_GET(ccache, g_conn_cache, pconn->host);
+    if (!cache)
+    {
+        cache = ZALLOC1(ccache);
+        cache->count++;
+        cache->lst   = &pconn->lst;
+        hash_table_insert(g_conn_cache, pconn->host, cache, sizeof(void*));
+    }
+    else if (cache->count >= MAX_CONNS_PER_HOST)
+    {
+        goto clean;
+    }
+    else
+    {
+        cache->count++;
+        pconn->lst.next = cache->lst;
+        cache->lst = &pconn->lst;
+    }
+
+    return;
+
+    //@todo: convert this conn_p to connection_p_list and cache it.
+clean:
+    FIF(pconn->host);
+    FIF(pconn);
 }
 
 static inline int do_perform_select(connection_group* group)
@@ -368,20 +445,25 @@ static inline int do_perform_select(connection_group* group)
     fd_set wfds;
     FD_ZERO(&wfds);
 
-    connection_list *p = group->lst;
+    slist_head* p = group->lst;
     PDEBUG("p: %p, next: %p\n", p, p->next);
-    while (p && p->conn) {
-        PDEBUG("p: %p, next: %p\n", p, p->next);
-        connection_p *conn = (connection_p *) p->conn;
-
+    while (p) {
+        connection_p* conn = LIST2PCONN(p);
+        PDEBUG("p: %p, conn: %p, sock: %d, off: %ld, next: %p\n",
+               p, conn, conn->sock, offsetof(connection_p, lst), p->next);
         if ((conn->sock != 0) && conn->conn.rf && conn->conn.wf) {
-            fcntl(conn->sock, F_SETFD, O_NONBLOCK);
+            int ret = fcntl(conn->sock, F_SETFD, O_NONBLOCK);
+            if (ret == -1)
+            {
+                fprintf(stderr, "Failed to unblock socket!\n");
+                return -1;
+            }
             FD_SET(conn->sock, &wfds);
             if (maxfd < conn->sock) {
                 maxfd = conn->sock;
             }
         }
-        p = (connection_list *) p->next;
+        p = p->next;
     }
 
     maxfd++;
@@ -395,24 +477,25 @@ static inline int do_perform_select(connection_group* group)
         tv.tv_sec = 1;
         tv.tv_usec = 0;
         nfds = select(maxfd, &rfds, &wfds, NULL, &tv);
-
         if (nfds == -1) {
             perror("select fail:");
             break;
         }
 
         if (nfds == 0) {
-            /* fprintf(stderr, "time out ....\n"); */
+            fprintf(stderr, "time out ....\n");
         }
 
-        connection_list *p = group->lst;
+        slist_head* p = group->lst;
 
-        while (p && p->conn) {
-            connection_p *pconn = (connection_p *) p->conn;
-            int ret = 0;
+        while (p) {
+            connection_p* pconn = LIST2PCONN(p);
+            int           ret   = 0;
 
             if (FD_ISSET(pconn->sock, &wfds)) {
                 ret = pconn->conn.wf((connection *) pconn, pconn->conn.priv);
+                PDEBUG ("%d byte written\n", ret);
+
                 if (ret > 0) {
                     FD_CLR(pconn->sock, &wfds);
                     FD_SET(pconn->sock, &rfds);
@@ -429,8 +512,8 @@ static inline int do_perform_select(connection_group* group)
                     case COF_FAILED:
                     case COF_FINISHED:
                     {
-                        PDEBUG("remove socket: %d, ret: %d...\n",
-                               pconn->sock, ret);
+                        PDEBUG("remove conn: %p socket: %d, ret: %d...\n",
+                               pconn, pconn->sock, ret);
                         FD_CLR(pconn->sock, &rfds);
                         /* close(pconn->sock); */
                         cnt--;
@@ -451,7 +534,7 @@ static inline int do_perform_select(connection_group* group)
                 FD_SET(pconn->sock, &rfds);
             }
 
-            p = (connection_list *) p->next;
+            p = p->next;
         }
 
         if (cnt == 0) {
@@ -494,19 +577,17 @@ connection_group *connection_group_create(bool * flag)
 
     group->cflag = flag;
 
-    INIT_LIST(group->lst, connection_list);
-
     return group;
 }
 
-void connection_group_destroy(connection_group * group)
+void connection_group_destroy(connection_group* group)
 {
-    connection_list *g = group->lst;
+    slist_head* g = group->lst;
 
     while (g) {
-        connection_list *ng = (connection_list *) g->next;
-
-        FIF(CONN2CONNP(g->conn));
+        slist_head*   ng    = g->next;
+        connection_p* pconn = LIST2PCONN(g);
+        connection_put((connection*)pconn);
         FIF(g);
         g = ng;
     }
@@ -514,18 +595,14 @@ void connection_group_destroy(connection_group * group)
     FIF(group);
 }
 
-void connection_add_to_group(connection_group * group, connection * sock)
+void connection_add_to_group(connection_group* group, connection* conn)
 {
     group->cnt++;
-    connection_list *tail = group->lst;
-
-    if (tail->conn) {
-        SEEK_LIST_TAIL(group->lst, tail, connection_list);
-    }
-    assert(tail->conn == NULL);
-    tail->conn = sock;
+    connection_p* pconn = CONN2CONNP(conn);
+    pconn->lst.next = group->lst;
+    group->lst = &pconn->lst;
     PDEBUG("Socket: %p added to group: %p, current count: %d\n",
-           sock, group, group->cnt);
+           conn, group, group->cnt);
 }
 
 /*

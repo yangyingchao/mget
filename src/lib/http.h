@@ -33,12 +33,12 @@
  * @param info -  information about metadata and file.
  * @param cb - Callback function to notify progress.
  * @param stop_flag - A flag used by http handler to check if need to stop.
- * @return int
+ * @return mget_err
  */
-int process_http_request(dinfo* info,
-                         dp_callback cb,
-                         bool* stop_flag,
-                         void* user_data);
+mget_err process_http_request(dinfo* info,
+                              dp_callback cb,
+                              bool* stop_flag,
+                              void* user_data);
 
 #endif				/* _HTTP_H_ */
 

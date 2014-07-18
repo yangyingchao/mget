@@ -516,10 +516,10 @@ Error in server response, closing control ftp_connection.\n"));
 
 #define MAX(X,Y)       X > Y ? X : Y
 
-int process_ftp_request(dinfo* info,
-                        dp_callback cb,
-                        bool* cflag,
-                        void* user_data)
+mget_err process_ftp_request(dinfo* info,
+                             dp_callback cb,
+                             bool* cflag,
+                             void* user_data)
 {
     PDEBUG("enter\n");
 
@@ -542,7 +542,7 @@ int process_ftp_request(dinfo* info,
     fconn->conn = connection_get(info->ui);
     if (!fconn->conn) {
         fprintf(stderr, "Failed to get socket!\n");
-        return -1;
+        return ME_CONN_ERR;
     }
 
     bool can_split = true;
@@ -552,7 +552,7 @@ int process_ftp_request(dinfo* info,
 
     if (!total_size) {
         fprintf(stderr, "Can't get remote file size: %s\n", ui->furl);
-        return -1;
+        return ME_RES_ERR;
     }
 
     if (!can_split)
@@ -570,7 +570,7 @@ int process_ftp_request(dinfo* info,
     int nc = info->md ? info->md->hd.nr_user : DEFAULT_FTP_CONNECTIONS;
     if (!dinfo_update_metadata(total_size, info)) {
         fprintf(stderr, "Failed to create metadata from url: %s\n", ui->furl);
-        return -1;
+        return ME_ABORT;
     }
 
     PDEBUG("metadata created from url: %s\n", ui->furl);
@@ -627,7 +627,7 @@ start: ;
         if (pipe(param->fds) == -1)
         {
             fprintf(stderr, "Failed to create pipe: %s\n", strerror(errno));
-            return -1;
+            return ME_GENERIC;
         }
 
         fcntl(param->fds[0], F_SETFD, O_NONBLOCK);
@@ -766,7 +766,7 @@ ret:
     }
 
     PDEBUG("stopped.\n");
-    return 0;
+    return ME_OK;
 }
 
 
