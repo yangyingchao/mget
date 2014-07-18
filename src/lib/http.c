@@ -72,7 +72,7 @@ int dissect_header(const char *buffer, size_t length, hash_table ** ht)
         return -1;
     }
 
-    char *key = strdup("Status");
+    char *key = "status";
 
     hash_table_insert(pht, key, strdup(value), strlen(value));
     ptr += n;
@@ -86,7 +86,8 @@ int dissect_header(const char *buffer, size_t length, hash_table ** ht)
         memset(k, 0, 256);
         memset(v, 0, 256);
         if (sscanf((const char *) ptr, "%[^:]: %[^\r\n]\r\n%n", k, v, &n)) {
-            hash_table_insert(pht, strdup(k), strdup(v), strlen(v));
+            lowwer_case(k, strlen(k));
+            hash_table_insert(pht, k, strdup(v), strlen(v));
             ldsize += n;
             ptr += n;
         }
@@ -117,7 +118,7 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn)
     int         stat = dissect_header(buffer, rd, &ht);
 
     PDEBUG("stat: %d, description: %s\n",
-           stat, (char *) hash_table_entry_get(ht, "Status"));
+           stat, (char *) hash_table_entry_get(ht, "status"));
 
     int    num = 0;
     char*  ptr = NULL;
@@ -126,9 +127,9 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn)
     switch (stat) {
         case 206:			// Ok, we can start download now.
         {
-            ptr = (char *) hash_table_entry_get(ht, "Content-Range");
+            ptr = (char *) hash_table_entry_get(ht, "content-range");
             if (!ptr) {
-                fprintf(stderr, "Content Range not returned!\n");
+                fprintf(stderr, "Content Range not returned: %s!\n", buffer);
                 t = 0;
                 goto ret;
             }
@@ -142,7 +143,7 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn)
         }
         case 302:			// Resource moved to other place.
         {
-            char *loc = (char *) hash_table_entry_get(ht, "Location");
+            char *loc = (char *) hash_table_entry_get(ht, "location");
 
             printf("Server returns 302, trying new locations: %s...\n",
                    loc);
@@ -341,18 +342,11 @@ int process_http_request(dinfo* info, dp_callback cb, bool * stop_flag,
 
     PDEBUG("metadata created from url: %s\n", ui->furl);
 
-    /* fhandle *fh = fhandle_create(tfn, FHM_CREATE); */
-
-    /* mw.fm = fhandle_mmap(fh, 0, MD_SIZE(mw.md)); */
-    /* mw.from_file = false; */
-    /* memset(mw.fm->addr, 0, MD_SIZE(mw.md)); */
-
-    /* associate_wrapper(&mw); */
-
 start: ;
     metadata* md = info->md;
     metadata_display(md);
 
+restart:
     dinfo_sync(info);
 
     if (md->hd.status == RS_FINISHED) {
@@ -425,6 +419,11 @@ start: ;
             finished = false;
             break;
         }
+    }
+
+    if (!finished && stop_flag && !*stop_flag) // errors occurred, restart
+    {
+        goto restart;
     }
 
     if (finished) {

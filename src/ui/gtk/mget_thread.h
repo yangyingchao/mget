@@ -32,7 +32,7 @@ typedef struct _mget_request
 {
     const char* url;
     file_name   fn;
-    int         nc;
+    mget_option opts;
     bool        flag;
 } mget_request;
 

@@ -120,6 +120,13 @@ void *hash_table_entry_get(hash_table* table, const char *key);
  * @return uint32: size used, or -1 if not enough space.
  */
 uint32 dump_hash_table(hash_table* ht, void *buffer, uint32 buffer_size);
+
+/**
+ * @name hash_table_create_from_buffer - Creates a hash table from buffer.
+ * @param buffer - buffer where serialized content is stored.
+ * @param buffer_size - Number of buffer size
+ * @return hash_table*
+ */
 hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size);
 
 /**
@@ -145,6 +152,7 @@ typedef struct _byte_queue
 byte_queue* bq_init(size_t size);
 byte_queue* bq_resize(byte_queue* bq, size_t sz);
 
+void lowwer_case(char* p, size_t len);
 #ifdef __cplusplus
 }
 #endif

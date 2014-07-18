@@ -373,7 +373,7 @@ void on_btn_download_confirm_clicked(GtkButton *button,
         g_request->request.fn.basen = g_strdup(fn);
     }
     gtk_entry_set_text (dlg->entry_fn, "");
-    g_request->request.nc = 10;
+    g_request->request.opts.max_connections = 10;
     bool v = false;
     GtkListStore* task_store =  window->priv->task_store;
 
@@ -752,6 +752,11 @@ gm_window_init (GmWindow *window)
     dlg->gtk_dialog = G_GET_WIDGET(priv->builder, GtkDialog, "dlg_new_task");
     dlg->entry_url  = G_GET_WIDGET(builder, GtkEntry, "entry_url");
     dlg->entry_dir  = G_GET_WIDGET(builder, GtkEntry, "entry_dir");
+    GString* path = g_string_new(getenv("HOME"));
+    path = g_string_append(path, "/Downloads");
+    gtk_entry_set_text(dlg->entry_dir, path->str);
+    g_string_free(path, TRUE);
+
     dlg->entry_fn   = G_GET_WIDGET(builder, GtkEntry, "entry_filename");
 
     priv->request_list = g_list_alloc();
@@ -791,7 +796,7 @@ gm_window_init (GmWindow *window)
     priv->pix_cancelled = pixbuf_from_name(priv->theme, "gtk-close", 22);
     priv->pix_finished = pixbuf_from_name(priv->theme, "gtk-ok", 22);
 
-    fill_testing_data(window);
+    /* fill_testing_data(window); */
 
     g_signal_connect(priv->task_tree, "button-press-event",
                      G_CALLBACK(on_task_tree_button_pressed), window);
