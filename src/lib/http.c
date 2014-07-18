@@ -42,7 +42,11 @@ static inline char *generate_request_header(const char* method, url_info* uri,
     memset(buffer, 0, BUF_SIZE);
 
     sprintf(buffer,
-            "%s %s HTTP/1.1\r\nHost: %s\r\nAccept: *\r\nRange: bytes=%llu-%llu\r\n\r\n",
+            "%s %s HTTP/1.1\r\nHost: %s\r\n"
+            "Accept: *\r\n"
+            "Connection: Keep-Alive\r\n"
+            "Keep-Alive: timeout=600\r\n"
+            "Range: bytes=%llu-%llu\r\n\r\n",
             method, uri->uri, uri->host, start_pos, end_pos);
 
     return strdup(buffer);
@@ -101,7 +105,7 @@ int dissect_header(byte_queue* bq, hash_table ** ht)
 
     char k[256] = { '\0' };
     char v[256] = { '\0' };
-    while ((ptr < bq->r + length) && fptr && ptr < fptr) {
+    while ((ptr < (char*)bq->r + length) && fptr && ptr < fptr) {
         memset(k, 0, 256);
         memset(v, 0, 256);
         if (sscanf((const char *) ptr, "%[^:]: %[^\r\n]\r\n%n", k, v, &n)) {
@@ -462,6 +466,7 @@ restart:
         }
     }
 
+    connection_group_destroy(sg);
     if (!finished && stop_flag && !*stop_flag) // errors occurred, restart
     {
         goto restart;
