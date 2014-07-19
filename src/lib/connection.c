@@ -225,6 +225,45 @@ typedef struct _connection_cache
 
 #define print_address(X)   inet_ntoa ((X)->data.d4)
 
+
+/* Return true iff the connection to the remote site established
+   through SOCK is still open.
+
+   Specifically, this function returns true if SOCK is not ready for
+   reading.  This is because, when the connection closes, the socket
+   is ready for reading because EOF is about to be delivered.  A side
+   effect of this method is that sockets that have pending data are
+   considered non-open.  This is actually a good thing for callers of
+   this function, where such pending data can only be unwanted
+   leftover from a previous request.  */
+
+bool
+validate_connection (connection_p* pconn)
+{
+    fd_set check_set;
+    struct timeval to;
+    int ret = 0;
+
+    /* Check if we still have a valid (non-EOF) connection.  From Andrew
+     * Maholski's code in the Unix Socket FAQ.  */
+
+    FD_ZERO (&check_set);
+    FD_SET (pconn->sock, &check_set);
+
+    /* Wait one microsecond */
+    to.tv_sec = 0;
+    to.tv_usec = 1;
+
+    ret = select (pconn->sock + 1, &check_set, NULL, NULL, &to);
+    if ( !ret )
+        /* We got a timeout, it means we're still connected. */
+        return true;
+    else
+        /* Read now would not wait, it means we have either pending data
+           or EOF/error. */
+        return false;
+}
+
 connection* connection_get(const url_info* ui)
 {
     PDEBUG ("%p -- %p\n", ui, ui->addr);
@@ -265,7 +304,7 @@ connection* connection_get(const url_info* ui)
         sa.sin_family = AF_INET;
         sa.sin_port = htons(ui->port);
         sa.sin_addr = ui->addr->data.d4;
-        DEBUGP (("AA:trying to connect to %s port %lu\n",
+        DEBUGP (("trying to connect to %s port %lu\n",
                  print_address (ui->addr), ui->port));
         if (connect(conn->sock, (struct sockaddr *)&sa, sizeof sa) < 0) {
             perror("connect");
@@ -295,12 +334,12 @@ connection* connection_get(const url_info* ui)
             cache->lst = cache->lst->next;
             cache->count--;
             conn->lst.next = NULL;
-            if (!conn->connected ||
-                !conn->conn.ci.reader((connection*)conn, dq->p, 1024, NULL))
+            if (!validate_connection(conn))
             {
+                addr = conn->addr;
                 goto connect;
             }
-            PDEBUG("Rusing connection: %p\n", conn);
+            PDEBUG ( "\nRusing connection: %p\n", conn);
             goto post_connected;
         }
 
@@ -359,7 +398,7 @@ connection* connection_get(const url_info* ui)
             }
 
             if (rp != NULL) {
-                addr->addr = rp;
+                conn->addr = addr->addr = rp;
                 if (!hash_table_insert(g_addr_cache, (char*)ui->host, addr,
                                        sizeof(*addr))) {
                     addr_entry_destroy(addr);

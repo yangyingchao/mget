@@ -14,15 +14,6 @@ include(CheckIncludeFiles)
 include(CheckFunctionExists)
 include(CheckLibraryExists)
 
-CHECK_INCLUDE_FILES(sys/epoll.h HAVE_EPOLL)
-if(NOT HAVE_EPOLL)
-  message(STATUS "epoll not found, trying to use select system call")
-  CHECK_INCLUDE_FILES(sys/select.h HAVE_SELECT)
-  if(NOT HAVE_SELECT)
-    message(FATAL_ERROR "ERROR: requires select system call!")
-  endif(NOT HAVE_SELECT)
-endif(NOT HAVE_EPOLL)
-
 configure_file(mget_config.h.in mget_config.h)
 
 file(GLOB SOURCES "*.c")
