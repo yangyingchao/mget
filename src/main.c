@@ -63,12 +63,13 @@ void sigterm_handler2(int sig, siginfo_t* si, void* param)
     fprintf(stderr, "Saving temporary data...\n");
 }
 
+#define PROG_REST() idx = ts = last_recv = 0
+static int    idx       = 0;
+static uint32 ts        = 0;
+static uint64 last_recv = 0;
+
 void show_progress(metadata* md, void* user_data)
 {
-    static int    idx       = 0;
-    static uint32 ts        = 0;
-    static uint64 last_recv = 0;
-
     if (md->hd.status == RS_FINISHED) {
         char *date = current_time_str();
 
@@ -102,7 +103,7 @@ void show_progress(metadata* md, void* user_data)
         uint64 diff_size = recv - last_recv;
         uint64 remain    = total - recv;
         uint32 c_time    = get_time_ms();
-        uint64 bps       = (uint64)((double) (diff_size) * 1000 / (c_time - ts));
+        uint64 bps       = (uint64)((double) (diff_size) * 1000 / (c_time - ts))+1;
 
         fprintf(stderr,
                 "] %.02f percent finished, speed: %s/s, eta: %s\r",
@@ -266,6 +267,7 @@ int main(int argc, char *argv[])
         for (int i = optind; i < argc; i++) {
             int  retry_time = 0;
             mget_err result = ME_OK;
+            PROG_REST();
             control_byte    = false;
 
             target = argv[i];
@@ -275,16 +277,16 @@ int main(int argc, char *argv[])
                 PDEBUG ("result : %d\n", result);
 
                 if (result == ME_OK || result == ME_ABORT || result == ME_RES_ERR) {
-                    goto fin;
+                    goto next;
                 }
             }
 
             printf ("Failed to download from: %s, retried time:  %d.\n",
                     target, retry_time);
+      next:;
         }
     }
 
-fin:
     return 0;
 }
 

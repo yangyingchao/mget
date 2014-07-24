@@ -27,6 +27,8 @@
 extern "C" {
 #endif
 
+#define _GNU_SOURCE         /* See feature_test_macros(7) */
+#include <stdio.h>
 #include "mget_types.h"
 #include "mget_macros.h"
 #include "mget_utils.h"

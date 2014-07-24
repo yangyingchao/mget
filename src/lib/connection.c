@@ -37,7 +37,7 @@
 #include <sys/select.h>
 
 #ifdef HAVE_GNUTLS
-#include "ssl.h"
+#include "plugin/ssl/ssl.h"
 #endif
 
 #define MAX_CONNS_PER_HOST  32
@@ -65,7 +65,6 @@ typedef struct _connection_p {
     void*       priv;
     bool        connected;
     bool        active;
-    bool        closed;
     bool        busy;
 } connection_p;
 
@@ -97,6 +96,8 @@ static uint32 tcp_connection_read(connection * conn, char *buf,
     if (pconn && pconn->sock && buf) {
         uint32 rd = (uint32) read(pconn->sock, buf, size);
         if (rd == -1) {
+            PDEBUG ("rd: %d, errno: %d\n", rd, errno);
+
             if (errno == EAGAIN) { // nothing to read, normal if non-blocking
                 ;
             }
@@ -105,9 +106,12 @@ static uint32 tcp_connection_read(connection * conn, char *buf,
             }
         }
         else if (!rd)  {
-            PDEBUG ("Read connection: %p, sock: %d returns 0, connection closed...\n",
-                    pconn, pconn->sock);
-            pconn->closed = true;
+            /* PDEBUG ("Read connection: %p, sock: %d returns 0, connection closed...\n", */
+            /*         pconn, pconn->sock); */
+            /* PDEBUG ("Set %p disconnected\n", pconn); */
+
+            /* pconn->connected = false; */
+            ;
         }
 
         return rd;
@@ -221,6 +225,45 @@ typedef struct _connection_cache
 
 #define print_address(X)   inet_ntoa ((X)->data.d4)
 
+
+/* Return true iff the connection to the remote site established
+   through SOCK is still open.
+
+   Specifically, this function returns true if SOCK is not ready for
+   reading.  This is because, when the connection closes, the socket
+   is ready for reading because EOF is about to be delivered.  A side
+   effect of this method is that sockets that have pending data are
+   considered non-open.  This is actually a good thing for callers of
+   this function, where such pending data can only be unwanted
+   leftover from a previous request.  */
+
+bool
+validate_connection (connection_p* pconn)
+{
+    fd_set check_set;
+    struct timeval to;
+    int ret = 0;
+
+    /* Check if we still have a valid (non-EOF) connection.  From Andrew
+     * Maholski's code in the Unix Socket FAQ.  */
+
+    FD_ZERO (&check_set);
+    FD_SET (pconn->sock, &check_set);
+
+    /* Wait one microsecond */
+    to.tv_sec = 0;
+    to.tv_usec = 1;
+
+    ret = select (pconn->sock + 1, &check_set, NULL, NULL, &to);
+    if ( !ret )
+        /* We got a timeout, it means we're still connected. */
+        return true;
+    else
+        /* Read now would not wait, it means we have either pending data
+           or EOF/error. */
+        return false;
+}
+
 connection* connection_get(const url_info* ui)
 {
     PDEBUG ("%p -- %p\n", ui, ui->addr);
@@ -234,6 +277,12 @@ connection* connection_get(const url_info* ui)
         dq = bq_init(1024);
     }
 
+    if (!g_conn_cache)
+    {
+        g_conn_cache = hash_table_create(64, free);
+        assert(g_conn_cache);
+    }
+
     connection_p* conn = NULL;
     addr_entry *addr = NULL;
     if (ui->addr)
@@ -243,8 +292,6 @@ connection* connection_get(const url_info* ui)
         if (conn->sock == -1) {
             goto err;
         }
-        PDEBUG ("AA0\n");
-
 
         struct sockaddr_in sa;
         if ((conn->sock = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
@@ -257,7 +304,7 @@ connection* connection_get(const url_info* ui)
         sa.sin_family = AF_INET;
         sa.sin_port = htons(ui->port);
         sa.sin_addr = ui->addr->data.d4;
-        DEBUGP (("AA:trying to connect to %s port %lu\n",
+        DEBUGP (("trying to connect to %s port %lu\n",
                  print_address (ui->addr), ui->port));
         if (connect(conn->sock, (struct sockaddr *)&sa, sizeof sa) < 0) {
             perror("connect");
@@ -269,10 +316,37 @@ connection* connection_get(const url_info* ui)
     {
         //@todo: 1. try to reuse existing connection, in g_conn_cache.
 
+        char* host_key = NULL;
+        int ret = asprintf(&host_key, "%s:%lu", ui->host, ui->port);
+        if (!ret)
+        {
+            goto alloc;
+        }
+
+        ccache* cache = HASH_ENTRY_GET(ccache, g_conn_cache, host_key);
+        FIF(host_key);
+        PDEBUG ("cache: %p, count: %d, lst: %p\n", cache,
+                cache ? cache->count : 0, cache ? cache->lst:NULL);
+
+        if (cache && cache->count && cache->lst)
+        {
+            conn = LIST2PCONN(cache->lst);
+            cache->lst = cache->lst->next;
+            cache->count--;
+            conn->lst.next = NULL;
+            if (!validate_connection(conn))
+            {
+                goto connect;
+            }
+            PDEBUG ( "\nRusing connection: %p\n", conn);
+            goto post_connected;
+        }
+
+  alloc:
         conn = ZALLOC1(connection_p);
 
         if (!g_addr_cache) {
-            g_addr_cache = hash_table_create(64, addr_entry_destroy);	//TODO: add deallocation..
+            g_addr_cache = hash_table_create(64, addr_entry_destroy);
             assert(g_addr_cache);
         }
 
@@ -281,7 +355,11 @@ connection* connection_get(const url_info* ui)
             PDEBUG ("Using known address....\n");
 
             conn->addr = addr->addr;
-            conn->sock = socket(conn->addr->ai_family, conn->addr->ai_socktype,
+      connect:
+            PDEBUG ("Connecting to: %s:%d\n", ui->host, ui->port);
+
+            conn->sock = socket(conn->addr->ai_family,
+                                conn->addr->ai_socktype,
                                 conn->addr->ai_protocol);
             if (connect (conn->sock, conn->addr->ai_addr,
                          conn->addr->ai_addrlen) == -1) {
@@ -319,7 +397,7 @@ connection* connection_get(const url_info* ui)
             }
 
             if (rp != NULL) {
-                addr->addr = rp;
+                conn->addr = addr->addr = rp;
                 if (!hash_table_insert(g_addr_cache, (char*)ui->host, addr,
                                        sizeof(*addr))) {
                     addr_entry_destroy(addr);
@@ -330,12 +408,14 @@ connection* connection_get(const url_info* ui)
         }
     }
 
+post_connected: ;
     if (conn) {
-        if (ui->host)
+        if (ui->host && !conn->host)
         {
             conn->host = strdup(ui->host);
         }
 
+        conn->connected = true;
         conn->port = ui->port;
         conn->active = true;
         switch (ui->eprotocol) {
@@ -379,43 +459,31 @@ ret:
 
 void connection_put(connection* conn)
 {
+    PDEBUG ("enter: %p\n", conn);
+
     connection_p* pconn = (connection_p*)conn;
     if (!pconn->host)
     {
         goto clean;
     }
 
-    if (!fcntl(pconn->sock, F_SETFD, O_NONBLOCK))
+    char* host_key = NULL;
+    int ret = asprintf(&host_key, "%s:%d", pconn->host, pconn->port);
+    if (!ret)
     {
-        while (true) {
-            int ret = conn->ci.reader(conn, dq->p, 1024, NULL);
-            if (ret == -1 && errno == EAGAIN)
-            {
-                break; // read buffer is clear...
-            }
-            else if (!ret) // closed ...
-            {
-                pconn->closed = true;
-                break;
-            }
-        }
+        goto clean;
     }
 
-    pconn->busy   = false;
-
-    if (!g_conn_cache)
-    {
-        g_conn_cache = hash_table_create(64, free);
-        assert(g_conn_cache);
-    }
-
-    ccache* cache = HASH_ENTRY_GET(ccache, g_conn_cache, pconn->host);
+    ccache* cache = HASH_ENTRY_GET(ccache, g_conn_cache, host_key);
     if (!cache)
     {
         cache = ZALLOC1(ccache);
+        PDEBUG ("allocating new ccahe: %p\n", cache);
+
         cache->count++;
         cache->lst   = &pconn->lst;
-        hash_table_insert(g_conn_cache, pconn->host, cache, sizeof(void*));
+
+        hash_table_insert(g_conn_cache, host_key, cache, sizeof(void*));
     }
     else if (cache->count >= MAX_CONNS_PER_HOST)
     {
@@ -424,16 +492,24 @@ void connection_put(connection* conn)
     else
     {
         cache->count++;
+        PDEBUG ("increasing: %d\n", cache->count);
         pconn->lst.next = cache->lst;
         cache->lst = &pconn->lst;
     }
+
+    FIF(host_key);
+    PDEBUG ("return with connection put to cache\n");
 
     return;
 
     //@todo: convert this conn_p to connection_p_list and cache it.
 clean:
+    PDEBUG ("cleaning connetion: %p\n", pconn);
+
     FIF(pconn->host);
     FIF(pconn);
+    PDEBUG ("leave with connection cleared...\n");
+
 }
 
 static inline int do_perform_select(connection_group* group)
@@ -483,9 +559,9 @@ static inline int do_perform_select(connection_group* group)
             break;
         }
 
-        if (nfds == 0) {
-            fprintf(stderr, "time out ....\n");
-        }
+        /* if (nfds == 0) { */
+        /*     fprintf(stderr, "time out ....\n"); */
+        /* } */
 
         slist_head* p = group->lst;
 
@@ -508,7 +584,7 @@ static inline int do_perform_select(connection_group* group)
                 {
                     case COF_CLOSED:
                     {
-                        pconn->closed = true;
+                        pconn->connected = false;
                     }
                     case COF_FAILED:
                     case COF_FINISHED:
@@ -589,7 +665,6 @@ void connection_group_destroy(connection_group* group)
         slist_head*   ng    = g->next;
         connection_p* pconn = LIST2PCONN(g);
         connection_put((connection*)pconn);
-        FIF(g);
         g = ng;
     }
 

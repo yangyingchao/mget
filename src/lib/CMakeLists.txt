@@ -14,18 +14,16 @@ include(CheckIncludeFiles)
 include(CheckFunctionExists)
 include(CheckLibraryExists)
 
-CHECK_INCLUDE_FILES(sys/epoll.h HAVE_EPOLL)
-if(NOT HAVE_EPOLL)
-  message(STATUS "epoll not found, trying to use select system call")
-  CHECK_INCLUDE_FILES(sys/select.h HAVE_SELECT)
-  if(NOT HAVE_SELECT)
-    message(FATAL_ERROR "ERROR: requires select system call!")
-  endif(NOT HAVE_SELECT)
-endif(NOT HAVE_EPOLL)
-
 configure_file(mget_config.h.in mget_config.h)
 
 file(GLOB SOURCES "*.c")
+if(GNUTLS_FOUND)
+  file(GLOB SSL_SOURCES "plugin/ssl/*.c")
+  foreach(item ${SSL_SOURCES})
+    list(APPEND SOURCES ${item})
+  endforeach()
+endif(GNUTLS_FOUND)
+
 add_library(mget SHARED ${SOURCES})
 
 target_link_libraries(mget m)
@@ -40,9 +38,7 @@ install(
   DESTINATION "include/libmget/"
   )
 
-#TODO: install header files....
-
 if (GNUTLS_FOUND)
   include_directories(${GNUTLS_INCLUDE_DIR})
-  target_link_libraries (mget ${GNUTLS_LIBRARIES})
+  target_link_libraries (mget ${GNUTLS_LIBRARIES} "pthread")
 endif (GNUTLS_FOUND)
