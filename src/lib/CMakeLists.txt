@@ -17,6 +17,13 @@ include(CheckLibraryExists)
 configure_file(mget_config.h.in mget_config.h)
 
 file(GLOB SOURCES "*.c")
+if(GNUTLS_FOUND)
+  file(GLOB SSL_SOURCES "plugin/ssl/*.c")
+  foreach(item ${SSL_SOURCES})
+    list(APPEND SOURCES ${item})
+  endforeach()
+endif(GNUTLS_FOUND)
+
 add_library(mget SHARED ${SOURCES})
 
 target_link_libraries(mget m)
@@ -31,9 +38,7 @@ install(
   DESTINATION "include/libmget/"
   )
 
-#TODO: install header files....
-
 if (GNUTLS_FOUND)
   include_directories(${GNUTLS_INCLUDE_DIR})
-  target_link_libraries (mget ${GNUTLS_LIBRARIES})
+  target_link_libraries (mget ${GNUTLS_LIBRARIES} "pthread")
 endif (GNUTLS_FOUND)

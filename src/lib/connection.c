@@ -37,7 +37,7 @@
 #include <sys/select.h>
 
 #ifdef HAVE_GNUTLS
-#include "ssl.h"
+#include "plugin/ssl/ssl.h"
 #endif
 
 #define MAX_CONNS_PER_HOST  32
@@ -317,7 +317,7 @@ connection* connection_get(const url_info* ui)
         //@todo: 1. try to reuse existing connection, in g_conn_cache.
 
         char* host_key = NULL;
-        int ret = asprintf(&host_key, "%s:%d", ui->host, ui->port);
+        int ret = asprintf(&host_key, "%s:%lu", ui->host, ui->port);
         if (!ret)
         {
             goto alloc;
@@ -336,7 +336,6 @@ connection* connection_get(const url_info* ui)
             conn->lst.next = NULL;
             if (!validate_connection(conn))
             {
-                addr = conn->addr;
                 goto connect;
             }
             PDEBUG ( "\nRusing connection: %p\n", conn);
