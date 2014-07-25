@@ -40,5 +40,7 @@ install(
 
 if (GNUTLS_FOUND)
   include_directories(${GNUTLS_INCLUDE_DIR})
-  target_link_libraries (mget ${GNUTLS_LIBRARIES} "pthread")
+  target_link_libraries (mget ${GNUTLS_LIBRARIES})
+else (GNUTLS_FOUND)
+ target_link_libraries (mget "pthread")
 endif (GNUTLS_FOUND)
