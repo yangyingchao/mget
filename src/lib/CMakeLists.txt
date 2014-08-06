@@ -25,6 +25,7 @@ if(GNUTLS_FOUND)
 endif(GNUTLS_FOUND)
 
 add_library(mget SHARED ${SOURCES})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(mget m)
 install(
@@ -40,5 +41,7 @@ install(
 
 if (GNUTLS_FOUND)
   include_directories(${GNUTLS_INCLUDE_DIR})
-  target_link_libraries (mget ${GNUTLS_LIBRARIES} "pthread")
+  target_link_libraries (mget ${GNUTLS_LIBRARIES})
+else (GNUTLS_FOUND)
+ target_link_libraries (mget "pthread")
 endif (GNUTLS_FOUND)
