@@ -3,7 +3,7 @@ ADD_DEFINITIONS("-g")
 
 set(VERSION_MAJOR 0)
 set(VERSION_MINOR 2)
-set(VERSION_PATCH 0)
+set(VERSION_PATCH 2)
 
 find_package (GnuTLS)
 if (GNUTLS_FOUND)
