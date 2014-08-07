@@ -124,8 +124,8 @@ void print_help()
         "\nOptions:\n",
         "\t-v:  show version of mget.\n",
         "\t-j:  max connections (should be smaller than 40).\n",
-        "\t-d:  set folder to store download data.\n",
-        "\t-o:  set file name to store download data."
+        "\t-d:  set folder to store downloaded data.\n",
+        "\t-o:  set file name to store downloaded data."
         "If not provided, mget will name it.\n",
         "\t-r:  resume a previous download using stored metadata.\n",
         "\t-u:  set user name.\n",
