@@ -1,0 +1,23 @@
+﻿{
+	"manifest_version": 2,
+
+	"name": "mget downloader",
+    "description": "JS to download files through mget",
+	"version": "0.0.1",
+    "background": {
+        "persistent": false,
+        "scripts": ["eventPage.js"]
+    },
+
+	"permissions": ["contextMenus", "downloads", "downloads.open"],
+
+    "browser_action" :{
+        "default_icon" : "down.png"
+    },
+
+    "icons": {
+        "16" : "down.png",
+        "48" : "down.png",
+        "128" : "down.png"
+    }
+}
