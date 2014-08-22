@@ -19,5 +19,6 @@
         "16" : "down.png",
         "48" : "down.png",
         "128" : "down.png"
-    }
+    },
+    "options_page": "options.html"
 }
