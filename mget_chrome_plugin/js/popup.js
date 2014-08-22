@@ -78,6 +78,7 @@ var kittenGenerator = {
 };
 
 // Run our kitten generation script as soon as the document's DOM is ready.
-document.addEventListener('DOMContentLoaded', function () {
-  // kittenGenerator.requestKittens();
-});
+// document.addEventListener('DOMContentLoaded', function () {
+document.writeln("Hello World!");
+document.writeln("Have a nice day!");
+// });
