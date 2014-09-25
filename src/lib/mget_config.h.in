@@ -31,7 +31,10 @@
 
 
 #define GET_VERSION()       ((@VERSION_MAJOR@ << 16) | (@VERSION_MINOR@ << 8) | (@VERSION_PATCH@))
-#define DIVIDE_VERSION(X)   ((X) >> 16) & 0xFF, ((X) >> 8) & 0xFF, (X) & 0xFF
+#define VER_TO_MAJOR(X)   (((X) >> 16) & 0xFF)
+#define VER_TO_MINOR(X)   (((X) >> 8) & 0xFF)
+#define VER_TO_PATCH(X)   ((X) & 0xFF)
+#define DIVIDE_VERSION(X) VER_TO_MAJOR(X), VER_TO_MINOR(X),VER_TO_PATCH(X)
 
 
 #cmakedefine HAVE_EPOLL

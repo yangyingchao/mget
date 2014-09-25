@@ -33,7 +33,7 @@
 #include "log.h"
 #include <libgen.h>
 #include "data_utlis.h"
-#define FM_RWUSR       (S_IRUSR|S_IWUSR)
+#define FM_DEFAULT       (S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)
 
 
 fhandle *fhandle_create(const char *fn, FHM mode)
@@ -45,8 +45,7 @@ fhandle *fhandle_create(const char *fn, FHM mode)
     }
 
     fh->fn = strdup(fn);
-    fh->fd =
-            open(fn, O_RDWR | ((mode & FHM_CREATE) ? O_CREAT : 0), FM_RWUSR);
+    fh->fd = open(fn, O_RDWR | ((mode & FHM_CREATE) ? O_CREAT:0), FM_DEFAULT);
     struct stat st;
 
     if (!fstat(fh->fd, &st)) {
