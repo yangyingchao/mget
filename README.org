@@ -28,3 +28,7 @@ ifconfig eth0 mtu 7200
 * SSL Support
 
  It uses GnuTls to implement SSL support...
+
+* TODO:
+
+** Reschedule connections if some connections are ide....

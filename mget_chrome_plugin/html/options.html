@@ -1,0 +1,179 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title> Mget Options </title>
+  </head>
+  <body class="no-select">
+
+      <div id="sidebar" class="fancy">
+            <img id="icon" src="down.png" alt=""><h1 id="settings-label">Settings</h1>
+            <div id="tab-container">
+                <div id="search-container" class="tab">
+                    <input id="search" type="search" placeholder="Search...">
+                    </input>
+                </div>
+            <div class="tab active">Information</div><div class="tab ">Configuration</div><div class="tab ">Test</div></div>
+        </div>
+
+<div id="content">
+
+    <div id="search-result-container" class="tab-content">
+
+        <h2 id="search-label">
+        Search</h2>
+
+        <div class="setting bundle description" id="nothing-found">
+            <div class="setting container description">
+                <p class="setting element description">
+                No matches were found.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-content show">
+        <h2>
+        Information</h2>
+        <table class="setting group">
+            <tr>
+                <td class="setting group-name">
+                Setup</td>
+                <td class="setting group-content">
+                    <div class="setting bundle description">
+                        Test text!
+                    </div>
+                </td>
+            </tr>
+        </table>
+        <table class="setting group">
+            <tr>
+                <td class="setting group-name">
+                Focusing Emacs</td>
+                <td class="setting group-content">
+                    <div class="setting bundle description">
+                        <div class="setting container description">
+                            oops
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+    <div class="tab-content ">
+        <h2>
+        Configuration</h2>
+        <table class="setting group">
+            <tr>
+                <td class="setting group-name">
+                Edit Server</td>
+                <td class="setting group-content">
+                    <div class="setting bundle text">
+                        <div class="setting container text">
+                            <label class="setting label text">
+                            Edit Server Host:</label>
+                            <input class="setting element text" type="text">
+                            </input>
+                        </div>
+                    </div>
+                    <div class="setting bundle text">
+                        <div class="setting container text">
+                            <label class="setting label text">
+                            Edit Server Port:</label>
+                            <input class="setting element text" type="text">
+                            </input>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        </table>
+        <table class="setting group">
+            <tr>
+                <td class="setting group-name">
+                Interface</td>
+                <td class="setting group-content">
+                    <div class="setting bundle checkbox">
+                        <div class="setting container checkbox">
+                            <input id="hz51qjyb" class="setting element checkbox" type="checkbox" value="true">
+                            </input>
+                            <label class="setting label checkbox" for="hz51qjyb">
+                            Show 'edit' button next to textarea</label>
+                        </div>
+                    </div>
+                    <div class="setting bundle checkbox">
+                        <div class="setting container checkbox">
+                            <input id="hz51qjyd" class="setting element checkbox" type="checkbox" value="true">
+                            </input>
+                            <label class="setting label checkbox" for="hz51qjyd">
+                            Enable context menu item to invoke editor</label>
+                        </div>
+                    </div>
+                    <div class="setting bundle checkbox">
+                        <div class="setting container checkbox">
+                            <input id="hz51qjyf" class="setting element checkbox" type="checkbox" value="true">
+                            </input>
+                            <label class="setting label checkbox" for="hz51qjyf">
+                            Allow double click on textarea to invoke editor</label>
+                        </div>
+                    </div>
+                    <div class="setting bundle checkbox">
+                        <div class="setting container checkbox">
+                            <input id="hz51qjyh" class="setting element checkbox" type="checkbox" value="true">
+                            </input>
+                            <label class="setting label checkbox" for="hz51qjyh">
+                            Enable Alt-Enter Keyboard shortcut to invoke editor</label>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+    <div class="tab-content ">
+        <h2>
+        Test</h2>
+        <table class="setting group">
+            <tr>
+                <td class="setting group-name">
+                Test</td>
+                <td class="setting group-content">
+                    <div class="setting bundle button">
+                        <div class="setting container button">
+                            <label class="setting label button">
+                            Test Edit Server</label>
+                            <input class="setting element button" type="button" value="Test">
+                            </input>
+                        </div>
+                    </div>
+                    <div class="setting bundle checkbox">
+                        <div class="setting container checkbox">
+                            <input id="hz51qjyj" class="setting element checkbox" type="checkbox" value="true">
+                            </input>
+                            <label class="setting label checkbox" for="hz51qjyj">
+                            Enable debug (logs to the console)</label>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+    Favorite color:
+    <select id="color">
+      <option value="red">red</option>
+      <option value="green">green</option>
+      <option value="blue">blue</option>
+      <option value="yellow">yellow</option>
+    </select>
+
+    <label>
+      <input type="checkbox" id="like">
+      I like colors.
+    </label>
+
+    <div id="status"></div>
+    <button id="save">Save</button>
+
+    <script src="options.js"></script>
+
+</body>
+</html>

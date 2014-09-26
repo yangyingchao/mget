@@ -1,8 +1,8 @@
 ADD_DEFINITIONS("-std=gnu99")
 ADD_DEFINITIONS("-g")
 
-set(VERSION_MAJOR 0)
-set(VERSION_MINOR 2)
+set(VERSION_MAJOR 1)
+set(VERSION_MINOR 0)
 set(VERSION_PATCH 0)
 
 find_package (GnuTLS)

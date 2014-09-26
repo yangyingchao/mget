@@ -1,0 +1,36 @@
+﻿{
+	"manifest_version": 2,
+	"name": "mget downloader",
+    "description": "Allow user to download files through mget",
+	"version": "0.0.1",
+
+    "browser_action": {
+        "default_icon" : "icons/down.png",
+        "default_popup" : "fancy-settings/source/popup.html"
+        // "default_popup" : "html/popup.html"
+    },
+
+    "background": {
+        "persistent": false,
+        "scripts": ["js/eventPage.js"]
+    },
+
+	"permissions": [
+        "contextMenus",
+        "downloads",
+        "downloads.open",
+        "notifications"
+    ],
+
+    "icons": {
+        "16" : "icons/down.png",
+        "48" : "icons/down.png",
+        "128" : "icons/down.png"
+    },
+
+    "options_page": "fancy-settings/source/index.html",
+    "web_accessible_resources": [
+	    "icons/down.png"
+	]
+
+}

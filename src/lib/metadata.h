@@ -50,7 +50,6 @@ typedef struct _metadata_wrapper {
 
 bool chunk_split(uint64, uint64, int*, uint64*, data_chunk **);
 bool metadata_create_from_file(const char *fn, metadata** md, fh_map** fm_md);
-void metadata_destroy(metadata_wrapper * mw);
 void metadata_display(metadata * md);
 
 metadata* metadata_create_empty();
