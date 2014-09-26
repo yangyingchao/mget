@@ -21,6 +21,7 @@
  */
 
 #include "mget_macros.h"
+#include "libmget.h"
 #include <stdio.h>
 #include <strings.h>
 #include "log.h"
@@ -31,10 +32,11 @@ mget_err start_request(const char *url, const file_name* fn, mget_option* opt,
                        dp_callback cb, bool* stop_flag, void* user_data)
 {
     dinfo* info = NULL;
-    bool   ret  = dinfo_create(url, fn, opt, &info);
-    if (!ret)
+    mget_err  ret  = ME_OK;
+    if (!dinfo_create(url, fn, opt, &info))
     {
         fprintf(stderr, "Failed to create download info\n");
+        ret = ME_RES_ERR;
         return ret;
     }
 

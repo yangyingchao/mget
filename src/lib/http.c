@@ -346,7 +346,7 @@ int http_write_sock(connection * conn, void *priv)
     return written;
 }
 
-mget_err process_http_request(dinfo* info, dp_callback cb, bool * stop_flag,
+mget_err process_http_request(dinfo* info, dp_callback cb, bool* stop_flag,
                               void* user_data)
 {
     PDEBUG("enter\n");
@@ -476,6 +476,9 @@ restart:
         md->hd.status = RS_FINISHED;
     } else {
         md->hd.status = RS_PAUSED;
+        if (stop_flag && *stop_flag) {
+            ret = ME_ABORT;
+        }
     }
 
     md->hd.acc_time += get_time_s() - md->hd.last_time;
