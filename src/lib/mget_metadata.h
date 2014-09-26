@@ -47,7 +47,7 @@ typedef enum _request_status {
 } request_status;
 
 typedef struct metadata_head {
-    uint32 iden;        // TMD0                                          -- 04
+    uint32 iden;        // \0xFCTMD                                      -- 04
     uint32 version;     // Major, Minor, Patch, NULL                     -- 08
     uint64 package_size;    // size of package;                          -- 16
     uint64 chunk_size;      // size of single chunk                      -- 24

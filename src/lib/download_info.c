@@ -27,6 +27,11 @@
 #include "mget_config.h"
 #include "mget_utils.h"
 
+// This magic number is calculated by: (year+month+day)%256, where
+// year/month/day is birthday of my son, just for fun!
+#define MAGIC_NUMBER     0xFC
+
+
 bool dinfo_create_from_file(const char* fn, dinfo* info)
 {
     return true;
@@ -148,7 +153,11 @@ bool dinfo_create(const char *url, const file_name * fn,
         hash_table* ht = hash_table_create(128, free);
         mp* ptrs = ZALLOC1(mp);
 
-        sprintf(((char *) &hd->iden), "TMD");
+        unsigned char* ptr = (unsigned char*)&hd->iden;
+        *ptr = MAGIC_NUMBER;
+        ptr++;
+        sprintf(ptr, "TMD");
+
         hd->version      = GET_VERSION();
         hd->package_size = 0;
         hd->last_time    = get_time_s();
