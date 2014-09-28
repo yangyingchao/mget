@@ -471,8 +471,8 @@ Error in server response, closing control ftp_connection.\n"));
     }
 
     int i = 0;
-    PDEBUG ("chunk_info: base: %p -- %p, cur: %08llX, start: %08llX, end_pos: %08llX\n",
-            param->addr, dp->base_addr, dp->cur_pos, dp->start_pos, dp->end_pos);
+    PDEBUG ("chunk_info: base: %p, cur: %08llX, start: %08llX, end_pos: %08llX\n",
+            param->addr, dp->cur_pos, dp->start_pos, dp->end_pos);
 
     while (dp->cur_pos < dp->end_pos) {
         void *addr = param->addr + dp->cur_pos;
@@ -508,8 +508,8 @@ Error in server response, closing control ftp_connection.\n"));
         }
     }
 
-    PDEBUG ("chunk_info: base: %p -- %p, cur: %08llX, start: %08llX, end_pos: %08llX\n",
-            param->addr, dp->base_addr, dp->cur_pos, dp->start_pos, dp->end_pos);
+    PDEBUG ("chunk_info: base: %p, cur: %08llX, start: %08llX, end_pos: %08llX\n",
+            param->addr, dp->cur_pos, dp->start_pos, dp->end_pos);
 
     return NULL;
 }

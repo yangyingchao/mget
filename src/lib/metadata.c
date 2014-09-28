@@ -33,7 +33,7 @@
 
 #define MIN_CHUNK_SIZE   (64*K)
 
-#define SHOW_CHUNK(p)    PDEBUG ("%p, cur_pos: %08llX, end_pos: %08llX\n",p,p->cur_pos, p->end_pos)
+#define SHOW_CHUNK(p)  PDEBUG ("%p, cur_pos: %08llX, end_pos: %08llX\n",p,p->cur_pos, p->end_pos)
 
 
 bool metadata_create_from_file(const char *fn, metadata** md, fh_map** fm_md)
