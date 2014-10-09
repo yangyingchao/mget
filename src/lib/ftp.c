@@ -37,7 +37,7 @@
 #include <pthread.h>
 #include <sys/select.h>
 
-#define DEFAULT_FTP_CONNECTIONS   1
+#define DEFAULT_FTP_CONNECTIONS   3
 
 typedef struct _connection_operation_param_ftp {
     void *addr;			//base addr;
@@ -423,6 +423,8 @@ Error in server response, closing control ftp_connection.\n"));
     conn->data_conn = connection_get(&ui);
     if (!conn->data_conn)
     {
+        PDEBUG ("Failed to get connection!\n");
+
         return FTPRERR;
     }
 
@@ -446,6 +448,11 @@ void* ftp_download_thread(void* arg)
     ftp_connection* conn = NULL;
     uerr_t err = get_data_connection(param->info, param, &conn);
     data_chunk *dp    = (data_chunk *) param->dp;
+    if (!conn || err != FTPOK)
+    {
+        fprintf (stderr, "OOPS: %p, err: %d\n", conn, (int)err);
+        goto ret;
+    }
 
     err = ftp_retr (conn, param->info->ui->uri);
     /* FTPRERR, WRITEFAILED, FTPNSFOD */
@@ -511,6 +518,7 @@ Error in server response, closing control ftp_connection.\n"));
     PDEBUG ("chunk_info: base: %p, cur: %08llX, start: %08llX, end_pos: %08llX\n",
             param->addr, dp->cur_pos, dp->start_pos, dp->end_pos);
 
+ret:
     return NULL;
 }
 
@@ -567,7 +575,11 @@ mget_err process_ftp_request(dinfo* info,
       connections) from download_info, and recreate metadata.
     */
 
-    int nc = info->md ? info->md->hd.nr_user : DEFAULT_FTP_CONNECTIONS;
+    if (info->md->hd.nr_user == 0xff)
+    {
+        info->md->hd.nr_user = DEFAULT_FTP_CONNECTIONS;
+    }
+
     if (!dinfo_update_metadata(total_size, info)) {
         fprintf(stderr, "Failed to create metadata from url: %s\n", ui->furl);
         return ME_ABORT;
@@ -604,7 +616,7 @@ start: ;
     fd_set rfds;
     FD_ZERO(&rfds);
 
-    // ftp protocol asks us to interactive a lots before opening data
+    // ftp protocol asks us to interact multiple times before opening data
     // connections, start different threads for them.
     for (int i = 0; i < md->hd.nr_effective; ++i, ++dp, ++param) {
         PDEBUG ("i = %d\n", i);

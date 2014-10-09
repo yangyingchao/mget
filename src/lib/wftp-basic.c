@@ -54,28 +54,26 @@ fd_read_line (ftp_connection* conn)
     char* line = NULL;
     if (!conn->bq)
     {
-        conn->bq = bq_init(1024);
+        conn->bq = bq_init(256);
     }
 
     byte_queue* bq  = conn->bq;
     char*       ptr = bq->r;
     byte*       p   = NULL;
-    if (bq->w == bq->r)
+    p = memchr(bq->r, '\n', bq->w - bq->r);
+    if (!p)
     {
-        p = memchr(bq->r, '\n', bq->w - bq->r);
-        if (!p)
+        conn->bq = bq_enlarge(conn->bq, 256);
+        uint32 rd = conn->conn->ci.reader(conn->conn, bq->w,
+                                          bq->x - bq->w, NULL);
+        if (rd != -1)
         {
-            uint32 rd = conn->conn->ci.reader(conn->conn, bq->w,
-                                              bq->x - bq->w, NULL);
-            if (rd != -1)
-            {
-                bq->w += rd;
-            }
+            bq->w += rd;
+        }
 
-            if (bq->w > bq->r)
-            {
-                p = memchr(bq->r, '\n', bq->w - bq->r);
-            }
+        if (bq->w > bq->r)
+        {
+            p = memchr(bq->r, '\n', bq->w - bq->r);
         }
     }
 
@@ -108,41 +106,45 @@ fd_read_line (ftp_connection* conn)
 uerr_t
 ftp_response (ftp_connection* conn, char **ret_line)
 {
-  while (1)
+    while (1)
     {
-      char *p;
-      char *line = fd_read_line (conn);
-      if (!line)
-        return FTPRERR;
+        char *p;
+        char *line = fd_read_line (conn);
+        if (!line) {
+            fprintf(stderr, "Failed to read line from socket."
+                    " Data received so far:\n%s\n", conn->bq->p);
+            return FTPRERR;
+        }
 
-      /* Strip trailing CRLF before printing the line, so that
-         quotting doesn't include bogus \012 and \015. */
-      p = strchr (line, '\0');
-      if (p > line && p[-1] == '\n')
-        *--p = '\0';
-      if (p > line && p[-1] == '\r')
-        *--p = '\0';
-// TODO: Remove this ifdef!
+        /* Strip trailing CRLF before printing the line, so that
+           quotting doesn't include bogus \012 and \015. */
+        p = strchr (line, '\0');
+        if (p > line && p[-1] == '\n')
+            *--p = '\0';
+        if (p > line && p[-1] == '\r')
+            *--p = '\0';
+        // TODO: Remove this ifdef!
 #if 0
 
-if (opt.server_response)
-        logprintf (LOG_NOTQUIET, "%s\n",
-                   quotearg_style (escape_quoting_style, line));
-      else
-        DEBUGP (("%s\n", quotearg_style (escape_quoting_style, line)));
+        if (opt.server_response)
+            logprintf (LOG_NOTQUIET, "%s\n",
+                       quotearg_style (escape_quoting_style, line));
+        else
+            DEBUGP (("%s\n", quotearg_style (escape_quoting_style, line)));
 #endif // End of #if 0
 
-/* The last line of output is the one that begins with "ddd ". */
-      if (c_isdigit (line[0]) && c_isdigit (line[1]) && c_isdigit (line[2])
-          && line[3] == ' ')
+        /* The last line of output is the one that begins with "ddd ". */
+        if (c_isdigit (line[0]) && c_isdigit (line[1]) && c_isdigit (line[2])
+            && line[3] == ' ')
         {
-          strncpy (ftp_last_respline, line, sizeof (ftp_last_respline));
-          ftp_last_respline[sizeof (ftp_last_respline) - 1] = '\0';
-          *ret_line = line;
-          return FTPOK;
+            strncpy (ftp_last_respline, line, sizeof (ftp_last_respline));
+            ftp_last_respline[sizeof (ftp_last_respline) - 1] = '\0';
+            *ret_line = line;
+            return FTPOK;
         }
-      xfree (line);
+        xfree (line);
     }
+    return FTPRERR;
 }
 
 /* Returns the malloc-ed FTP request, ending with <CR><LF>, printing
@@ -194,8 +196,11 @@ ftp_login (ftp_connection* conn, const char *acc, const char *pass)
 
     /* Get greeting.  */
     err = ftp_response (conn, &respline);
-    if (err != FTPOK)
+
+    if (err != FTPOK) {
         return err;
+    }
+
     if (*respline != '2')
     {
         xfree (respline);
