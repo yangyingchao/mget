@@ -164,7 +164,7 @@ int main(int argc, char *argv[])
     char*  passwd = NULL;
     mget_option opts;
     memset(&opts, 0, sizeof(mget_option));
-    opts.max_connections = 5;
+    opts.max_connections = -1;
 
     memset(&fn, 0, sizeof(file_name));
 

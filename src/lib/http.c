@@ -378,7 +378,11 @@ mget_err process_http_request(dinfo* info, dp_callback cb, bool* stop_flag,
       connections) from download_info, and recreate metadata.
     */
 
-    int nc = info->md ? info->md->hd.nr_user : DEFAULT_HTTP_CONNECTIONS;
+    if (info->md->hd.nr_user == 0xff)
+    {
+        info->md->hd.nr_user = DEFAULT_HTTP_CONNECTIONS;
+    }
+
     if (!dinfo_update_metadata(total_size, info)) {
         fprintf(stderr, "Failed to create metadata from url: %s\n", ui->furl);
         return ME_ABORT;
@@ -405,7 +409,7 @@ restart:
     connection_group *sg = connection_group_create(stop_flag);
 
     if (!sg) {
-        fprintf(stderr, "Failed to craete sock group.\n");
+        fprintf(stderr, "Failed to create sock group.\n");
         return ME_GENERIC;
     }
 
