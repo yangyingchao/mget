@@ -22,11 +22,15 @@
 
 #include "mget_macros.h"
 #include "libmget.h"
+#include "log.h"
+#include "download_info.h"
+#include "data_utlis.h"
+#include "protocols.h"
 #include <stdio.h>
 #include <strings.h>
-#include "log.h"
-#include "http.h"
-#include "ftp.h"
+
+typedef mget_err (*protocol_handler)(dinfo*, dp_callback, bool*, void*);
+static hash_table* g_handlers = NULL;
 
 mget_err start_request(const char *url, const file_name* fn, mget_option* opt,
                        dp_callback cb, bool* stop_flag, void* user_data)
@@ -40,23 +44,24 @@ mget_err start_request(const char *url, const file_name* fn, mget_option* opt,
         return ret;
     }
 
-    switch (info->ui->eprotocol) {
-        case UP_HTTP:
-        case UP_HTTPS:
-        {
-            ret = process_http_request(info, cb, stop_flag, user_data);
-            break;
-        }
-        case UP_FTP:
-        {
-            ret = process_ftp_request(info, cb, stop_flag, user_data);
-            break;
-        }
-        default:
-        {
-            break;
-        }
+    if (!g_handlers && !(g_handlers = collect_handlers()))
+    {
+        fprintf(stderr, "Failed to scan protocol handlers\n");
+        return ME_RES_ERR;
     }
+
+    protocol_handler handler =
+            (protocol_handler)hash_table_entry_get(g_handlers, info->ui->protocol);
+    if (!handler)
+    {
+        fprintf(stderr, "Protocol: %s is not supported...\n",
+            info->ui->protocol);
+        return ME_NOT_SUPPORT;
+    }
+
+    fprintf(stderr, "Found handler: %p for %s\n", handler, info->ui->protocol);
+
+    ret = handler(info, cb, stop_flag, user_data);
 
     dinfo_destroy(&info);
 

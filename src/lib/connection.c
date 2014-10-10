@@ -317,7 +317,7 @@ connection* connection_get(const url_info* ui)
         //@todo: 1. try to reuse existing connection, in g_conn_cache.
 
         char* host_key = NULL;
-        int ret = asprintf(&host_key, "%s:%lu", ui->host, ui->port);
+        int ret = asprintf(&host_key, "%s:%u", ui->host, ui->port);
         if (!ret)
         {
             goto alloc;

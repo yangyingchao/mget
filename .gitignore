@@ -41,3 +41,5 @@ proj/mget.xcodeproj/xcuserdata/
 /doc/
 
 /src/tmp/
+/src/lib/generated.h
+/src/lib/protocols.h
