@@ -32,8 +32,6 @@ mget_slis *mget_slis_append(mget_slis * l, void *data, free_func f)
     return NULL;
 }
 
-
-
 // Hash table operations.
 
 static const int HASH_SIZE = 256;
