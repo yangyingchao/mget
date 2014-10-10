@@ -59,10 +59,11 @@ typedef enum
 {
     ME_OK = 0,
     ME_HOST_ERR,
-    ME_RES_ERR, // should not retry
     ME_CONN_ERR,
     ME_GENERIC,
-    ME_ABORT,    // should not retry
+    ME_RES_ERR, // should not retry for following errors.
+    ME_ABORT,
+    ME_NOT_SUPPORT,
 } mget_err;
 
 /**

@@ -1,5 +1,4 @@
-
-/** mget_http.h --- interface of libmget to download data from http server.
+/** https.c --- implementation of libmget using http
  *
  * Copyright (C) 2013 Yang,Ying-chao
  *
@@ -20,27 +19,22 @@
  * the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
  * Boston, MA 02110-1301, USA.
  */
-
-#ifndef _HTTP_H_
-#define _HTTP_H_
-
 #include "libmget.h"
 #include "download_info.h"
 
-/**
- * @name process_http_request - Begin process http request.
- * @param ui -  url information, should not be NULL.
- * @param info -  information about metadata and file.
- * @param cb - Callback function to notify progress.
- * @param stop_flag - A flag used by http handler to check if need to stop.
- * @return mget_err
- */
-mget_err process_http_request(dinfo* info,
-                              dp_callback cb,
-                              bool* stop_flag,
-                              void* user_data);
+extern mget_err process_http_request(dinfo* info,
+                                     dp_callback cb,
+                                     bool* stop_flag,
+                                     void* user_data);
 
-#endif				/* _HTTP_H_ */
+// does nothing but forward this to http...
+mget_err process_https_request(dinfo* info,
+                               dp_callback cb,
+                               bool* stop_flag,
+                               void* user_data)
+{
+    return process_http_request(info, cb, stop_flag, user_data);
+}
 
 /*
  * Editor modelines

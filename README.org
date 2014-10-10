@@ -32,15 +32,3 @@ ifconfig eth0 mtu 7200
 * TODO:
 
 ** Reschedule connections if some connections are ide....
-
-** Change structure.
-
- so we don't need to update libmget.c when adding support to new protocols
-
-*** Add "protocols" subfolder.
-
-*** Move http/ftp codes into subfolder of "protocols".
-
-*** Each file (http.c/ftp.c) shall provide a function to register itself into libmget.
-
-*** Write a script to register those protocol  handlers..
