@@ -71,10 +71,10 @@ bool metadata_create_from_file(const char *fn, metadata** md, fh_map** fm_md)
         //TODO: version checks....
         ptrs->body = (data_chunk*) pmd->raw_data;
         ptrs->ht_buffer = (char*)(pmd->raw_data) +
-                          sizeof(data_chunk) * pmd->hd.nr_user;
+                          sizeof(data_chunk) * pmd->hd.nr_effective;
 
         ptrs->ht = hash_table_create_from_buffer(pmd->ptrs->ht_buffer,
-                                                 pmd->hd.eb_length);
+                                                 pmd->hd.ebl);
         if (!ptrs->ht)
         {
             fprintf(stderr, "Failed to create hash table from buffer.\n");

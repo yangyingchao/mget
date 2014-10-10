@@ -61,7 +61,7 @@ typedef struct metadata_head {
     uint8 nr_effective; // number of chunks that are effective.          -- 39
     uint8 acon;         // active connections.                           -- 40
 
-    uint16 eb_length;   // length of extra body: url_len+mime_len+others -- 42
+    uint16 ebl;         // length of extra body: url_len+mime_len+others -- 42
 
     uint8 reserved[22]; // reserved ...                                  -- 64
 } mh;				// up to 64 bytes

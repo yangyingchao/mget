@@ -31,17 +31,6 @@
 // year/month/day is birthday of my son, just for fun!
 #define MAGIC_NUMBER     0xFC
 
-
-bool dinfo_create_from_file(const char* fn, dinfo* info)
-{
-    return true;
-}
-
-bool dinfo_create_from_url(const char* url, uint64 size, dinfo* info)
-{
-    return true;
-}
-
 void dinfo_destroy(dinfo** info)
 {
     if (!info || !(*info))
@@ -139,12 +128,10 @@ bool dinfo_create(const char *url, const file_name * fn,
                 url, fpath, opt->user, opt->passwd);
 
         uint16 ebl = 1024;
-        size_t md_size = MH_SIZE() + sizeof(void*) +
-                         (sizeof(data_chunk)*opt->max_connections) +
-                         PA(ebl, 4);
+        size_t md_size = CALC_MD_SIZE(opt->max_connections, ebl);
 
         dInfo->fm_md = fm_create(tfn, md_size);
-        dInfo->md = (metadata*)dInfo->fm_md->addr;
+        dInfo->md    = (metadata*)dInfo->fm_md->addr;
 
         // fill this pmd.
         metadata* pmd = dInfo->md;
@@ -165,15 +152,14 @@ bool dinfo_create(const char *url, const file_name * fn,
         hd->status       = RS_INIT;
         hd->nr_user      = opt->max_connections;
         hd->nr_effective = 0;
-        hd->eb_length    = ebl;
+        hd->ebl          = ebl;
         hd->acon         = opt->max_connections;
 
-        pmd->ptrs = ptrs;
+        pmd->ptrs       = ptrs;
         ptrs->body      = (data_chunk*)pmd->raw_data;
         ptrs->ht        = ht;
         ptrs->ht_buffer = (char*)(pmd->raw_data) +
                           sizeof(data_chunk) * pmd->hd.nr_user;
-
 
         if (url) {
             ptrs->url = strdup(url);
@@ -279,8 +265,14 @@ bool dinfo_update_metadata(uint64 size, dinfo* info)
 
 #undef DINFO_UPDATE_HASH
 
-    dump_hash_table(ht, md->ptrs->ht_buffer, md->hd.eb_length);
+    // reset ht_buffer...
+    char* ptr = (char*)(md->raw_data) +
+                sizeof(data_chunk) * hd->nr_effective;
+    uint32 n_ebl = md->ptrs->ht_buffer + hd->ebl - ptr;
 
+    md->ptrs->ht_buffer = ptr;
+    hd->ebl = dump_hash_table(ht, md->ptrs->ht_buffer, n_ebl);
+    fm_remap(&info->fm_md, CALC_MD_SIZE(hd->nr_effective, hd->ebl));
     PDEBUG ("chunk: %p -- %p, ht_buffer: %p\n",
             md->raw_data, md->ptrs->body, md->ptrs->ht_buffer);
 
