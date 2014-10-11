@@ -82,21 +82,26 @@ int dissect_header(byte_queue* bq, hash_table ** ht)
     *ht = pht;
 
     const char *ptr    = strstr(bq->r, "HTTP/");
-    int         n      = 0;
-    int         num    = 0;
-    int         stat   = 0;
-    char value[64]     = { '\0' };
-    size_t      ldsize = 0;
+    int    num      = 0;
+    int    n        = 0;
+    int    stat     = 0;
+    char value[64]  = { '\0' };
+    char version[8] = {'\0'};
+    size_t ldsize   = 0;
+    if (ptr)
+        num = sscanf(ptr, "HTTP/%s %[^\r\n]\r\n%n", version, value, &n);
 
-    num = sscanf(ptr, "HTTP/1.1 %[^\r\n]\r\n%n", value, &n);
-    if (!num) {
+    if (!num || num != 2) {
         fprintf(stderr, "Failed to parse header: %s\n", ptr);
         perror("Failed to parse header");
         return -1;
     }
 
-    char *key = "status";
+    //TODO: Check http version if necessary...
+    char *key = "version";
+    hash_table_insert(pht, key, strdup(version), strlen(version));
 
+    key = "status";
     hash_table_insert(pht, key, strdup(value), strlen(value));
     ptr += n;
 
@@ -363,6 +368,10 @@ mget_err process_http_request(dinfo* info, dp_callback cb, bool* stop_flag,
     }
     PDEBUG ("conn : %p\n", conn);
 
+    //TODO: real file name might be stored in "Content-Disposition" of http
+    //      header, for example:
+    //      Content-Disposition:attachment;filename="The.Vampire.Diaries.S06E02.mp4",
+    //      we should guess file name from it!!
 
     uint64 total_size = get_remote_file_size_http(info->ui, &conn);
 

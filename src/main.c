@@ -227,7 +227,9 @@ int main(int argc, char *argv[])
             }
             default:
             {
-                break;
+                fprintf(stderr, "Wrong usage..\n");
+                print_help();
+                exit(-1);
             }
         }
     }
