@@ -580,7 +580,7 @@ mget_err process_ftp_request(dinfo* info,
         info->md->hd.nr_user = DEFAULT_FTP_CONNECTIONS;
     }
 
-    if (!dinfo_update_metadata(total_size, info)) {
+    if (!dinfo_update_metadata(info, total_size, NULL)) {
         fprintf(stderr, "Failed to create metadata from url: %s\n", ui->furl);
         return ME_ABORT;
     }

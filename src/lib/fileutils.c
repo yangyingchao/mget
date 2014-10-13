@@ -262,6 +262,20 @@ bool fm_remap(fh_map** fm, size_t nl)
     return true;
 }
 
+char* fm_get_directory(fh_map* fm)
+{
+    char* dirn = NULL;
+
+    if (fm && fm->fh && fm->fh->fn)
+    {
+        char* tmp = strdup(fm->fh->fn);
+        dirn = strdup(dirname(tmp));
+        free(tmp);
+    }
+
+    return dirn;
+}
+
 /*
  * Editor modelines
  *

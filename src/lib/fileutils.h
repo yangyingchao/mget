@@ -60,6 +60,8 @@ void remove_file(const char *fn);
 fh_map* fm_create(const char* fn, size_t length);
 bool fm_remap(fh_map** fm, size_t new_length);
 
+char* fm_get_directory(fh_map* fm);
+
 #endif				/* _FILEUTILS_H_ */
 
 /*

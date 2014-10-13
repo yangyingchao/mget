@@ -62,8 +62,11 @@ typedef struct metadata_head {
     uint8 acon;         // active connections.                           -- 40
 
     uint16 ebl;         // length of extra body: url_len+mime_len+others -- 42
+    uint8  update_name; // flag to indicate file name should be updated. -- 43
+                        // Filename may be returned from server in http
+                        // header.
 
-    uint8 reserved[22]; // reserved ...                                  -- 64
+    uint8 reserved[21]; // reserved ...                                  -- 64
 } mh;				// up to 64 bytes
 
 typedef struct _hash_table hash_table;

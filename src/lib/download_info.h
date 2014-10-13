@@ -43,7 +43,7 @@ bool dinfo_create(const char *url, const file_name* fn, mget_option* opt, dinfo*
 void dinfo_destroy(dinfo** info);
 bool dinfo_ready(dinfo* info);
 
-bool dinfo_update_metadata(uint64 size, dinfo* info);
+bool dinfo_update_metadata(dinfo*, uint64, const char*);
 
 void dinfo_sync(dinfo* info);
 

@@ -22,10 +22,11 @@
  */
 
 #include "netutils.h"
-#include <stdio.h>
 #include "mget_macros.h"
 #include "log.h"
 #include "fileutils.h"
+#include <stdio.h>
+#include <time.h>
 
 #define DEFAULT_HTTP_PORT         80
 #define DEFAULT_HTTPS_PORT        443
@@ -43,6 +44,8 @@ void url_info_destroy(url_info ** ui)
         FIFZ(ui);
     }
 }
+
+extern char* get_unique_name(const char* source);
 
 bool parse_url(const char *url, url_info ** ui)
 {
@@ -81,6 +84,12 @@ bool parse_url(const char *url, url_info ** ui)
 
     up->uri = strdup(url);
     up->bname = get_basename(url);
+    if (strlen(up->bname) > 255)  {
+        char* tmp = strdup(get_unique_name(up->bname));
+        FIF(up->bname);
+        up->bname = tmp;
+    }
+
     up->eprotocol = UP_INVALID;
 
     if (strlen(up->protocol) > 0) {

@@ -138,6 +138,43 @@ bool hash_table_insert(hash_table* table, char *key, void *val, uint32 len)
     return ret;
 }
 
+bool hash_table_update(hash_table* table, char *key, void *val, uint32 len)
+{
+    bool ret = false;
+    if (table && key && val) {
+        uint32 i;
+        char *d_key = strdup(key);
+
+        // Insert entry into the first open slot starting from index.
+        for (i = table->hashFunctor(d_key); i < table->capacity; ++i) {
+            TableEntry *entry = &table->entries[i];
+            if (entry->key)
+            {
+                if (!strcmp(key, entry->key))
+                {
+                    goto fill_slot;
+                }
+            }
+            else {
+                table->occupied ++;
+          fill_slot:
+                entry->key = d_key;
+                entry->val = val;
+                entry->val_len = len;
+                ret = true;
+                break;
+            }
+        }
+    }
+
+    if (!ret)
+    {
+        PDEBUG ("Failed to insert: %s -- %s\n", key, (char*)val);
+    }
+
+    return ret;
+}
+
 /*! Looks for the given data based on key.
 
   @return void*
@@ -346,6 +383,13 @@ void lowwer_case(char* p, size_t len)
         p[i] = tolower(p[i]);
     }
 }
+
+
+ /* This code is public-domain - it is based on libcrypt
+  * placed in the public domain by Wei Dai and other contributors.
+  */
+
+
 
 /*
  * Editor modelines
