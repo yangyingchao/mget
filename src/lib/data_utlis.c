@@ -20,12 +20,13 @@
  * Boston, MA 02110-1301, USA.
  */
 
+#include "log.h"
+#include "mget_config.h"
 #include "data_utlis.h"
 #include <stdlib.h>
-#include "log.h"
 #include <string.h>
 #include <ctype.h>
-#include "mget_config.h"
+#include <time.h>
 
 mget_slis *mget_slis_append(mget_slis * l, void *data, free_func f)
 {
@@ -33,6 +34,13 @@ mget_slis *mget_slis_append(mget_slis * l, void *data, free_func f)
 }
 
 // Hash table operations.
+
+struct _TableEntry {
+    char   *key;
+    void   *val;
+    time_t  ts;                         /* time stamp of last access time.*/
+    uint32  val_len;                    /* length of value. */
+};
 
 static const int HASH_SIZE = 256;
 
@@ -54,6 +62,14 @@ uint32 StringHashFunction(const char *str)
 
     return hash % HASH_SIZE;
 }
+
+#define DEL_ENTRY(T, E)                 \
+    do                                  \
+    {                                   \
+        FIF((E)->key);                  \
+        if ((E)->val && (T)->deFunctor) \
+            (T)->deFunctor(entry->val); \
+    } while (0)
 
 void hash_table_destroy(hash_table* table)
 {
@@ -120,10 +136,11 @@ bool hash_table_insert(hash_table* table, char *key, void *val, uint32 len)
                 }
             }
             else {
-                entry->key = d_key;
-                entry->val = val;
+                entry->key     = d_key;
+                entry->val     = val;
                 entry->val_len = len;
-                ret = true;
+                entry->ts      = time(NULL);
+                ret            = true;
                 table->occupied ++;
                 break;
             }
@@ -143,33 +160,47 @@ bool hash_table_update(hash_table* table, char *key, void *val, uint32 len)
     bool ret = false;
     if (table && key && val) {
         uint32 i;
-        char *d_key = strdup(key);
-
+        char        *d_key  = strdup(key);
+        TableEntry*  oldest = NULL;
+        TableEntry  *entry  = NULL;
         // Insert entry into the first open slot starting from index.
         for (i = table->hashFunctor(d_key); i < table->capacity; ++i) {
-            TableEntry *entry = &table->entries[i];
-            if (entry->key)
-            {
-                if (!strcmp(key, entry->key))
-                {
+            entry = &table->entries[i];
+            if (entry->key) {
+                if (!strcmp(key, entry->key)) {
                     goto fill_slot;
+                }
+                else {
+                    if (!oldest)
+                        oldest = entry;
+                    else
+                        oldest = oldest->ts < entry->ts ? oldest : entry;
                 }
             }
             else {
                 table->occupied ++;
           fill_slot:
-                entry->key = d_key;
-                entry->val = val;
+                entry->key     = d_key;
+                entry->val     = val;
                 entry->val_len = len;
-                ret = true;
+                entry->ts      = time(NULL);
+                ret            = true;
                 break;
             }
         }
-    }
 
-    if (!ret)
-    {
-        PDEBUG ("Failed to insert: %s -- %s\n", key, (char*)val);
+        if (!ret && oldest) {
+            //@todo: consider add a callback for this event.
+            DEL_ENTRY(table, oldest);
+            ret = true;
+            entry = oldest;
+            goto fill_slot;
+        }
+
+        if (!ret) {
+            PDEBUG ("Failed to update hash table for key: %s\n", key);
+            FIF(d_key);
+        }
     }
 
     return ret;

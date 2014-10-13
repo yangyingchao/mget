@@ -1,4 +1,4 @@
-/** mget_sock.c --- implementation of mget_sock
+/** connection.c --- implementation of connection stuffs.
  *
  * Copyright (C) 2013 Yang,Ying-chao
  *
@@ -19,6 +19,8 @@
  * the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
  * Boston, MA 02110-1301, USA.
  */
+#define _GNU_SOURCE         /* See feature_test_macros(7) */
+#include <stdio.h>
 
 #include "connection.h"
 #include "data_utlis.h"
@@ -152,7 +154,6 @@ void addr_entry_destroy(void *entry)
 typedef struct _shm_region
 {
     int len;
-    uint32 ts; // time stamp. all entries should be cleared after a specified time.
     char buf[SHM_LENGTH];
 } shm_region;
 
@@ -352,7 +353,7 @@ connection* connection_get(const url_info* ui)
     }
 
     connection_p* conn = NULL;
-    addr_entry *addr = NULL;
+    addr_entry *entry = NULL;
     if (ui->addr)
     {
         conn = ZALLOC1(connection_p);
@@ -386,8 +387,7 @@ connection* connection_get(const url_info* ui)
 
         char* host_key = NULL;
         int ret = asprintf(&host_key, "%s:%u", ui->host, ui->port);
-        if (!ret)
-        {
+        if (!ret) {
             goto alloc;
         }
 
@@ -396,14 +396,12 @@ connection* connection_get(const url_info* ui)
         PDEBUG ("cache: %p, count: %d, lst: %p\n", cache,
                 cache ? cache->count : 0, cache ? cache->lst:NULL);
 
-        if (cache && cache->count && cache->lst)
-        {
+        if (cache && cache->count && cache->lst) {
             conn = LIST2PCONN(cache->lst);
             cache->lst = cache->lst->next;
             cache->count--;
             conn->lst.next = NULL;
-            if (!validate_connection(conn))
-            {
+            if (!validate_connection(conn)) {
                 goto connect;
             }
             PDEBUG ( "\nRusing connection: %p\n", conn);
@@ -436,19 +434,18 @@ connection* connection_get(const url_info* ui)
                 handle_error("do mmap");
 
             addr_cache = hash_table_create_from_buffer(shm_rptr->buf, SHM_LENGTH);
-            if (!addr_cache)
-            {
+            if (!addr_cache) {
           alloc_addr_cache: ;
                 addr_cache = hash_table_create(64, addr_entry_destroy);
                 assert(addr_cache);
             }
         }
 
-        addr = GET_HASH_ENTRY(addr_entry, addr_cache, ui->host);
-        if (addr) {
+        entry = GET_HASH_ENTRY(addr_entry, addr_cache, ui->host);
+        if (entry) {
             PDEBUG ("Using known address....\n");
 
-            conn->addr = addrentry_to_address(addr);
+            conn->addr = addrentry_to_address(entry);
       connect:
             PDEBUG ("Connecting to: %s:%d\n", ui->host, ui->port);
 
@@ -458,12 +455,13 @@ connection* connection_get(const url_info* ui)
             if (connect (conn->sock, conn->addr->ai_addr,
                          conn->addr->ai_addrlen) == -1) {
                 perror("Failed to connect");
-                goto err;
+                goto hint;
             }
 
             PDEBUG ("conn: %p, sock: %d\n", conn, conn->sock);
 
         } else {
+      hint:;
             address hints;
 
             memset(&hints, 0, sizeof(hints));
@@ -494,17 +492,18 @@ connection* connection_get(const url_info* ui)
             }
 
             if (rp != NULL) {
-                addr = address_to_addrentry(rp);
-                conn->addr = addr->addr;
-                if (!hash_table_update(addr_cache, (char*)ui->host, addr,
-                                       addr->size)) {
-                    addr_entry_destroy(addr);
+                entry = address_to_addrentry(rp);
+                conn->addr = entry->addr;
+                if (!hash_table_update(addr_cache, (char*)ui->host, entry,
+                                       entry->size)) {
+                    addr_entry_destroy(entry);
                     fprintf(stderr, "Failed to insert cache: %s\n", ui->host);
                 }
                 else {
                     if (shm_rptr && shm_rptr != MAP_FAILED) {
-                        shm_rptr->len =dump_hash_table(addr_cache, shm_rptr->buf,
-                                                       SHM_LENGTH);
+                        shm_rptr->len = dump_hash_table(addr_cache,
+                                                        shm_rptr->buf,
+                                                        SHM_LENGTH);
                     }
                 }
             }
@@ -519,11 +518,6 @@ post_connected: ;
         }
 
         PDEBUG ("sock(%d) %p connected to %s. \n", conn->sock, conn, conn->host);
-
-        char* t = "GET /gentoo/distfiles/scons-2.3.0.tar.gz HTTP/1.1\r\nHost: mirror.bjtu.edu.cn\r\nAccept: *\r\nConnection: Keep-Alive\r\nKeep-Alive: timeout=600\r\nRange: bytes=0-0\r\n\r\n";
-
-        int d = write(conn->sock, t, strlen(t));
-        PDEBUG ("%d written\n", d);
 
         conn->connected = true;
         conn->port = ui->port;
@@ -559,7 +553,7 @@ post_connected: ;
 err:
     fprintf(stderr, "Failed to get proper host address for: %s\n",
             ui->host);
-    FIF(addr);
+    FIF(entry);
     FIF(conn->host);
     FIF(conn);
     conn = NULL;

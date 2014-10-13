@@ -92,18 +92,14 @@ typedef struct _kv_pair {
 typedef void (*DestroyFunction) (void *data);
 typedef uint32(*HashFunction) (const char *key);
 
-typedef struct _TableEntry {
-    char *key;
-    void *val;
-    uint32 val_len; // length of value.
-} TableEntry;
+typedef struct _TableEntry TableEntry;
 
 struct _hash_table {
-    int capacity;
-    int occupied;
+    int         capacity;
+    int         occupied;
     TableEntry *entries;
 
-    HashFunction hashFunctor;
+    HashFunction    hashFunctor;
     DestroyFunction deFunctor;
 };
 
