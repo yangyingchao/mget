@@ -62,14 +62,32 @@ const char *escnonprint(const char *);
 const char *escnonprint_uri(const char *);
 
 #ifdef DEBUG
-#define PDEBUG(fmt, args...)                                            \
-    do {                                                                \
-        fprintf(stderr, "mget: - %s(%d)-%s: ",                          \
-                __FILE__, __LINE__,__FUNCTION__);                       \
-        fprintf(stderr, fmt, ##args);                                   \
+#if !defined (PDEBUG)
+#define PDEBUG(fmt, ...)                                    \
+    do {                                                    \
+        fprintf(stderr, "mget: - %s(%d)-%s: ",              \
+                __FILE__, __LINE__,__FUNCTION__);           \
+        fprintf(stderr, fmt, ##  __VA_ARGS__);              \
     } while(0)
+#endif  /*End of if PDEBUG*/
+
+#if !defined(OUT_BIN)
+#define OUT_BIN(X, Y)                           \
+    do                                          \
+    {                                           \
+        fprintf(stderr, "Binary" #X ":\n");     \
+        char* ptr = (char*)(X);                 \
+        while (ptr - (char*)X < (Y)) {          \
+            fprintf(stderr, "%02X", *ptr);      \
+            ptr++;                              \
+        }                                       \
+        fprintf(stderr, "\n");                  \
+    } while (0)
+#endif // OUT_BIN
+
 #else
 #define PDEBUG(fmt, args...)
+#define OUT_BIN(X, Y)
 #endif				/* _DEBUG_H_ */
 
 #define DEBUGP(X)       PDEBUG X;
