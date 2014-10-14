@@ -418,7 +418,7 @@ connection* connection_get(const url_info* ui)
 
             //@todo: should check if shm is supported..
             char key[64] = {'\0'};
-            sprintf(key, "/libmget_%s", VERSION_STRING);
+            sprintf(key, "/libmget_%s_uid_%d", VERSION_STRING, getuid());
             int fd = shm_open(key, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
             if (fd == -1)
                 handle_error("Failed to open shared memory");
