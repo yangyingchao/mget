@@ -181,6 +181,7 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn, hash_table** h
             break;
         }
         case 302:			// Resource moved to other place.
+        case 307:
         {
             char *loc = (char *) hash_table_entry_get(*ht, "location");
 
