@@ -10,68 +10,62 @@ const Buttons = require('sdk/ui/button/action');
 const Tabs = require("sdk/tabs");
 var {Toolbar} = require("sdk/ui/toolbar");
 var { ToggleButton } = require("sdk/ui");
+var { data } = require("sdk/self");
 
-
-var reddit_panel = require("sdk/panel").Panel({
-  width: 400,
-  height: 320,
-  contentURL: require("sdk/self").data.url("index.html"),
-  // contentScriptFile: [data.url("jquery-1.4.4.min.js"),
-  //                     data.url("panel.js")],
-  onHide: handleHide
+var popup_panel = require("sdk/panel").Panel({
+    width: 400,
+    height: 320,
+    contentURL: data.url("fancy-settings/source/popup.html"),
+    contentScriptFile: [data.url("jquery-1.4.4.min.js"),
+                        data.url("panel.js")],
+    onHide: handleHide
 });
 
-let button = ToggleButton({
+var button = ToggleButton({
     id : "mozilla-link",
     label: "Visit Mozilla",
-    icon: "./icon-32.png",
+    icon: "./down.png",
     onChange: handleChange
 });
 
 
+var contextMenu = require("sdk/context-menu");
+var menuItem = contextMenu.Item({
+    label: "Log Selection",
+    context: contextMenu.URLContext("*"),
+    contentScript: 'self.on("click", function () {' +
+        '  var text = window.getSelection().toString();' +
+        '  self.postMessage(text);' +
+        '});',
+    onMessage: function (selectionText) {
+        console.log(selectionText);
+    }
+});
+
+
+// var panel = require("sdk/panel").Panel({
+//     contentURL: "http://www.baidu.com",
+//     width: 400,
+//     height: 320,
+//     contentScript: myScript
+// });
+
+// panel.port.on("click-link", function(url) {
+//   console.log(url);
+// });
+
 function handleChange (state)
 {
     if (state.checked) {
-        reddit_panel.show({ position: button });
+        popup_panel.show({ position: button });
     }
     else {
         console.log('tab is loaded', state);
     }
 
     console.log('tab is loaded', state);
-    // Tabs.open("http://www.baidu.com");
-
-
-    var frame = new Frame({
-        url: "./index.html",
-        onAttach: () => {
-            console.log("frame was attached");
-        },
-        onReady: () => {
-            console.log("frame document was loaded");
-        },
-        onLoad: () => {
-            console.log("frame load complete");
-        },
-        onMessage: (event) => {
-            console.log("got message from frame content", event);
-            if (event.data === "ping!")
-                event.source.postMessage("pong!", event.source.origin);
-        }
-    });
-
-    var toolbar =  Toolbar ({
-        name: "city-info",
-        title: "City Info",
-        items:[frame]
-    });
-
-
-    frame.postMessage({
-        hello: "content"
-    });
 }
 
 function handleHide() {
-  button.state('window', { checked: false });
+    button.state('window', { checked: false });
 }

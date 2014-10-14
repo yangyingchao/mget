@@ -154,6 +154,9 @@ void addr_entry_destroy(void *entry)
 typedef struct _shm_region
 {
     int len;
+#if 0
+    bool busy; // Race condition: this may be used by multiple instances
+#endif // End of #if 0
     char buf[SHM_LENGTH];
 } shm_region;
 
