@@ -383,8 +383,6 @@ connection* connection_get(const url_info* ui)
     }
     else
     {
-        //@todo: 1. try to reuse existing connection, in g_conn_cache.
-
         char* host_key = NULL;
         int ret = asprintf(&host_key, "%s:%u", ui->host, ui->port);
         if (!ret) {
@@ -443,8 +441,7 @@ connection* connection_get(const url_info* ui)
 
         entry = GET_HASH_ENTRY(addr_entry, addr_cache, ui->host);
         if (entry) {
-            PDEBUG ("Using known address....\n");
-
+            logprintf(LOG_ALWAYS, "Using cached adress ...\n");
             conn->addr = addrentry_to_address(entry);
       connect:
             PDEBUG ("Connecting to: %s:%d\n", ui->host, ui->port);
