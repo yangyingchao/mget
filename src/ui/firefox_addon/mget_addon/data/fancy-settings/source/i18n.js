@@ -22,7 +22,7 @@ this.i18n = {
     },
 
     "active_downloads": {
-        'en': "Downloading progress:<progress value=\"<script>Math.random();</script> \" max=\"100\"></progress>"
+        'en': "<p>Downloading progress </p> <progress id=\"p1\" value=\"10\" max=\"100\"></progress>"
     },
 
     "finished_downloads": {
