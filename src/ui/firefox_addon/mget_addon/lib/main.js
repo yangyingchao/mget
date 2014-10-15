@@ -23,7 +23,7 @@ var popup_panel = require("sdk/panel").Panel({
 
 var button = ToggleButton({
     id : "mozilla-link",
-    label: "Visit Mozilla",
+    label: "Mget Added",
     icon: "./down.png",
     onChange: handleChange
 });
