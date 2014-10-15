@@ -154,9 +154,7 @@ void addr_entry_destroy(void *entry)
 typedef struct _shm_region
 {
     int len;
-#if 0
     bool busy; // Race condition: this may be used by multiple instances
-#endif // End of #if 0
     char buf[SHM_LENGTH];
 } shm_region;
 
@@ -500,10 +498,15 @@ connection* connection_get(const url_info* ui)
                     fprintf(stderr, "Failed to insert cache: %s\n", ui->host);
                 }
                 else {
-                    if (shm_rptr && shm_rptr != MAP_FAILED) {
+                    // Only update cache to shm when it is not used by others.
+                    // This is just for optimization, and it does not hurt
+                    // much if one or two cache is missing...
+                    if (shm_rptr && shm_rptr != MAP_FAILED && !shm_rptr->busy) {
+                        shm_rptr->busy = true;
                         shm_rptr->len = dump_hash_table(addr_cache,
                                                         shm_rptr->buf,
                                                         SHM_LENGTH);
+                        shm_rptr->busy = false;
                     }
                 }
             }
