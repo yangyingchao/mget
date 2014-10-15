@@ -17,7 +17,8 @@ function test_server() {
 }
 
 window.addEvent("domready", function () {
+    console.log("Hello");
     new FancySettings.initWithManifest(function (settings) {
-        // settings.manifest.TestButton.addEvent("action", test_server);
+        settings.manifest.TestButton.addEvent("action", test_server);
     });
 });

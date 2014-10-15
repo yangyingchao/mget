@@ -34,17 +34,22 @@
     <script src="js/classes/fancy-settings.js"></script>
     <script src="i18n.js"></script>
     <script src="js/i18n.js"></script>
-    <script src="popup_manifest.js"></script>
+    <script src="manifest.js"></script>
     <script src="settings.js"></script>
   </head>
   <body>
-    <h1>Aactive Download Tasks</h1><hr>
-    
-    <li>aaa </li>
-    <ol>
-      <li>aaa
-        </ol>
-     <input type="checkbox" name="aaa" value="bbb" checked>Bbb<br>
-     <input type="checkbox" name="aaa" value="ffff" checked>Ffff<br>
+    <div id="sidebar" class="fancy">
+      <img id="icon" src="" alt=""><h1 id="settings-label"></h1>
+      <div id="tab-container">
+        <div id="search-container" class="tab">
+          <input id="search" type="search" placeholder="">
+        </div>
+      </div>
+    </div>
+    <div id="content">
+      <div id="search-result-container" class="tab-content">
+        <h2 id="search-label"></h2>
+      </div>
+    </div>
   </body>
 </html>

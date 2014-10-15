@@ -13,8 +13,8 @@ var { ToggleButton } = require("sdk/ui");
 var { data } = require("sdk/self");
 
 var popup_panel = require("sdk/panel").Panel({
-    width: 400,
-    height: 320,
+    width: 1024,
+    height: 600,
     contentURL: data.url("fancy-settings/source/popup.html"),
     contentScriptFile: [data.url("jquery-1.4.4.min.js"),
                         data.url("panel.js")],
@@ -62,8 +62,6 @@ function handleChange (state)
     else {
         console.log('tab is loaded', state);
     }
-
-    console.log('tab is loaded', state);
 }
 
 function handleHide() {
