@@ -1,7 +1,7 @@
 // Edit with Emacs options
 this.manifest = {
     "name": "mget downloader",
-    "icon": "../../icons/down.png",
+    "icon": "../../down.png",
     "settings": [
         {
             "tab": i18n.get("activities"),

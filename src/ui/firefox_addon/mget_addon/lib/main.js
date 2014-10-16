@@ -15,9 +15,10 @@ var { data } = require("sdk/self");
 var popup_panel = require("sdk/panel").Panel({
     width: 1024,
     height: 600,
-    contentURL: data.url("fancy-settings/source/popup.html"),
-    contentScriptFile: [data.url("jquery-1.4.4.min.js"),
-                        data.url("panel.js")],
+    contentURL: data.url("popup.html"),
+    contentScriptFile: [data.url("js/jquery-1.11.1.js"),
+                        data.url("panel.js")
+                       ],
     onHide: handleHide
 });
 
@@ -50,9 +51,9 @@ var menuItem = contextMenu.Item({
 //     contentScript: myScript
 // });
 
-// panel.port.on("click-link", function(url) {
-//   console.log(url);
-// });
+popup_panel.port.on("click-link", function(url) {
+  console.log(url);
+});
 
 function handleChange (state)
 {
