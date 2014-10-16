@@ -28,3 +28,12 @@
     border-right: 1px solid #C2C2C2;
     box-shadow: inset -8px 0 30px -30px black;
 }
+
+#sidebar h1 a {
+    text-decoration: none;
+    border-bottom-color: #707070;
+    color: #707070;
+    font-family: "Helvetica Neue",Arial,Helvetica,sans-serif;
+    font-size: 26px;
+    font-style: normal;
+}

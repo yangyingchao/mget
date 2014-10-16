@@ -43,7 +43,7 @@ $(document).ready(function(){
         timedCount();
     });
 
-
-    // window.setInterval(timedCount, 2000);
-
+    $("#homepage").click(function(){
+        alert("TODO: should open homepage at new tab!!");
+    });
 });

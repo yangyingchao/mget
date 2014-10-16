@@ -154,10 +154,10 @@ a:focus, a:hover {
     color: #0099FF;
 }
 
-a {
-    color: #0066CC;
-    text-decoration: underline;
-}
+/* a { */
+/*     color: #0066CC; */
+/*     text-decoration: underline; */
+/* } */
 
 blockquote {
     margin: 1.5em;
