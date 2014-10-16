@@ -78,6 +78,7 @@ bool metadata_create_from_file(const char *fn, metadata** md, fh_map** fm_md)
         if (!ptrs->ht)
         {
             fprintf(stderr, "Failed to create hash table from buffer.\n");
+            goto ret;
         }
 
         ptrs->url = (char*)hash_table_entry_get(pmd->ptrs->ht, K_URL);

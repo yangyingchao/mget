@@ -442,7 +442,7 @@ connection* connection_get(const url_info* ui)
 
         entry = GET_HASH_ENTRY(addr_entry, addr_cache, ui->host);
         if (entry) {
-            logprintf(LOG_ALWAYS, "Using cached adress ...\n");
+            PDEBUG ("Using cached address...\n");
             conn->addr = addrentry_to_address(entry);
       connect:
             PDEBUG ("Connecting to: %s:%d\n", ui->host, ui->port);

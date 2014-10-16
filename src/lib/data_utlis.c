@@ -44,6 +44,11 @@ struct _TableEntry {
 
 static const int HASH_SIZE = 256;
 
+// debug int ptr.
+#define DIP(X, Y)\
+    PDEBUG (#X": (%p): %X\n", (Y), *((int*)(Y)));
+
+
 uint32 StringHashFunction(const char *str)
 {
     uint32 hash = 0;
@@ -115,6 +120,8 @@ hash_table*hash_table_create(uint32 hashSize, DestroyFunction dFunctor)
             table = NULL;
         }
     }
+
+    PDEBUG ("return with table: %p\n", table);
     return table;
 }
 
@@ -155,8 +162,13 @@ bool hash_table_insert(hash_table* table, char *key, void *val, uint32 len)
     return ret;
 }
 
+#define DTB(X, Y)                                                         \
+    PDEBUG (X ", table: %p, capacity: %d, occupied: %d\n",Y,Y->capacity, Y->occupied)
+
 bool hash_table_update(hash_table* table, char *key, void *val, uint32 len)
 {
+    DTB("enter", table);
+
     bool ret = false;
     if (table && key && val) {
         uint32 i;
@@ -203,6 +215,7 @@ bool hash_table_update(hash_table* table, char *key, void *val, uint32 len)
         }
     }
 
+    DTB("leave", table);
     return ret;
 }
 
@@ -245,13 +258,17 @@ uint32 dump_hash_table(hash_table* ht, void *buffer, uint32 buffer_size)
 
     // Version Number
     *(int*)ptr = GET_VERSION();
+    DIP(version, ptr);
+
     ptr += sizeof(int);
 
     // Capacity.
     *(int*)ptr = ht->capacity;
+    DIP(capacity, ptr);
     ptr += sizeof(int);
 
     *(int*)ptr = ht->occupied;
+    DIP(occupied, ptr);
     ptr += sizeof(int);
 
     TableEntry *entry = NULL;
@@ -286,7 +303,8 @@ hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size)
     }
 
     // version checking.
-    char* ptr = buffer;
+    char*       ptr = buffer;
+    hash_table* ht  = NULL;
 
     if (*(int*)ptr != GET_VERSION())
     {
@@ -295,12 +313,19 @@ hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size)
                 " -- %u.%u.%u: %u.%u.%u\n", DIVIDE_VERSION(*(int*)ptr),
                 VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
     }
+    DIP(version, ptr);
+    ptr += sizeof(int);
+
+    DIP(capacity, ptr);
+    if (*((int*)ptr) == 0 || !(ht = hash_table_create(*((int*)ptr), NULL)))
+    {
+        PDEBUG ("ptr: (%p): %d, ht: %p\n", ptr, *((int*)ptr), ht);
+        return NULL;
+    }
 
     ptr += sizeof(int);
 
-    hash_table* ht = hash_table_create(*(int*)ptr, NULL);
-    ptr += sizeof(int);
-
+    DIP(occupied, ptr);
     int i = 0, total = *(int*)ptr;
     ptr += sizeof(int);
     while (i++ < total) {
@@ -323,6 +348,7 @@ hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size)
         hash_table_insert(ht, key, val, val_len);
     }
 
+ret:
     return ht;
 }
 
