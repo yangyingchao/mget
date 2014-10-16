@@ -1,3 +1,6 @@
+var t;
+
+
 $(document).ready(function(){
     $("p").click(function(){
         $(this).hide();
@@ -29,4 +32,18 @@ $(document).ready(function(){
             }
         }
     });
+
+    function timedCount ()
+    {
+        $("#p1").val(Math.random()*80);
+        t = setTimeout(timedCount, 1000)
+    }
+
+    $("#update_btn").click(function(){
+        timedCount();
+    });
+
+
+    // window.setInterval(timedCount, 2000);
+
 });
