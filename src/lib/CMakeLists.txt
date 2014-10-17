@@ -19,6 +19,7 @@ configure_file(mget_config.h.in mget_config.h)
 file(GLOB SOURCES "*.c")
 file(GLOB_RECURSE PROTOCOLS "protocols/*.c")
 list(APPEND SOURCES ${PROTOCOLS})
+
 if(GNUTLS_FOUND)
   file(GLOB SSL_SOURCES "plugin/ssl/*.c")
   foreach(item ${SSL_SOURCES})
@@ -34,7 +35,15 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 add_dependencies(mget scan_protocols)
 
-target_link_libraries(mget m)
+set(LIBS m)
+if(APPLE)
+  # Place holder..
+else(APPLE)
+  list(APPEND LIBS rt)
+endif(APPLE)
+
+target_link_libraries(mget ${LIBS})
+
 install(
   TARGETS mget
   LIBRARY
