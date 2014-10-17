@@ -131,6 +131,7 @@ void print_help()
         "\t-u:  set user name.\n",
         "\t-p:  set user password.\n",
         "\t-s:  show metadata of unfinished task.\n",
+        "\t-l:  set log level(0-9) of mget. The smaller value means less verbose.\n",
         "\t-h:  show this help.\n",
         "\n",
         NULL
@@ -168,7 +169,7 @@ int main(int argc, char *argv[])
 
     memset(&fn, 0, sizeof(file_name));
 
-    while ((opt = getopt(argc, argv, "hj:d:o:r:svu:p:")) != -1) {
+    while ((opt = getopt(argc, argv, "hj:d:o:r:svu:p:l:")) != -1) {
         switch (opt) {
             case 'h':
             {
@@ -204,8 +205,14 @@ int main(int argc, char *argv[])
             }
             case 'p':
             {
-                fprintf(stderr, "%s \n", optarg);
                 opts.passwd = strdup(optarg);
+                break;
+            }
+            case 'l':
+            {
+                int dl = ((int)LOG_NONE) - atoi(optarg); // debug level
+                if (dl < 0) dl = 0;
+                g_log_level = (dl < (int)LOG_NONE) ? ((enum log_options) dl) : LOG_NONE;
                 break;
             }
             case 'o':

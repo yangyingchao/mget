@@ -19,9 +19,9 @@
  * the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
  * Boston, MA 02110-1301, USA.
  */
+#include "log.h"
 #include "http.h"
 #include "connection.h"
-#include "log.h"
 #include <unistd.h>
 #include <errno.h>
 #include "data_utlis.h"

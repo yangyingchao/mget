@@ -22,9 +22,9 @@
 #define _GNU_SOURCE         /* See feature_test_macros(7) */
 #include <stdio.h>
 
+#include "log.h"
 #include "connection.h"
 #include "data_utlis.h"
-#include "log.h"
 #include "mget_config.h"
 #include "mget_types.h"
 #include <arpa/inet.h>

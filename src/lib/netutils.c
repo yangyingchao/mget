@@ -21,9 +21,9 @@
  * Boston, MA 02110-1301, USA.
  */
 
+#include "log.h"
 #include "netutils.h"
 #include "mget_macros.h"
-#include "log.h"
 #include "fileutils.h"
 #include <stdio.h>
 #include <time.h>

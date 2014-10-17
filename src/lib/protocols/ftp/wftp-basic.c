@@ -29,13 +29,13 @@ Corresponding Source for a non-source form of such a combination
 shall include the source code for the parts of OpenSSL used as well
 as that of the covered work.  */
 
+#include "log.h"
 #include "wget.h"
 
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
-#include "log.h"
 
 #include <string.h>
 #include <unistd.h>

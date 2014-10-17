@@ -29,6 +29,7 @@ Corresponding Source for a non-source form of such a combination
 shall include the source code for the parts of OpenSSL used as well
 as that of the covered work.  */
 
+#include "log.h"
 #include "wget.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,7 +47,6 @@ as that of the covered work.  */
 #include <assert.h>
 #include <stdarg.h>
 #include <locale.h>
-#include "log.h"
 #include "c-ctype.h"
 #include "mget_macros.h"
 
@@ -125,7 +125,7 @@ number_to_string (char *buffer, wgint number)
 #if (SIZEOF_WGINT != 4) && (SIZEOF_WGINT != 8)
     /* We are running in a very strange environment.  Leave the correct
        printing to sprintf.  */
-    p += sprintf (buffer, "%j", (intmax_t) (n));
+    p += sprintf (buffer, "%jd", (intmax_t) (n));
 #else  /* (SIZEOF_WGINT == 4) || (SIZEOF_WGINT == 8) */
 
     if (n < 0)

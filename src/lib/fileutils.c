@@ -20,6 +20,7 @@
  * Boston, MA 02110-1301, USA.
  */
 
+#include "log.h"
 #include "fileutils.h"
 #include <unistd.h>
 #include <fcntl.h>
@@ -30,7 +31,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <string.h>
-#include "log.h"
 #include <libgen.h>
 #include "data_utlis.h"
 #define FM_DEFAULT       (S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)
