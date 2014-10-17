@@ -308,10 +308,10 @@ hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size)
 
     if (*(int*)ptr != GET_VERSION())
     {
-        fprintf(stderr, "WARNING: version changed!!!\n"
-                " You're reading hash tables of old version!!"
-                " -- %u.%u.%u: %u.%u.%u\n", DIVIDE_VERSION(*(int*)ptr),
-                VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+        logprintf(LOG_ALWAYS, "WARNING: version changed!!!\n"
+                  " You're reading hash tables of old version!!"
+                  " -- %u.%u.%u: %u.%u.%u\n", DIVIDE_VERSION(*(int*)ptr),
+                  VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
     }
     DIP(version, ptr);
     ptr += sizeof(int);
