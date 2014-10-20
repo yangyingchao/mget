@@ -20,6 +20,7 @@
  * Boston, MA 02110-1301, USA.
  */
 
+#include "log.h"
 #include "fileutils.h"
 #include <unistd.h>
 #include <fcntl.h>
@@ -30,7 +31,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <string.h>
-#include "log.h"
 #include <libgen.h>
 #include "data_utlis.h"
 #define FM_DEFAULT       (S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)
@@ -260,6 +260,20 @@ bool fm_remap(fh_map** fm, size_t nl)
     fhandle_munmap(fm);
     *fm = fhandle_mmap(fh, 0, nl ? nl : 1);
     return true;
+}
+
+char* fm_get_directory(fh_map* fm)
+{
+    char* dirn = NULL;
+
+    if (fm && fm->fh && fm->fh->fn)
+    {
+        char* tmp = strdup(fm->fh->fn);
+        dirn = strdup(dirname(tmp));
+        free(tmp);
+    }
+
+    return dirn;
 }
 
 /*

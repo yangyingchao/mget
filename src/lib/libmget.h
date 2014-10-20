@@ -66,6 +66,11 @@ typedef enum
     ME_NOT_SUPPORT,
 } mget_err;
 
+enum log_options { LOG_DEBUG, LOG_VERBOSE, LOG_NOTQUIET, LOG_NONVERBOSE,
+                   LOG_ALWAYS, LOG_NONE };
+
+extern enum log_options g_log_level;
+
 /**
  * @name start_request - start processing request.
  * @param url - Character url to be retrieved.

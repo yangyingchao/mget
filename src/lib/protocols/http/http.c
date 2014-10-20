@@ -19,9 +19,9 @@
  * the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
  * Boston, MA 02110-1301, USA.
  */
+#include "log.h"
 #include "http.h"
 #include "connection.h"
-#include "log.h"
 #include <unistd.h>
 #include <errno.h>
 #include "data_utlis.h"
@@ -53,7 +53,7 @@ static inline char *generate_request_header(const char* method, url_info* uri,
 }
 
 //@todo: should make sure header is complete before dissecting header!
-int dissect_header(byte_queue* bq, hash_table ** ht)
+int dissect_header(byte_queue* bq, hash_table** ht)
 {
     if (!ht || !bq || !bq->r) {
         return -1;
@@ -82,21 +82,26 @@ int dissect_header(byte_queue* bq, hash_table ** ht)
     *ht = pht;
 
     const char *ptr    = strstr(bq->r, "HTTP/");
-    int         n      = 0;
-    int         num    = 0;
-    int         stat   = 0;
-    char value[64]     = { '\0' };
-    size_t      ldsize = 0;
+    int    num      = 0;
+    int    n        = 0;
+    int    stat     = 0;
+    char value[64]  = { '\0' };
+    char version[8] = {'\0'};
+    size_t ldsize   = 0;
+    if (ptr)
+        num = sscanf(ptr, "HTTP/%s %[^\r\n]\r\n%n", version, value, &n);
 
-    num = sscanf(ptr, "HTTP/1.1 %[^\r\n]\r\n%n", value, &n);
-    if (!num) {
+    if (!num || num != 2) {
         fprintf(stderr, "Failed to parse header: %s\n", ptr);
         perror("Failed to parse header");
         return -1;
     }
 
-    char *key = "status";
+    //TODO: Check http version if necessary...
+    char *key = "version";
+    hash_table_insert(pht, key, strdup(version), strlen(version));
 
+    key = "status";
     hash_table_insert(pht, key, strdup(value), strlen(value));
     ptr += n;
 
@@ -124,7 +129,7 @@ int dissect_header(byte_queue* bq, hash_table ** ht)
 /* This function accepts an pointer of connection pointer, on return. When 302
  * is detected, it will modify both ui and conn to ensure a valid connection
  * can be initialized. */
-uint64 get_remote_file_size_http(url_info* ui, connection** conn)
+uint64 get_remote_file_size_http(url_info* ui, connection** conn, hash_table** ht)
 {
     if (!conn ||!*conn || !ui) {
         return 0;
@@ -149,11 +154,10 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn)
         bq->w     += rd;
     } while ((eptr = strstr(bq->r, HEADER_END)) == NULL);
 
-    hash_table *ht   = NULL;
-    int         stat = dissect_header(bq, &ht);
+    int stat = dissect_header(bq, ht);
 
     PDEBUG("stat: %d, description: %s\n",
-           stat, (char *) hash_table_entry_get(ht, "status"));
+           stat, (char *) hash_table_entry_get(*ht, "status"));
 
     int    num = 0;
     char*  ptr = NULL;
@@ -162,7 +166,7 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn)
     switch (stat) {
         case 206:			// Ok, we can start download now.
         {
-            ptr = (char *) hash_table_entry_get(ht, "content-range");
+            ptr = (char *) hash_table_entry_get(*ht, "content-range");
             if (!ptr) {
                 fprintf(stderr, "Content Range not returned: %s!\n", bq->p);
                 t = 0;
@@ -177,8 +181,9 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn)
             break;
         }
         case 302:			// Resource moved to other place.
+        case 307:
         {
-            char *loc = (char *) hash_table_entry_get(ht, "location");
+            char *loc = (char *) hash_table_entry_get(*ht, "location");
 
             printf("Server returns 302, trying new locations: %s...\n",
                    loc);
@@ -189,7 +194,7 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn)
                 url_info_destroy(&nui);
                 connection_put(*conn);
                 *conn = connection_get(ui);
-                return get_remote_file_size_http(ui, conn);
+                return get_remote_file_size_http(ui, conn, ht);
             }
             fprintf(stderr,
                     "Failed to get new location for status code: 302\n");
@@ -197,7 +202,7 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn)
         }
         case 200:
         {
-            ptr = (char *) hash_table_entry_get(ht, "Content-Length");
+            ptr = (char *) hash_table_entry_get(*ht, "Content-Length");
             if (!ptr) {
                 fprintf(stderr, "Content Length not returned!\n");
                 t = 0;
@@ -363,15 +368,50 @@ mget_err process_http_request(dinfo* info, dp_callback cb, bool* stop_flag,
     }
     PDEBUG ("conn : %p\n", conn);
 
+    //TODO: real file name might be stored in "Content-Disposition" of http
+    //      header, for example:
+    //      Content-Disposition:attachment;filename="The.Vampire.Diaries.S06E02.mp4",
+    //      we should guess file name from it!!
 
-    uint64 total_size = get_remote_file_size_http(info->ui, &conn);
+    hash_table *ht   = NULL;
+    uint64 total_size = get_remote_file_size_http(info->ui, &conn, &ht);
 
     if (!total_size) {
         fprintf(stderr, "Can't get remote file size: %s\n", ui->furl);
         return ME_RES_ERR;
     }
 
-    PDEBUG("total_size: %llu\n", total_size);
+    // try to get file name from http header..
+    char* fn = NULL;
+    if (info->md->hd.update_name)  {
+        char* dis = hash_table_entry_get(ht, "content-disposition");
+        if (dis) {
+            fn = ZALLOC(char, strlen(dis));
+            char* tmp = ZALLOC(char, strlen(dis));
+            (void)sscanf((const char *) dis, "%*[^;];filename=\"%[^\"]\"", tmp);
+
+            // file name is encoded...
+            int idx = 0;
+            char* ptr = tmp;
+            char* end = ptr + strlen(ptr);
+            while (ptr < end) {
+                if (*ptr == '%') {
+                    int X = 0;
+                    int n = 0;
+                    sscanf(ptr, "%%%2X%n", &X, &n);
+                    fn[idx++] = X;
+                    ptr += n;
+                }
+                else
+                {
+                    fn[idx++] = *ptr;
+                    ptr ++;
+                }
+            }
+        }
+    }
+
+    PDEBUG("total_size: %llu, fileName: %s\n", total_size, fn);
 
     /*
       If it goes here, means metadata is not ready, get nc (number of
@@ -383,7 +423,7 @@ mget_err process_http_request(dinfo* info, dp_callback cb, bool* stop_flag,
         info->md->hd.nr_user = DEFAULT_HTTP_CONNECTIONS;
     }
 
-    if (!dinfo_update_metadata(total_size, info)) {
+    if (!dinfo_update_metadata(info, total_size, fn)) {
         fprintf(stderr, "Failed to create metadata from url: %s\n", ui->furl);
         return ME_ABORT;
     }

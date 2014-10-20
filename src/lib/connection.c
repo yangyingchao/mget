@@ -1,4 +1,4 @@
-/** mget_sock.c --- implementation of mget_sock
+/** connection.c --- implementation of connection stuffs.
  *
  * Copyright (C) 2013 Yang,Ying-chao
  *
@@ -19,22 +19,25 @@
  * the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
  * Boston, MA 02110-1301, USA.
  */
+#define _GNU_SOURCE         /* See feature_test_macros(7) */
+#include <stdio.h>
 
+#include "log.h"
 #include "connection.h"
 #include "data_utlis.h"
-#include "log.h"
 #include "mget_config.h"
 #include "mget_types.h"
+#include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
+#include <netinet/in.h>
+#include <sys/mman.h>
+#include <sys/select.h>
 #include <sys/socket.h>
+#include <sys/stat.h>        /* For mode constants */
 #include <sys/types.h>
 #include <unistd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <sys/select.h>
 
 #ifdef HAVE_GNUTLS
 #include "plugin/ssl/ssl.h"
@@ -48,12 +51,72 @@ typedef enum _connection_feature {
     sf_keep_alive = 1,
 } connection_feature;
 
-
 typedef struct _addr_entry {
-    address *addr;                      // don't release ti.
-    address *infos;                     // should be freed.
-    uint32   feature;
+    int      size;                     /* total size of this entry... */
+    address *addr;                     /* addrinfo pointer. */
+
+    int ai_family;                      /* Protocol family for socket.  */
+    int ai_socktype;                    /* Socket type.  */
+    int ai_protocol;                    /* Protocol for socket.  */
+
+    socklen_t ai_addrlen;               /* Length of socket address.  */
+    char      buffer[0];                /* Buffer of sockaddr.  */
 } addr_entry;
+
+#define ALLOC_ADDR_ENTRY(X)       \
+    (addr_entry*)XALLOC(sizeof(addr_entry) + (X))
+
+#ifdef DEBUG
+#define OUT_ADDR(X) fprintf(stderr, "entry->" #X ": %d\n", entry->ai_##X)
+#else
+#define OUT_ADDR(X)
+#endif
+
+static address* addrentry_to_address(addr_entry* entry)
+{
+    address* addr = NULL;
+    if (entry && (addr = ZALLOC1(address)))
+    {
+        addr->ai_family    = entry->ai_family;
+        addr->ai_socktype  = entry->ai_socktype;
+        addr->ai_protocol  = entry->ai_protocol;
+        addr->ai_addrlen   = entry->ai_addrlen;
+        addr->ai_addr = ZALLOC1(struct sockaddr);
+
+        memcpy(addr->ai_addr, entry->buffer, addr->ai_addrlen);
+        entry->addr = addr;
+
+        OUT_ADDR(family);
+        OUT_ADDR(socktype);
+        OUT_ADDR(protocol);
+        OUT_BIN(addr->ai_addr, addr->ai_addrlen);
+    }
+    return addr;
+}
+
+static addr_entry* address_to_addrentry(address* addr)
+{
+    addr_entry* entry = NULL;
+    if (addr && (entry = ALLOC_ADDR_ENTRY(addr->ai_addrlen))) {
+        entry->size        = sizeof(*entry) + addr->ai_addrlen;
+        entry->ai_family   = addr->ai_family;
+        entry->ai_socktype = addr->ai_socktype;
+        entry->ai_protocol = addr->ai_protocol;
+        entry->ai_addrlen  = addr->ai_addrlen;
+        memcpy(entry->buffer, addr->ai_addr, addr->ai_addrlen);
+
+        OUT_ADDR(family);
+        OUT_ADDR(socktype);
+        OUT_ADDR(protocol);
+        OUT_BIN(entry->buffer, entry->ai_addrlen);
+
+        // update entry->addr to itself.
+        void* ptr = addrentry_to_address(entry);
+        PDEBUG ("ptr: %p -- %p\n", entry->addr, ptr);
+    }
+
+    return entry;
+}
 
 typedef struct _connection_p {
     connection  conn;
@@ -82,11 +145,18 @@ void addr_entry_destroy(void *entry)
     addr_entry *e = (addr_entry *) entry;
 
     if (e) {
-        FIF(e->infos);
         free(e);
     }
 }
 
+#define SHM_LENGTH       4096
+
+typedef struct _shm_region
+{
+    int len;
+    bool busy; // Race condition: this may be used by multiple instances
+    char buf[SHM_LENGTH];
+} shm_region;
 
 static uint32 tcp_connection_read(connection * conn, char *buf,
                                   uint32 size, void *priv)
@@ -127,7 +197,8 @@ static uint32 tcp_connection_write(connection * conn, char *buf,
     connection_p *pconn = (connection_p *) conn;
 
     if (pconn && pconn->sock && buf) {
-        PDEBUG ("begin write ....\n");
+        PDEBUG ("begin write, conn: %p, sock: %d ....\n",
+                pconn, pconn->sock);
         return (uint32) write(pconn->sock, buf, size);
     }
     return 0;
@@ -212,7 +283,6 @@ sockaddr_set_data (struct sockaddr *sa, ip_address* ip, int port)
     }
 }
 
-static hash_table* g_addr_cache = NULL;
 static hash_table* g_conn_cache = NULL;
 static byte_queue* dq = NULL; // drop queue
 
@@ -284,7 +354,7 @@ connection* connection_get(const url_info* ui)
     }
 
     connection_p* conn = NULL;
-    addr_entry *addr = NULL;
+    addr_entry *entry = NULL;
     if (ui->addr)
     {
         conn = ZALLOC1(connection_p);
@@ -304,7 +374,7 @@ connection* connection_get(const url_info* ui)
         sa.sin_family = AF_INET;
         sa.sin_port = htons(ui->port);
         sa.sin_addr = ui->addr->data.d4;
-        DEBUGP (("trying to connect to %s port %lu\n",
+        DEBUGP (("trying to connect to %s port %u\n",
                  print_address (ui->addr), ui->port));
         if (connect(conn->sock, (struct sockaddr *)&sa, sizeof sa) < 0) {
             perror("connect");
@@ -314,12 +384,9 @@ connection* connection_get(const url_info* ui)
     }
     else
     {
-        //@todo: 1. try to reuse existing connection, in g_conn_cache.
-
         char* host_key = NULL;
         int ret = asprintf(&host_key, "%s:%u", ui->host, ui->port);
-        if (!ret)
-        {
+        if (!ret) {
             goto alloc;
         }
 
@@ -328,14 +395,12 @@ connection* connection_get(const url_info* ui)
         PDEBUG ("cache: %p, count: %d, lst: %p\n", cache,
                 cache ? cache->count : 0, cache ? cache->lst:NULL);
 
-        if (cache && cache->count && cache->lst)
-        {
+        if (cache && cache->count && cache->lst) {
             conn = LIST2PCONN(cache->lst);
             cache->lst = cache->lst->next;
             cache->count--;
             conn->lst.next = NULL;
-            if (!validate_connection(conn))
-            {
+            if (!validate_connection(conn)) {
                 goto connect;
             }
             PDEBUG ( "\nRusing connection: %p\n", conn);
@@ -344,17 +409,41 @@ connection* connection_get(const url_info* ui)
 
   alloc:
         conn = ZALLOC1(connection_p);
+        static hash_table* addr_cache = NULL;
+        static shm_region* shm_rptr   = NULL;
+        if (!addr_cache) {
+#define handle_error(msg)                                           \
+            do { perror(msg); goto alloc_addr_cache; } while (0)
 
-        if (!g_addr_cache) {
-            g_addr_cache = hash_table_create(64, addr_entry_destroy);
-            assert(g_addr_cache);
+            //@todo: should check if shm is supported..
+            char key[64] = {'\0'};
+            sprintf(key, "/libmget_%s_uid_%d", VERSION_STRING, getuid());
+            int fd = shm_open(key, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
+            if (fd == -1)
+                handle_error("Failed to open shared memory");
+
+            if (ftruncate(fd, sizeof(shm_region)) == -1)
+                handle_error("Failed to truncate..");
+
+            /* Map shared memory object */
+            shm_rptr = (shm_region*)mmap(NULL, sizeof(shm_region),
+                                         PROT_READ | PROT_WRITE, MAP_SHARED,
+                                         fd, 0);
+            if (shm_rptr == MAP_FAILED)
+                handle_error("do mmap");
+
+            addr_cache = hash_table_create_from_buffer(shm_rptr->buf, SHM_LENGTH);
+            if (!addr_cache) {
+          alloc_addr_cache: ;
+                addr_cache = hash_table_create(64, addr_entry_destroy);
+                assert(addr_cache);
+            }
         }
 
-        addr = GET_HASH_ENTRY(addr_entry, g_addr_cache, ui->host);
-        if (addr) {
-            PDEBUG ("Using known address....\n");
-
-            conn->addr = addr->addr;
+        entry = GET_HASH_ENTRY(addr_entry, addr_cache, ui->host);
+        if (entry) {
+            PDEBUG ("Using cached address...\n");
+            conn->addr = addrentry_to_address(entry);
       connect:
             PDEBUG ("Connecting to: %s:%d\n", ui->host, ui->port);
 
@@ -364,10 +453,13 @@ connection* connection_get(const url_info* ui)
             if (connect (conn->sock, conn->addr->ai_addr,
                          conn->addr->ai_addrlen) == -1) {
                 perror("Failed to connect");
-                goto err;
+                goto hint;
             }
+
+            PDEBUG ("conn: %p, sock: %d\n", conn, conn->sock);
+
         } else {
-            addr = ZALLOC1(addr_entry);
+      hint:;
             address hints;
 
             memset(&hints, 0, sizeof(hints));
@@ -376,7 +468,8 @@ connection* connection_get(const url_info* ui)
             hints.ai_flags = 0;
             hints.ai_protocol = 0;
             logprintf(LOG_ALWAYS, "Resolving host: %s ...\n", ui->host);
-            int ret = getaddrinfo(ui->host, ui->sport, &hints, &addr->infos);
+            struct addrinfo* infos = NULL;
+            int ret = getaddrinfo(ui->host, ui->sport, &hints, &infos);
 
             PDEBUG ("ret = %d, error: %s\n", ret, strerror(errno));
 
@@ -384,7 +477,7 @@ connection* connection_get(const url_info* ui)
                 goto err;
             address *rp = NULL;
 
-            for (rp = addr->infos; rp != NULL; rp = rp->ai_next) {
+            for (rp = infos; rp != NULL; rp = rp->ai_next) {
                 conn->sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
                 if (conn->sock == -1) {
                     continue;
@@ -397,13 +490,25 @@ connection* connection_get(const url_info* ui)
             }
 
             if (rp != NULL) {
-                conn->addr = addr->addr = rp;
-                if (!hash_table_insert(g_addr_cache, (char*)ui->host, addr,
-                                       sizeof(*addr))) {
-                    addr_entry_destroy(addr);
+                entry = address_to_addrentry(rp);
+                conn->addr = entry->addr;
+                if (!hash_table_update(addr_cache, (char*)ui->host, entry,
+                                       entry->size)) {
+                    addr_entry_destroy(entry);
                     fprintf(stderr, "Failed to insert cache: %s\n", ui->host);
                 }
-
+                else {
+                    // Only update cache to shm when it is not used by others.
+                    // This is just for optimization, and it does not hurt
+                    // much if one or two cache is missing...
+                    if (shm_rptr && shm_rptr != MAP_FAILED && !shm_rptr->busy) {
+                        shm_rptr->busy = true;
+                        shm_rptr->len = dump_hash_table(addr_cache,
+                                                        shm_rptr->buf,
+                                                        SHM_LENGTH);
+                        shm_rptr->busy = false;
+                    }
+                }
             }
         }
     }
@@ -414,6 +519,8 @@ post_connected: ;
         {
             conn->host = strdup(ui->host);
         }
+
+        PDEBUG ("sock(%d) %p connected to %s. \n", conn->sock, conn, conn->host);
 
         conn->connected = true;
         conn->port = ui->port;
@@ -449,7 +556,7 @@ post_connected: ;
 err:
     fprintf(stderr, "Failed to get proper host address for: %s\n",
             ui->host);
-    FIF(addr);
+    FIF(entry);
     FIF(conn->host);
     FIF(conn);
     conn = NULL;

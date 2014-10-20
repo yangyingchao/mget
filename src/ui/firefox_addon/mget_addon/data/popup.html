@@ -1,0 +1,216 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <style>
+      body {
+      min-width: 600px;
+      min-height: 300px;
+      overflow-x: hidden;
+      }
+      img {
+      margin: 5px;
+      border: 2px solid black;
+      vertical-align: middle;
+      width: 75px;
+      height: 75px;
+      }
+    </style>
+    <!-- Stylesheets -->
+    <!-- <link id="favicon" rel="icon" href=""> -->
+    <link rel="stylesheet" href="css/default.css" media="screen">
+    <link rel="stylesheet" href="css/main.css" media="screen">
+    <link rel="stylesheet" href="css/setting.css" media="screen">
+    <link rel="stylesheet" href="css/custom.css" media="screen">
+
+    <!-- JavaScripts -->
+    <script src="js/jquery-1.11.1.js"></script>
+    <script src="js/tab.js"></script>
+    <!-- <script src="lib/mootools-core.js">
+         </script>
+    -->
+    <!-- <script src="lib/store.js">
+         </script>
+    -->
+    <!-- <script src="js/classes/setting.js">
+         </script>
+    -->
+    <!-- <script src="js/classes/search.js">
+         </script>
+    -->
+    <!-- <script src="js/classes/fancy-settings.js">
+         </script>
+    -->
+    <!-- <script src="i18n.js">
+         </script>
+    -->
+    <!-- <script src="js/i18n.js">
+         </script>
+    -->
+    <!-- <script src="manifest.js">
+         </script>
+    -->
+    <!-- <script src="settings.js">
+         </script>
+    -->
+    <!-- <script src="load_complete.js">
+         </script>
+    -->
+  </head>
+
+  <body class="">
+    <div id="sidebar" class="fancy">
+      <img id="icon" src="down.png" alt="">
+      <h1 id="settings-label"> <a id="homepage" href="https://github.com/yangyingchao/mget">mget</a></h1>
+      <div id="tab-container">
+        <!-- <div id="search-container" class="tab"> -->
+        <!--   <input id="search" placeholder="Search..." type="search"/> </div> -->
+        <div class="tab active" id="Activities">
+        Activities</div>
+        <div class="tab" id="Configuration">
+        Configuration</div>
+        <div class="tab" id="Test">Test</div>
+      </div>
+    </div>
+
+    <div id="content">
+      <!-- <div id="search-result-container" class="tab-content"> -->
+      <!--   <h2 id="search-label"> -->
+      <!--     Search</h2> -->
+      <!--   <div id="nothing-found" class="setting bundle description"> -->
+      <!--     <div class="setting container description"> -->
+      <!--       <p class="setting element description"> -->
+      <!--         No matches were found.</p> -->
+      <!--     </div> -->
+      <!--   </div> -->
+      <!-- </div> -->
+
+      <div class="tab-content show" id="Activities">
+        <h2> Activities</h2>
+        <table class="setting group">
+          <tr>
+            <td class="setting group-name"> On Going</td>
+            <td class="setting group-content">
+              <div class="setting bundle description">
+                <div class="setting container description">
+                  <p class="setting element description">
+                  <p>
+                    Downloading progress </p>
+                  <progress id="p1" value="10" max="100">
+                  </progress>
+                  </p>
+                  <button id="update_btn">  Click Me </button>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </table>
+        <table class="setting group">
+          <tr>
+            <td class="setting group-name">
+              Finished</td>
+            <td class="setting group-content">
+              <div class="setting bundle description">
+                <div class="setting container description">
+                  <p class="setting element description">
+                    Finished tasks:<progress value="100" max="100">
+                    </progress>
+                  </p>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="tab-content" id="Configuration">
+        <h2>Configuration</h2>
+        <table class="setting group">
+          <tr>
+            <td class="setting group-name">
+              Edit Server</td>
+            <td class="setting group-content">
+              <div class="setting bundle text">
+                <div class="setting container text">
+                  <label class="setting label text">
+                    Edit Server Host:</label>
+                  <input class="setting element text" type="text"/>
+                </div>
+              </div>
+              <div class="setting bundle text">
+                <div class="setting container text">
+                  <label class="setting label text">
+                    Edit Server Port:</label>
+                  <input class="setting element text" type="text"/>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </table>
+        <table class="setting group">
+          <tr>
+            <td class="setting group-name">
+              Interface</td>
+            <td class="setting group-content">
+              <div class="setting bundle checkbox">
+                <div class="setting container checkbox">
+                  <input value="true" class="setting element checkbox" id="i1bnf0xm" type="checkbox"/>
+                  <label for="i1bnf0xm" class="setting label checkbox">
+                    Show 'edit' button next to textarea</label>
+                </div>
+              </div>
+              <div class="setting bundle checkbox">
+                <div class="setting container checkbox">
+                  <input value="true" class="setting element checkbox" id="i1bnf0xo" type="checkbox"/>
+                  <label for="i1bnf0xo" class="setting label checkbox">
+                    Enable context menu item to invoke editor</label>
+                </div>
+              </div>
+              <div class="setting bundle checkbox">
+                <div class="setting container checkbox">
+                  <input value="true" class="setting element checkbox" id="i1bnf0xq" type="checkbox"/>
+                  <label for="i1bnf0xq" class="setting label checkbox">
+                    Allow double click on textarea to invoke editor</label>
+                </div>
+              </div>
+              <div class="setting bundle checkbox">
+                <div class="setting container checkbox">
+                  <input value="true" class="setting element checkbox" id="i1bnf0xs" type="checkbox"/>
+                  <label for="i1bnf0xs" class="setting label checkbox">
+                    Enable Alt-Enter Keyboard shortcut to invoke editor</label>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="tab-content" id="Test">
+        <h2>Test</h2>
+        <table class="setting group">
+          <tr>
+            <td class="setting group-name"> Test</td>
+            <td class="setting group-content">
+              <div class="setting bundle button">
+                <div class="setting container button">
+                  <label class="setting label button">
+                    Test Edit Server</label>
+                  <input value="Test" class="setting element button" type="button"/>
+                </div>
+              </div>
+              <div class="setting bundle checkbox">
+                <div class="setting container checkbox">
+                  <input value="true" class="setting element checkbox" id="i1bnf0xu" type="checkbox"/>
+                  <label for="i1bnf0xu" class="setting label checkbox"> Enable debug (logs to the console)</label>
+                  <br />
+                  <p> AAA</p>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+    </div>
+  </body>
+</html>

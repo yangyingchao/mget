@@ -1,0 +1,9 @@
+{
+  "name": "mget_addon",
+  "title": "mget_addon",
+  "id": "mget_addon",
+  "description": "a add-on for mget",
+  "author": "",
+  "license": "MPL 2.0",
+  "version": "0.1"
+}

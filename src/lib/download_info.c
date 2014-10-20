@@ -20,9 +20,9 @@
  * Boston, MA 02110-1301, USA.
  */
 
+#include "log.h"
 #include "download_info.h"
 #include "mget_macros.h"
-#include "log.h"
 #include "metadata.h"
 #include "mget_config.h"
 #include "mget_utils.h"
@@ -43,7 +43,7 @@ void dinfo_destroy(dinfo** info)
     if (remove_metadata)
         remove_file((*info)->fm_md->fh->fn);
 
-    if (remove_package)
+    if (remove_package && *info && (*info)->fm_file)
         remove_file((*info)->fm_file->fh->fn);
 
     url_info_destroy(&(*info)->ui);
@@ -55,10 +55,12 @@ void dinfo_destroy(dinfo** info)
 bool dinfo_create(const char *url, const file_name * fn,
                   mget_option* opt, dinfo** info)
 {
-    url_info *ui    = NULL;
-    char     *fpath = NULL;
-    dinfo*    dInfo = NULL;
-    bool      ret   = false;
+    url_info* ui           = NULL;
+    char*     fpath        = NULL;
+    dinfo*    dInfo        = NULL;
+    bool      ret          = false;
+    bool      update_fn    = false;
+    bool      md_from_file = false;
 
     dInfo = ZALLOC1(dinfo);
     if (!dInfo)  {
@@ -79,8 +81,11 @@ bool dinfo_create(const char *url, const file_name * fn,
 
         char *tmp = ZALLOC(char, strlen(fpath) + strlen(ui->bname) + 2);
         sprintf(tmp, "%s/%s", fpath, ui->bname);
+        PDEBUG ("tmp: %s -- %s\n", fpath, ui->bname);
+
         FIF(fpath);
         fpath = tmp;
+        update_fn = true;
     }
 
     if (!fpath) {
@@ -88,7 +93,7 @@ bool dinfo_create(const char *url, const file_name * fn,
         goto free;
     }
 
-    char tfn[256] = { '\0' };
+    char* tfn = ZALLOC(char, strlen(fpath) + 5);
     sprintf(tfn, "%s.tmd", fpath);
 
     if (file_existp(tfn) &&
@@ -113,6 +118,20 @@ bool dinfo_create(const char *url, const file_name * fn,
                 return false;
             }
         }
+
+        // update fpath
+        char* dirn  = fm_get_directory(dInfo->fm_md);
+        FIF(fpath);
+        if (dirn) {
+            fpath = ZALLOC(char, strlen(dirn) + strlen(dInfo->md->ptrs->fn) + 2);
+            sprintf(fpath, "%s/%s", dirn, dInfo->md->ptrs->fn);
+        }
+        else
+        {
+            fpath = strdup(dInfo->md->ptrs->fn);
+        }
+
+        md_from_file = true;
     }
     else {
         if (!url) {
@@ -132,6 +151,11 @@ bool dinfo_create(const char *url, const file_name * fn,
 
         dInfo->fm_md = fm_create(tfn, md_size);
         dInfo->md    = (metadata*)dInfo->fm_md->addr;
+        if (!dInfo->md)
+        {
+            fprintf(stderr, "Failed to create metadata!\n");
+            return false;
+        }
 
         // fill this pmd.
         metadata* pmd = dInfo->md;
@@ -153,6 +177,7 @@ bool dinfo_create(const char *url, const file_name * fn,
         hd->nr_user      = opt->max_connections;
         hd->nr_effective = 0;
         hd->ebl          = ebl;
+        hd->update_name  = update_fn;
         hd->acon         = opt->max_connections;
 
         pmd->ptrs       = ptrs;
@@ -191,14 +216,18 @@ bool dinfo_create(const char *url, const file_name * fn,
     }
 
     // create fm for downloaded file.
-    dInfo->fm_file = fm_create(fpath, dInfo->md->hd.package_size);
     dInfo->ui = ui;
-    PDEBUG ("dInfo: %p, md: %p, fm_md: %p, fm_file: %p\n",
-            dInfo, dInfo->md,  dInfo->fm_md, dInfo->fm_file);
+    if (md_from_file) {
+        dInfo->fm_file = fm_create(fpath, dInfo->md->hd.package_size);
+        PDEBUG ("dInfo: %p, md: %p, fm_md: %p, fm_file: %p\n",
+                dInfo, dInfo->md,  dInfo->fm_md, dInfo->fm_file);
+        if (!dInfo->fm_file)
+            goto free;
+    }
 
-    if (dInfo && dInfo->md && dInfo->fm_md && dInfo->fm_file)  {
+    if (dInfo && dInfo->md && dInfo->fm_md)  {
         *info = dInfo;
-        ret = true;
+        ret   = true;
         goto out;
     }
 
@@ -220,7 +249,7 @@ bool dinfo_ready(dinfo* info)
 extern bool chunk_split(uint64 start, uint64 size, int *num,
                         uint64* cs, data_chunk ** dc);
 
-bool dinfo_update_metadata(uint64 size, dinfo* info)
+bool dinfo_update_metadata(dinfo* info, uint64 size, const char* fn)
 {
     PDEBUG ("enter\n");
 
@@ -256,12 +285,18 @@ bool dinfo_update_metadata(uint64 size, dinfo* info)
 #define DINFO_UPDATE_HASH(K, V)                 \
     PDEBUG("showing: %s - %s: \n", (K), ((V)));              \
     if (V)                                                 \
-        hash_table_insert(ht, (K), (V), strlen(V))
+        hash_table_update(ht, (K), (V), strlen(V))
 
     DINFO_UPDATE_HASH(K_URL, md->ptrs->url);
-    DINFO_UPDATE_HASH(K_FN, md->ptrs->fn);
     DINFO_UPDATE_HASH(K_USR, md->ptrs->user);
     DINFO_UPDATE_HASH(K_PASSWD, md->ptrs->passwd);
+
+    if (fn && hd->update_name)
+    {
+        md->ptrs->fn = strdup(fn);
+        DINFO_UPDATE_HASH(K_FN, md->ptrs->fn);
+        hd->update_name = FALSE;
+    }
 
 #undef DINFO_UPDATE_HASH
 
@@ -277,9 +312,28 @@ bool dinfo_update_metadata(uint64 size, dinfo* info)
             md->raw_data, md->ptrs->body, md->ptrs->ht_buffer);
 
     // now update fm_file.
-    fm_remap(&info->fm_file, size);
+    if (!info->fm_file) {
+        char* fpath = NULL;
+        char* dirn  = fm_get_directory(info->fm_md);
+        if (dirn) {
+            fpath = ZALLOC(char, strlen(dirn) + strlen(md->ptrs->fn) + 2);
+            sprintf(fpath, "%s/%s", dirn, md->ptrs->fn);
+        }
+        else
+        {
+            fpath = strdup(md->ptrs->fn);
+        }
+
+        PDEBUG ("Creating file mapping: %s\n", fpath);
+        info->fm_file = fm_create(fpath, info->md->hd.package_size);
+        FIF(fpath);
+    }
+    else
+        fm_remap(&info->fm_file, size);
+
     return true;
 }
+
 
 void dinfo_sync(dinfo* info)
 {

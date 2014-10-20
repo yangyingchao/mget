@@ -20,12 +20,13 @@
  * Boston, MA 02110-1301, USA.
  */
 
+#include "log.h"
+#include "mget_config.h"
 #include "data_utlis.h"
 #include <stdlib.h>
-#include "log.h"
 #include <string.h>
 #include <ctype.h>
-#include "mget_config.h"
+#include <time.h>
 
 mget_slis *mget_slis_append(mget_slis * l, void *data, free_func f)
 {
@@ -34,7 +35,19 @@ mget_slis *mget_slis_append(mget_slis * l, void *data, free_func f)
 
 // Hash table operations.
 
+struct _TableEntry {
+    char   *key;
+    void   *val;
+    time_t  ts;                         /* time stamp of last access time.*/
+    uint32  val_len;                    /* length of value. */
+};
+
 static const int HASH_SIZE = 256;
+
+// debug int ptr.
+#define DIP(X, Y)\
+    PDEBUG (#X": (%p): %X\n", (Y), *((int*)(Y)));
+
 
 uint32 StringHashFunction(const char *str)
 {
@@ -54,6 +67,14 @@ uint32 StringHashFunction(const char *str)
 
     return hash % HASH_SIZE;
 }
+
+#define DEL_ENTRY(T, E)                 \
+    do                                  \
+    {                                   \
+        FIF((E)->key);                  \
+        if ((E)->val && (T)->deFunctor) \
+            (T)->deFunctor(entry->val); \
+    } while (0)
 
 void hash_table_destroy(hash_table* table)
 {
@@ -99,6 +120,8 @@ hash_table*hash_table_create(uint32 hashSize, DestroyFunction dFunctor)
             table = NULL;
         }
     }
+
+    PDEBUG ("return with table: %p\n", table);
     return table;
 }
 
@@ -120,10 +143,11 @@ bool hash_table_insert(hash_table* table, char *key, void *val, uint32 len)
                 }
             }
             else {
-                entry->key = d_key;
-                entry->val = val;
+                entry->key     = d_key;
+                entry->val     = val;
                 entry->val_len = len;
-                ret = true;
+                entry->ts      = time(NULL);
+                ret            = true;
                 table->occupied ++;
                 break;
             }
@@ -135,6 +159,63 @@ bool hash_table_insert(hash_table* table, char *key, void *val, uint32 len)
         PDEBUG ("Failed to insert: %s -- %s\n", key, (char*)val);
     }
 
+    return ret;
+}
+
+#define DTB(X, Y)                                                         \
+    PDEBUG (X ", table: %p, capacity: %d, occupied: %d\n",Y,Y->capacity, Y->occupied)
+
+bool hash_table_update(hash_table* table, char *key, void *val, uint32 len)
+{
+    DTB("enter", table);
+
+    bool ret = false;
+    if (table && key && val) {
+        uint32 i;
+        char        *d_key  = strdup(key);
+        TableEntry*  oldest = NULL;
+        TableEntry  *entry  = NULL;
+        // Insert entry into the first open slot starting from index.
+        for (i = table->hashFunctor(d_key); i < table->capacity; ++i) {
+            entry = &table->entries[i];
+            if (entry->key) {
+                if (!strcmp(key, entry->key)) {
+                    goto fill_slot;
+                }
+                else {
+                    if (!oldest)
+                        oldest = entry;
+                    else
+                        oldest = oldest->ts < entry->ts ? oldest : entry;
+                }
+            }
+            else {
+                table->occupied ++;
+          fill_slot:
+                entry->key     = d_key;
+                entry->val     = val;
+                entry->val_len = len;
+                entry->ts      = time(NULL);
+                ret            = true;
+                break;
+            }
+        }
+
+        if (!ret && oldest) {
+            //@todo: consider add a callback for this event.
+            DEL_ENTRY(table, oldest);
+            ret = true;
+            entry = oldest;
+            goto fill_slot;
+        }
+
+        if (!ret) {
+            PDEBUG ("Failed to update hash table for key: %s\n", key);
+            FIF(d_key);
+        }
+    }
+
+    DTB("leave", table);
     return ret;
 }
 
@@ -158,7 +239,7 @@ void *hash_table_entry_get(hash_table* table, const char *key)
         }
     }
     if (entry) {
-        /* PDEBUG("Key: %s - %s, val: %p\n", key, entry->key, entry->val); */
+        PDEBUG("Key: %s - %s, val: %p\n", key, entry->key, entry->val);
         return entry->val;
     }
     return NULL;
@@ -177,13 +258,17 @@ uint32 dump_hash_table(hash_table* ht, void *buffer, uint32 buffer_size)
 
     // Version Number
     *(int*)ptr = GET_VERSION();
+    DIP(version, ptr);
+
     ptr += sizeof(int);
 
     // Capacity.
     *(int*)ptr = ht->capacity;
+    DIP(capacity, ptr);
     ptr += sizeof(int);
 
     *(int*)ptr = ht->occupied;
+    DIP(occupied, ptr);
     ptr += sizeof(int);
 
     TableEntry *entry = NULL;
@@ -218,21 +303,29 @@ hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size)
     }
 
     // version checking.
-    char* ptr = buffer;
+    char*       ptr = buffer;
+    hash_table* ht  = NULL;
 
     if (*(int*)ptr != GET_VERSION())
     {
-        fprintf(stderr, "WARNING: version changed!!!\n"
-                " You're reading hash tables of old version!!"
-                " -- %u.%u.%u: %u.%u.%u\n", DIVIDE_VERSION(*(int*)ptr),
-                VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+        logprintf(LOG_ALWAYS, "WARNING: version changed!!!\n"
+                  " You're reading hash tables of old version!!"
+                  " -- %u.%u.%u: %u.%u.%u\n", DIVIDE_VERSION(*(int*)ptr),
+                  VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+    }
+    DIP(version, ptr);
+    ptr += sizeof(int);
+
+    DIP(capacity, ptr);
+    if (*((int*)ptr) == 0 || !(ht = hash_table_create(*((int*)ptr), NULL)))
+    {
+        PDEBUG ("ptr: (%p): %d, ht: %p\n", ptr, *((int*)ptr), ht);
+        return NULL;
     }
 
     ptr += sizeof(int);
 
-    hash_table* ht = hash_table_create(*(int*)ptr, NULL);
-    ptr += sizeof(int);
-
+    DIP(occupied, ptr);
     int i = 0, total = *(int*)ptr;
     ptr += sizeof(int);
     while (i++ < total) {
@@ -255,6 +348,7 @@ hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size)
         hash_table_insert(ht, key, val, val_len);
     }
 
+ret:
     return ht;
 }
 
@@ -346,6 +440,13 @@ void lowwer_case(char* p, size_t len)
         p[i] = tolower(p[i]);
     }
 }
+
+
+ /* This code is public-domain - it is based on libcrypt
+  * placed in the public domain by Wei Dai and other contributors.
+  */
+
+
 
 /*
  * Editor modelines

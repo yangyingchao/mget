@@ -42,6 +42,11 @@ extern "C" {
 #define K_PASSWD    "PASSWD"
 #define K_FN        "FN"
 
+#define TRUE       1
+#define FALSE      0
+
+
+
 typedef struct _metadata_wrapper {
     metadata *md;
     fh_map *fm;

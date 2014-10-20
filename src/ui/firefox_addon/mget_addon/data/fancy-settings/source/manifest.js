@@ -1,22 +1,22 @@
 // Edit with Emacs options
 this.manifest = {
     "name": "mget downloader",
-    "icon": "../../icons/down.png",
+    "icon": "../../down.png",
     "settings": [
-        // {
-        //     "tab": i18n.get("information"),
-        //     "group": i18n.get("Setup"),
-        //     "name": "Description",
-        //     "type": "description",
-        //     "text": i18n.get("description")
-        // },
-        // {
-        //     "tab": i18n.get("information"),
-        //     "group": i18n.get("Focusing Emacs"),
-        //     "name": "Description",
-        //     "type": "description",
-        //     "text": i18n.get("focus")
-        // },
+        {
+            "tab": i18n.get("activities"),
+            "group": i18n.get("ongoing"),
+            "name": "Description",
+            "type": "description",
+            "text": i18n.get("active_downloads")
+        },
+        {
+            "tab": i18n.get("activities"),
+            "group": i18n.get("finished"),
+            "name": "Description",
+            "type": "description",
+            "text": i18n.get("finished_downloads")
+        },
         {
             "tab": "Configuration",
             "group": "Edit Server",
@@ -58,21 +58,21 @@ this.manifest = {
 	        "name": "enable_keys",
 	        "type": "checkbox",
 	        "label": "Enable Alt-Enter Keyboard shortcut to invoke editor"
-	    }// ,
-        //    {
-        //        "tab": "Test",
-        //        "group": "Test",
-	    //    "name": "TestButton",
-        //        "type": "button",
-        //        "label": i18n.get("Test Edit Server"),
-	    //    "text": i18n.get("Test")
-        //    },
-        //    {
-        //        "tab": "Test",
-        //        "group": "Test",
-        //        "name": "enable_debug",
-        //        "type": "checkbox",
-        //        "label": i18n.get("enable_debug")
-        //    }
+	    },
+        {
+            "tab": "Test",
+            "group": "Test",
+	        "name": "TestButton",
+            "type": "button",
+            "label": i18n.get("Test Edit Server"),
+	        "text": i18n.get("Test")
+        },
+        {
+            "tab": "Test",
+            "group": "Test",
+            "name": "enable_debug",
+            "type": "checkbox",
+            "label": i18n.get("enable_debug")
+        }
     ]
 };

@@ -18,8 +18,8 @@ function set_if_non_null (n, k, v)
 
         "initialize": function (name, icon) {
             // Set title and icon
-            $("title").set("text", name);
-            $("favicon").set("href", icon);
+            // $("title").set("text", name);
+            // $("favicon").set("href", icon);
             set_if_non_null($("icon"), "src", icon)
             set_if_non_null($("settings-label"), "text",
                             (i18n.get("settings") || "Settings"));

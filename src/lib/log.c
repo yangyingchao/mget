@@ -874,6 +874,55 @@ void log_request_redirect_output(const char *signal_name)
     redirect_request_signal_name = signal_name;
 }
 
+
+void dump_line(const unsigned char* buf, int w, int l, char* out)
+{
+#define YYYGET(X)       ( X >= 32 && X <= 126) ? X : '.'
+    unsigned int i = 0;
+    sprintf(out, "%08x: ", l);
+    out += 10;
+    for (; i < w; ++i)
+    {
+        sprintf(out, (i % 8 == 7) ? "%02x  " : "%02x ", *(buf+i));
+        out += (i % 8 == 7) ? 4 : 3;
+    }
+
+    if (w < 0x10)
+    {
+        for (i = 0; i < 0x10 - w; ++i)
+        {
+            sprintf(out, "   ");
+            out += 3;
+        }
+        sprintf(out, "  ");
+        out+= 2;
+    }
+    sprintf (out++, "|");
+    for (i = 0; i < w; ++i)  sprintf (out++, "%c", YYYGET(*(buf+i)));
+
+    if (w < 0x10)
+        for (i = 0; i < 0x10 - w; ++i) sprintf(out++, " ");
+    sprintf (out, "|\n");
+#undef YYYGET
+}
+
+void dump_buffer(const char* tip, const unsigned char* buf, int max)
+{
+    int l = max / 0x10 + ((max % 0x10) ? 1 : 0);
+    int i = 0;
+    int w = l - i > 1 ? 0x10 : max;
+    const unsigned char* ptr = buf;
+    char out[78];
+    logprintf(LOG_DEBUG, tip);
+    for (; i < l; ++i,w = l - i > 1 ? 0x10 : max - 0x10 * i)
+    {
+        memset(out, 0, 78);
+        dump_line(ptr, w, i, out);
+        logprintf(LOG_DEBUG, "\t%s", out);
+        ptr += w;
+    }
+}
+
 /*
  * Editor modelines
  *
