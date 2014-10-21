@@ -67,7 +67,9 @@ typedef enum
 } mget_err;
 
 enum log_options { LOG_DEBUG, LOG_VERBOSE, LOG_NOTQUIET, LOG_NONVERBOSE,
-                   LOG_ALWAYS, LOG_NONE };
+                   LOG_NONE,
+                   LOG_ALWAYS,
+                  };
 
 extern enum log_options g_log_level;
 

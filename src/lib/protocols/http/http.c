@@ -129,7 +129,8 @@ int dissect_header(byte_queue* bq, hash_table** ht)
 /* This function accepts an pointer of connection pointer, on return. When 302
  * is detected, it will modify both ui and conn to ensure a valid connection
  * can be initialized. */
-uint64 get_remote_file_size_http(url_info* ui, connection** conn, hash_table** ht)
+uint64 get_remote_file_size_http(url_info* ui, connection** conn,
+                                 hash_table** ht)
 {
     if (!conn ||!*conn || !ui) {
         return 0;
@@ -217,8 +218,19 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn, hash_table** h
         }
         default:
         {
-            fprintf(stderr, "Not implemented for status code: %d\n", stat);
-            fprintf(stderr, "Response Header\n%s\n", bq->p);
+            if (stat >= 400 && stat < 511) {
+                logprintf(LOG_ALWAYS, "Server returns %d for HTTP request\n",
+                          stat);
+            }
+            else if (stat == 511) {
+                logprintf(LOG_ALWAYS, "Network Authentication Required"
+                          "(%d)..\n", stat);
+            }
+            else {
+                logprintf(LOG_ALWAYS, "Not implemented for status code: %d\n",
+                          stat);
+            }
+            logprintf(LOG_ALWAYS, "Detail Responds: %s\n", bq->p);
             goto ret;
         }
     }
