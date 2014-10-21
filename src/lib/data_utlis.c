@@ -306,19 +306,27 @@ hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size)
     char*       ptr = buffer;
     hash_table* ht  = NULL;
 
-    if (*(int*)ptr != GET_VERSION())
-    {
-        logprintf(LOG_ALWAYS, "WARNING: version changed!!!\n"
+    int v = *(int*)ptr;
+    enum log_options lo = LOG_NONE;
+    if (VER_TO_MAJOR(v) != VERSION_MAJOR)
+        lo = LOG_ALWAYS;
+    else if (VER_TO_MINOR(v) != VERSION_MINOR)
+        lo = LOG_NONVERBOSE;
+    else if (VER_TO_PATCH(v) != VERSION_PATCH)
+        lo = LOG_DEBUG;
+
+    if (lo != LOG_NONE) {
+        logprintf(lo, "WARNING: version changed!!!\n"
                   " You're reading hash tables of old version!!"
-                  " -- %u.%u.%u: %u.%u.%u\n", DIVIDE_VERSION(*(int*)ptr),
+                  " -- %u.%u.%u: %u.%u.%u\n", DIVIDE_VERSION(v),
                   VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
     }
+
     DIP(version, ptr);
     ptr += sizeof(int);
 
     DIP(capacity, ptr);
-    if (*((int*)ptr) == 0 || !(ht = hash_table_create(*((int*)ptr), NULL)))
-    {
+    if (*((int*)ptr) == 0 || !(ht = hash_table_create(*((int*)ptr), NULL))) {
         PDEBUG ("ptr: (%p): %d, ht: %p\n", ptr, *((int*)ptr), ht);
         return NULL;
     }

@@ -30,14 +30,13 @@
 #define VERSION_PATCH       @VERSION_PATCH@
 
 
-#define GET_VERSION()       ((@VERSION_MAJOR@ << 16) | (@VERSION_MINOR@ << 8) | (@VERSION_PATCH@))
+#define GET_VERSION()     ((@VERSION_MAJOR@ << 16) | (@VERSION_MINOR@ << 8) | @VERSION_PATCH@)
 #define VER_TO_MAJOR(X)   (((X) >> 16) & 0xFF)
-#define VER_TO_MINOR(X)   (((X) >> 8) & 0xFF)
+#define VER_TO_MINOR(X)   (((X) >> 8)  & 0xFF)
 #define VER_TO_PATCH(X)   ((X) & 0xFF)
 #define DIVIDE_VERSION(X) VER_TO_MAJOR(X), VER_TO_MINOR(X),VER_TO_PATCH(X)
 
 
-#cmakedefine HAVE_EPOLL
 #cmakedefine HAVE_GNUTLS
 
 #define VERSION_STRING       "@VERSION_MAJOR@.@VERSION_MINOR@.@VERSION_PATCH@"
