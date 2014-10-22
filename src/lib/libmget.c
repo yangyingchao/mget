@@ -22,7 +22,7 @@
 
 #include "mget_macros.h"
 #include "libmget.h"
-#include "log.h"
+#include "logutils.h"
 #include "download_info.h"
 #include "data_utlis.h"
 #include "protocols.h"

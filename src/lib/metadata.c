@@ -20,13 +20,12 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#include "log.h"
+#include "logutils.h"
 #include "metadata.h"
 #include <stdlib.h>
 #include "fileutils.h"
 #include <math.h>
 #include <string.h>
-#include <assert.h>
 #include "mget_utils.h"
 #include <stdio.h>
 #include "mget_config.h"

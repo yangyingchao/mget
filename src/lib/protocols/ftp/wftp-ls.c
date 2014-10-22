@@ -38,8 +38,6 @@ as that of the covered work.  */
 #include <errno.h>
 #define _XOPEN_SOURCE       /* See feature_test_macros(7) */
 #include <time.h>
-#include "utils.h"
-#include <time.h>
 #include "wftp.h"
 #include "log.h"
 #include "c-ctype.h"

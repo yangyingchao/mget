@@ -41,8 +41,6 @@
 
 #define FPUTS( s, f) fputs( (s), (f))
 
-enum log_options g_log_level = LOG_NONVERBOSE;
-
 /* This file implements support for "logging".  Logging means printing
    output, plus several additional features:
 
@@ -461,23 +459,6 @@ void logflush(void)
     needs_flushing = false;
 }
 
-/* Enable or disable log flushing. */
-void log_set_flush(bool flush)
-{
-    if (flush == flush_log_p)
-        return;
-
-    if (flush == false) {
-        /* Disable flushing by setting flush_log_p to 0. */
-        flush_log_p = false;
-    } else {
-        /* Reenable flushing.  If anything was printed in no-flush mode,
-           flush the log now.  */
-        if (needs_flushing)
-            logflush();
-        flush_log_p = true;
-    }
-}
 
 /* (Temporarily) disable storing log to memory.  Returns the old
    status of storing, with which this function can be called again to
@@ -497,7 +478,7 @@ bool log_set_save_context(bool savep)
 
 void logprintf(enum log_options o, const char *fmt, ...)
 {
-    if (o >= g_log_level)
+    if (o >= (enum log_options)g_log_level)
     {
         va_list args;
         struct logvprintf_state lpstate;
@@ -872,55 +853,6 @@ void log_request_redirect_output(const char *signal_name)
            functions. */
         redirect_request = RR_REQUESTED;
     redirect_request_signal_name = signal_name;
-}
-
-
-void dump_line(const unsigned char* buf, int w, int l, char* out)
-{
-#define YYYGET(X)       ( X >= 32 && X <= 126) ? X : '.'
-    unsigned int i = 0;
-    sprintf(out, "%08x: ", l);
-    out += 10;
-    for (; i < w; ++i)
-    {
-        sprintf(out, (i % 8 == 7) ? "%02x  " : "%02x ", *(buf+i));
-        out += (i % 8 == 7) ? 4 : 3;
-    }
-
-    if (w < 0x10)
-    {
-        for (i = 0; i < 0x10 - w; ++i)
-        {
-            sprintf(out, "   ");
-            out += 3;
-        }
-        sprintf(out, "  ");
-        out+= 2;
-    }
-    sprintf (out++, "|");
-    for (i = 0; i < w; ++i)  sprintf (out++, "%c", YYYGET(*(buf+i)));
-
-    if (w < 0x10)
-        for (i = 0; i < 0x10 - w; ++i) sprintf(out++, " ");
-    sprintf (out, "|\n");
-#undef YYYGET
-}
-
-void dump_buffer(const char* tip, const unsigned char* buf, int max)
-{
-    int l = max / 0x10 + ((max % 0x10) ? 1 : 0);
-    int i = 0;
-    int w = l - i > 1 ? 0x10 : max;
-    const unsigned char* ptr = buf;
-    char out[78];
-    logprintf(LOG_DEBUG, tip);
-    for (; i < l; ++i,w = l - i > 1 ? 0x10 : max - 0x10 * i)
-    {
-        memset(out, 0, 78);
-        dump_line(ptr, w, i, out);
-        logprintf(LOG_DEBUG, "\t%s", out);
-        ptr += w;
-    }
 }
 
 /*

@@ -20,7 +20,7 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#include "log.h"
+#include "logutils.h"
 #include "mget_config.h"
 #include "data_utlis.h"
 #include <stdlib.h>
@@ -307,19 +307,19 @@ hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size)
     hash_table* ht  = NULL;
 
     int v = *(int*)ptr;
-    enum log_options lo = LOG_NONE;
+    log_level lo = LL_NONE;
     if (VER_TO_MAJOR(v) != VERSION_MAJOR)
-        lo = LOG_ALWAYS;
+        lo = LL_ALWAYS;
     else if (VER_TO_MINOR(v) != VERSION_MINOR)
-        lo = LOG_NONVERBOSE;
+        lo = LL_NONVERBOSE;
     else if (VER_TO_PATCH(v) != VERSION_PATCH)
-        lo = LOG_DEBUG;
+        lo = LL_DEBUG;
 
-    if (lo != LOG_NONE) {
-        logprintf(lo, "WARNING: version changed!!!\n"
-                  " You're reading hash tables of old version!!"
-                  " -- %u.%u.%u: %u.%u.%u\n", DIVIDE_VERSION(v),
-                  VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+    if (lo != LL_NONE) {
+        mlog(lo, "Version changed!!!\n"
+             " You're reading hash tables of old version!!"
+             " -- %u.%u.%u: %u.%u.%u\n", DIVIDE_VERSION(v),
+             VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
     }
 
     DIP(version, ptr);

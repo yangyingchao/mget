@@ -210,9 +210,9 @@ int main(int argc, char *argv[])
             }
             case 'l':
             {
-                int dl = ((int)LOG_NONE) - atoi(optarg); // debug level
+                int dl = ((int)LL_NONE) - atoi(optarg); // debug level
                 if (dl < 0) dl = 0;
-                g_log_level = (dl < (int)LOG_NONE) ? ((enum log_options) dl) : LOG_NONE;
+                g_log_level = (dl < (int)LL_NONE) ? ((log_level) dl) : LL_NONE;
                 break;
             }
             case 'o':

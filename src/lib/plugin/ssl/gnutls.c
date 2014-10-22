@@ -20,7 +20,7 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#include "../../log.h"
+#include "../../logutils.h"
 #include "../../mget_macros.h"
 #include "ssl.h"
 #include <arpa/inet.h>
@@ -65,45 +65,9 @@ bool ssl_init()
 
     gnutls_global_init();
 
-#if 0
-    gnutls_global_set_log_level(10);
-    gnutls_global_set_log_function(log_func);
-#endif				// End of #if 0
-
     gnutls_certificate_allocate_credentials(&credentials);
     gnutls_certificate_set_verify_flags(credentials,
                                         GNUTLS_VERIFY_ALLOW_X509_V1_CA_CRT);
-
-#if 0
-    DIR *dir;
-    const char *ca_directory = "/etc/ssl/certs";
-
-    dir = opendir(ca_directory);
-    if (dir == NULL) {
-        logprintf(LOG_NOTQUIET, "ERROR: Cannot open directory %s.\n",
-                  ca_directory);
-    } else {
-        struct dirent *dent;
-
-        while ((dent = readdir(dir)) != NULL) {
-            struct stat st;
-            char *ca_file;
-
-            asprintf(&ca_file, "%s/%s", ca_directory, dent->d_name);
-
-            stat(ca_file, &st);
-
-            if (S_ISREG(st.st_mode))
-                gnutls_certificate_set_x509_trust_file(credentials,
-                                                       ca_file,
-                                                       GNUTLS_X509_FMT_PEM);
-
-            free(ca_file);
-        }
-
-        closedir(dir);
-    }
-#endif				// End of #if 0
 
     ssl_initialized = true;
 
@@ -164,13 +128,13 @@ void *make_socket_secure(int sk)
     err = gnutls_protocol_set_priority(*session, allowed_protocols);
 
     if (err < 0) {
-        logprintf(LOG_NOTQUIET, "GnuTLS: %s\n", gnutls_strerror(err));
+        mlog(LL_NOTQUIET, "GnuTLS: %s\n", gnutls_strerror(err));
         goto err;
     }
 
     err = gnutls_handshake(*session);
     if (err < 0) {
-        logprintf(LOG_NOTQUIET, "GnuTLS: %s\n", gnutls_strerror(err));
+        mlog(LL_NOTQUIET, "GnuTLS: %s\n", gnutls_strerror(err));
         goto err;
     } else {
         goto ret;

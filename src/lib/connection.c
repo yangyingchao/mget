@@ -22,7 +22,7 @@
 #define _GNU_SOURCE         /* See feature_test_macros(7) */
 #include <stdio.h>
 
-#include "log.h"
+#include "logutils.h"
 #include "connection.h"
 #include "data_utlis.h"
 #include "mget_config.h"
@@ -374,8 +374,8 @@ connection* connection_get(const url_info* ui)
         sa.sin_family = AF_INET;
         sa.sin_port = htons(ui->port);
         sa.sin_addr = ui->addr->data.d4;
-        DEBUGP (("trying to connect to %s port %u\n",
-                 print_address (ui->addr), ui->port));
+        PDEBUG ("trying to connect to %s port %u\n",
+                 print_address (ui->addr), ui->port);
         if (connect(conn->sock, (struct sockaddr *)&sa, sizeof sa) < 0) {
             perror("connect");
             close(conn->sock);
@@ -467,7 +467,7 @@ connection* connection_get(const url_info* ui)
             hints.ai_socktype = SOCK_STREAM;
             hints.ai_flags = 0;
             hints.ai_protocol = 0;
-            logprintf(LOG_ALWAYS, "Resolving host: %s ...\n", ui->host);
+            mlog(LL_ALWAYS, "Resolving host: %s ...\n", ui->host);
             struct addrinfo* infos = NULL;
             int ret = getaddrinfo(ui->host, ui->sport, &hints, &infos);
 

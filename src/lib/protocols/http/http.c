@@ -19,7 +19,7 @@
  * the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
  * Boston, MA 02110-1301, USA.
  */
-#include "log.h"
+#include "../../logutils.h"
 #include "http.h"
 #include "connection.h"
 #include <unistd.h>
@@ -219,18 +219,17 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn,
         default:
         {
             if (stat >= 400 && stat < 511) {
-                logprintf(LOG_ALWAYS, "Server returns %d for HTTP request\n",
-                          stat);
+                mlog(LL_ALWAYS, "Server returns %d for HTTP request\n", stat);
             }
             else if (stat == 511) {
-                logprintf(LOG_ALWAYS, "Network Authentication Required"
+                mlog(LL_ALWAYS, "Network Authentication Required"
                           "(%d)..\n", stat);
             }
             else {
-                logprintf(LOG_ALWAYS, "Not implemented for status code: %d\n",
+                mlog(LL_ALWAYS, "Not implemented for status code: %d\n",
                           stat);
             }
-            logprintf(LOG_ALWAYS, "Detail Responds: %s\n", bq->p);
+            mlog(LL_ALWAYS, "Detail Responds: %s\n", bq->p);
             goto ret;
         }
     }

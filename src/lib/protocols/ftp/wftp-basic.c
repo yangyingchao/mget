@@ -39,12 +39,12 @@ as that of the covered work.  */
 
 #include <string.h>
 #include <unistd.h>
-#include "utils.h"
 /* #include "connect.h" */
 /* #include "host.h" */
 #include "wftp.h"
 /* #include "retr.h" */
 #include "c-ctype.h"
+#include <stdarg.h>
 
 char ftp_last_respline[128];
 
@@ -1239,4 +1239,59 @@ ftp_process_type (const char *params)
     return c_toupper (params[5]);
   else
     return 'I';
+}
+
+
+
+char *
+concat_strings (const char *str0, ...)
+{
+    va_list args;
+    int saved_lengths[5];         /* inspired by Apache's apr_pstrcat */
+    char *ret, *p;
+
+    const char *next_str;
+    int total_length = 0;
+    size_t argcount;
+
+    /* Calculate the length of and allocate the resulting string. */
+
+    argcount = 0;
+    va_start (args, str0);
+    for (next_str = str0; next_str != NULL; next_str = va_arg (args, char *))
+    {
+        int len = strlen (next_str);
+        if (argcount < countof (saved_lengths))
+            saved_lengths[argcount++] = len;
+        total_length += len;
+    }
+    va_end (args);
+    p = ret = XALLOC (total_length + 1);
+
+    /* Copy the strings into the allocated space. */
+
+    argcount = 0;
+    va_start (args, str0);
+    for (next_str = str0; next_str != NULL; next_str = va_arg (args, char *))
+    {
+        int len;
+        if (argcount < countof (saved_lengths))
+            len = saved_lengths[argcount++];
+        else
+            len = strlen (next_str);
+        memcpy (p, next_str, len);
+        p += len;
+    }
+    va_end (args);
+    *p = '\0';
+
+    return ret;
+}
+
+char *
+number_to_static_string (wgint number)
+{
+    char* buf = NULL;
+    asprintf(&buf, "%llu", number);
+    return buf;
 }

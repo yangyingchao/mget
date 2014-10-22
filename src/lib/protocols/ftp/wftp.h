@@ -147,4 +147,21 @@ uerr_t ftp_index (const char *, struct url *, struct fileinfo *);
 
 char ftp_process_type (const char *);
 
+#define xnew(type) (xmalloc (sizeof (type)))
+#define xnew0(type) (xcalloc (1, sizeof (type)))
+#define xnew_array(type, len) (xmalloc ((len) * sizeof (type)))
+#define xnew0_array(type, len) (xcalloc ((len), sizeof (type)))
+
+#define alloca_array(type, size) ((type *) alloca ((size) * sizeof (type)))
+
+/* Free P if it is non-NULL.  C requires free() to behaves this way by
+   default, but Wget's code is historically careful not to pass NULL
+   to free.  This allows us to assert p!=NULL in xfree to check
+   additional errors.  (But we currently don't do that!)  */
+#define xfree_null(p) if (!(p)) ; else xfree (p)
+
+
+char *concat_strings (const char *, ...);
+char *number_to_static_string (wgint number);
+
 #endif /* FTP_H */

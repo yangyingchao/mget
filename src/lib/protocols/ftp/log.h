@@ -32,22 +32,20 @@
 #ifndef LOG_H
 #define LOG_H
 
-/* The log file to which Wget writes to after HUP.  */
-#define DEFAULT_LOGFILE "mget-log"
-
 #define _GNU_SOURCE         /* See feature_test_macros(7) */
 #include <stdio.h>
 #include <stdbool.h>
 #include <assert.h>
-#include "libmget.h"
+#include "../../logutils.h"
 
-void log_set_warc_log_fp(FILE *);
+enum log_options { LOG_DEBUG, LOG_VERBOSE, LOG_NOTQUIET, LOG_NONVERBOSE,
+                   LOG_NONE,
+                   LOG_ALWAYS,
+};
 
 void logprintf(enum log_options, const char *, ...);
-void debug_logprintf(const char *, ...);
 void logputs(enum log_options, const char *);
 void logflush(void);
-void log_set_flush(bool);
 bool log_set_save_context(bool);
 
 void log_init(const char *, bool);
@@ -55,32 +53,8 @@ void log_close(void);
 void log_cleanup(void);
 void log_request_redirect_output(const char *);
 
-void dump_buffer(const char* tip, const unsigned char* buf, int max);
-
 const char *escnonprint(const char *);
 const char *escnonprint_uri(const char *);
-
-#if !defined (PDEBUG)
-#define PDEBUG(fmt, ...)                                \
-    do {                                                \
-        char* msg = NULL;                               \
-        asprintf(&msg, "mget: - %s(%d)-%s: %s",         \
-                 __FILE__, __LINE__,__FUNCTION__, fmt); \
-        logprintf(LOG_DEBUG, msg, ##  __VA_ARGS__);     \
-        free(msg);                                      \
-    } while(0)
-#endif  /*End of if PDEBUG*/
-
-#if !defined(OUT_BIN)
-#define OUT_BIN(X, Y)                               \
-    do {                                            \
-        char* msg = NULL;                           \
-        asprintf(&msg,  "mget: - %s(%d)-%s:",       \
-                 __FILE__, __LINE__,__FUNCTION__);  \
-        dump_buffer(msg, (unsigned char*)X, Y);     \
-        free(msg);                                  \
-    } while (0)
-#endif // OUT_BIN
 
 #define DEBUGP(X)       PDEBUG X;
 

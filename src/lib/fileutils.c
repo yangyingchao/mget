@@ -20,7 +20,7 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#include "log.h"
+#include "logutils.h"
 #include "fileutils.h"
 #include <unistd.h>
 #include <fcntl.h>
