@@ -54,9 +54,6 @@ void dump_buffer(const char* tip, const unsigned char* buf, int max);
     } while (0)
 #endif // OUT_BIN
 
-#define handle_error(msg)                                   \
-    do { perror(msg); goto alloc_addr_cache; } while (0)
-
 #ifdef __cplusplus
 }
 #endif

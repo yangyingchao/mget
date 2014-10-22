@@ -43,10 +43,6 @@
 #include "plugin/ssl/ssl.h"
 #endif
 
-#define MAX_CONNS_PER_HOST  32
-
-host_cache_type g_hct = HC_DEFAULT;
-
 typedef struct addrinfo address;
 
 typedef enum _connection_feature {
@@ -65,61 +61,6 @@ typedef struct _addr_entry {
     char      buffer[0];                /* Buffer of sockaddr.  */
 } addr_entry;
 
-#define ALLOC_ADDR_ENTRY(X)       \
-    (addr_entry*)XALLOC(sizeof(addr_entry) + (X))
-
-#ifdef DEBUG
-#define OUT_ADDR(X) fprintf(stderr, "entry->" #X ": %d\n", entry->ai_##X)
-#else
-#define OUT_ADDR(X)
-#endif
-
-static address* addrentry_to_address(addr_entry* entry)
-{
-    address* addr = NULL;
-    if (entry && (addr = ZALLOC1(address)))
-    {
-        addr->ai_family    = entry->ai_family;
-        addr->ai_socktype  = entry->ai_socktype;
-        addr->ai_protocol  = entry->ai_protocol;
-        addr->ai_addrlen   = entry->ai_addrlen;
-        addr->ai_addr = ZALLOC1(struct sockaddr);
-
-        memcpy(addr->ai_addr, entry->buffer, addr->ai_addrlen);
-        entry->addr = addr;
-
-        OUT_ADDR(family);
-        OUT_ADDR(socktype);
-        OUT_ADDR(protocol);
-        OUT_BIN(addr->ai_addr, addr->ai_addrlen);
-    }
-    return addr;
-}
-
-static addr_entry* address_to_addrentry(address* addr)
-{
-    addr_entry* entry = NULL;
-    if (addr && (entry = ALLOC_ADDR_ENTRY(addr->ai_addrlen))) {
-        entry->size        = sizeof(*entry) + addr->ai_addrlen;
-        entry->ai_family   = addr->ai_family;
-        entry->ai_socktype = addr->ai_socktype;
-        entry->ai_protocol = addr->ai_protocol;
-        entry->ai_addrlen  = addr->ai_addrlen;
-        memcpy(entry->buffer, addr->ai_addr, addr->ai_addrlen);
-
-        OUT_ADDR(family);
-        OUT_ADDR(socktype);
-        OUT_ADDR(protocol);
-        OUT_BIN(entry->buffer, entry->ai_addrlen);
-
-        // update entry->addr to itself.
-        void* ptr = addrentry_to_address(entry);
-        PDEBUG ("ptr: %p -- %p\n", entry->addr, ptr);
-    }
-
-    return entry;
-}
-
 typedef struct _connection_p {
     connection  conn;
     slist_head  lst;
@@ -133,25 +74,13 @@ typedef struct _connection_p {
     bool        busy;
 } connection_p;
 
-#define CONN2CONNP(X) (connection_p*)(X)
-#define LIST2PCONN(X) (connection_p*)((char*)X - offsetof(connection_p, lst))
-
 struct _connection_group {
     int         cnt;                    // count of sockets.
     bool*       cflag;                  // control flag.
     slist_head* lst;                    // list of sockets.
 };
 
-void addr_entry_destroy(void *entry)
-{
-    addr_entry *e = (addr_entry *) entry;
-
-    if (e) {
-        free(e);
-    }
-}
-
-#define SHM_LENGTH       4096
+#define SHM_LENGTH 4096
 
 typedef struct _shm_region
 {
@@ -160,185 +89,75 @@ typedef struct _shm_region
     char buf[SHM_LENGTH];
 } shm_region;
 
-static uint32 tcp_connection_read(connection * conn, char *buf,
-                                  uint32 size, void *priv)
-{
-    connection_p *pconn = (connection_p *) conn;
-
-    if (pconn && pconn->sock && buf) {
-        uint32 rd = (uint32) read(pconn->sock, buf, size);
-        if (rd == -1) {
-            PDEBUG ("rd: %d, errno: %d\n", rd, errno);
-
-            if (errno == EAGAIN) { // nothing to read, normal if non-blocking
-                ;
-            }
-            else  {
-                PDEBUG ("Read connection: %p returns -1, (%d): %s.\n",
-                        pconn, errno, strerror(errno));
-                rd = 0;
-            }
-        }
-        else if (!rd)  {
-            PDEBUG ("Read connection: %p, sock: %d returns 0, connection closed...\n",
-                    pconn, pconn->sock);
-            PDEBUG ("Set %p disconnected\n", pconn);
-
-            pconn->connected = false;
-        }
-
-        return rd;
-    }
-
-    return 0;
-
-}
-
-static uint32 tcp_connection_write(connection * conn, char *buf,
-                                   uint32 size, void *priv)
-{
-    connection_p *pconn = (connection_p *) conn;
-
-    if (pconn && pconn->sock && buf) {
-        PDEBUG ("begin write, conn: %p, sock: %d ....\n",
-                pconn, pconn->sock);
-        return (uint32) write(pconn->sock, buf, size);
-    }
-    return 0;
-}
-
-static void tcp_connection_close(connection * conn, char *buf,
-                                 uint32 size, void *priv)
-{
-}
-
-#ifdef HAVE_GNUTLS
-static uint32 secure_connection_read(connection * conn, char *buf,
-                                     uint32 size, void *priv)
-{
-    connection_p *pconn = (connection_p *) conn;
-
-    if (pconn && pconn->sock && buf) {
-        return secure_socket_read(pconn->sock, buf, size, pconn->priv);
-    }
-    return 0;
-}
-
-static uint32 secure_connection_write(connection * conn, char *buf,
-                                      uint32 size, void *priv)
-{
-    connection_p *pconn = (connection_p *) conn;
-
-    if (pconn && pconn->sock && buf) {
-        return secure_socket_write(pconn->sock, buf, size, pconn->priv);
-    }
-    return 0;
-}
-#endif
-
-
-static socklen_t
-sockaddr_size (const struct sockaddr *sa)
-{
-    switch (sa->sa_family)
-    {
-        case AF_INET:
-            return sizeof (struct sockaddr_in);
-#ifdef ENABLE_IPV6
-        case AF_INET6:
-            return sizeof (struct sockaddr_in6);
-#endif
-        default:
-            abort ();
-    }
-}
-
-static void
-sockaddr_set_data (struct sockaddr *sa, ip_address* ip, int port)
-{
-    switch (ip->family)
-    {
-        case AF_INET:
-        {
-            struct sockaddr_in *sin = (struct sockaddr_in *)sa;
-            XZERO (*sin);
-            sin->sin_family = PF_INET;
-            sin->sin_port = htons (21);
-            sin->sin_addr = ip->data.d4;
-            break;
-        }
-#ifdef ENABLE_IPV6
-        case AF_INET6:
-        {
-            struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sa;
-            xzero (*sin6);
-            sin6->sin6_family = AF_INET6;
-            sin6->sin6_port = htons (port);
-            sin6->sin6_addr = ip->data.d6;
-#ifdef HAVE_SOCKADDR_IN6_SCOPE_ID
-            sin6->sin6_scope_id = ip->ipv6_scope;
-#endif
-            break;
-        }
-#endif /* ENABLE_IPV6 */
-        default:
-            abort ();
-    }
-}
-
-static hash_table* g_conn_cache = NULL;
-static byte_queue* dq = NULL; // drop queue
-
 typedef struct _connection_cache
 {
     int count;
     slist_head* lst;
 } ccache;
 
+
+
+#define ALLOC_ADDR_ENTRY(X)                         \
+    (addr_entry*)XALLOC(sizeof(addr_entry) + (X))
+
+#ifdef DEBUG
+#define OUT_ADDR(X) fprintf(stderr, "entry->" #X ": %d\n", entry->ai_##X)
+#else
+#define OUT_ADDR(X)
+#endif
+
 
 #define print_address(X)   inet_ntoa ((X)->data.d4)
 
+#define CONN2CONNP(X) (connection_p*)(X)
+#define LIST2PCONN(X) (connection_p*)((char*)X - offsetof(connection_p, lst))
 
-/* Return true iff the connection to the remote site established
-   through SOCK is still open.
+#define shm_error(msg)                                   \
+    do { perror(msg); goto alloc_addr_cache; } while (0)
 
-   Specifically, this function returns true if SOCK is not ready for
-   reading.  This is because, when the connection closes, the socket
-   is ready for reading because EOF is about to be delivered.  A side
-   effect of this method is that sockets that have pending data are
-   considered non-open.  This is actually a good thing for callers of
-   this function, where such pending data can only be unwanted
-   leftover from a previous request.  */
+
 
-bool
-validate_connection (connection_p* pconn)
-{
-    fd_set check_set;
-    struct timeval to;
-    int ret = 0;
+#define MAX_CONNS_PER_HOST  32
+host_cache_type g_hct = HC_DEFAULT;
+static hash_table* g_conn_cache = NULL;
+static byte_queue* dq = NULL; // drop queue
 
-    /* Check if we still have a valid (non-EOF) connection.  From Andrew
-     * Maholski's code in the Unix Socket FAQ.  */
 
-    FD_ZERO (&check_set);
-    FD_SET (pconn->sock, &check_set);
+
+/* Address entry related. */
+static inline address* addrentry_to_address(addr_entry* entry);
+static inline addr_entry* address_to_addrentry(address* addr);
+static inline void addr_entry_destroy(void *entry);
 
-    /* Wait one microsecond */
-    to.tv_sec = 0;
-    to.tv_usec = 1;
+/* tcp socket operations */
+static inline uint32 tcp_connection_read(connection * conn, char *buf,
+                                         uint32 size, void *priv);
+static inline uint32 tcp_connection_write(connection * conn, char *buf,
+                                          uint32 size, void *priv);
 
-    ret = select (pconn->sock + 1, &check_set, NULL, NULL, &to);
-    if ( !ret )
-        /* We got a timeout, it means we're still connected. */
-        return true;
-    else
-        /* Read now would not wait, it means we have either pending data
-           or EOF/error. */
-        return false;
-}
+static inline void tcp_connection_close(connection * conn, char *buf,
+                                        uint32 size, void *priv);
+static inline bool validate_connection (connection_p* pconn);
+
+#ifdef HAVE_GNUTLS
+static inline uint32 secure_connection_read(connection * conn, char *buf,
+                                            uint32 size, void *priv);
+static inline uint32 secure_connection_write(connection * conn, char *buf,
+                                             uint32 size, void *priv);
+#endif
+
+static inline int do_perform_select(connection_group* group);
+
+static inline int connect_to(int ai_family, int ai_socktype,
+                               int ai_protocol,
+                               const struct sockaddr *addr,
+                               socklen_t addrlen, int timeout);
+
+static inline bool try_connect(int sock, const struct sockaddr *addr,
+                               socklen_t addrlen, int timeout);
+
 
 //FIXME: Sometimes it stuck at connect()....
-
 connection* connection_get(const url_info* ui)
 {
     PDEBUG ("%p -- %p\n", ui, ui->addr);
@@ -363,25 +182,17 @@ connection* connection_get(const url_info* ui)
     if (ui->addr)
     {
         conn = ZALLOC1(connection_p);
-        conn->sock = socket(AF_INET, SOCK_STREAM, 0);
-        if (conn->sock == -1) {
-            goto err;
-        }
-
         struct sockaddr_in sa;
-        if ((conn->sock = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
-            perror("socket");
-            goto err;
-        }
-
         bzero(&sa, sizeof sa);
-
         sa.sin_family = AF_INET;
         sa.sin_port = htons(ui->port);
         sa.sin_addr = ui->addr->data.d4;
         PDEBUG ("trying to connect to %s port %u\n",
-                 print_address (ui->addr), ui->port);
-        if (connect(conn->sock, (struct sockaddr *)&sa, sizeof sa) < 0) {
+                print_address (ui->addr), ui->port);
+        conn->sock = connect_to(
+            AF_INET, SOCK_STREAM, 0,
+            (struct sockaddr *)&sa, sizeof sa, 2);
+        if (conn->sock == -1) {
             perror("connect");
             close(conn->sock);
             goto err;
@@ -425,17 +236,17 @@ connection* connection_get(const url_info* ui)
             sprintf(key, "/libmget_%s_uid_%d", VERSION_STRING, getuid());
             int fd = shm_open(key, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
             if (fd == -1)
-                handle_error("Failed to open shared memory");
+                shm_error("Failed to open shared memory");
 
             if (ftruncate(fd, sizeof(shm_region)) == -1)
-                handle_error("Failed to truncate..");
+                shm_error("Failed to truncate..");
 
             /* Map shared memory object */
             shm_rptr = (shm_region*)mmap(NULL, sizeof(shm_region),
                                          PROT_READ | PROT_WRITE, MAP_SHARED,
                                          fd, 0);
             if (shm_rptr == MAP_FAILED)
-                handle_error("do mmap");
+                shm_error("do mmap");
 
             addr_cache = hash_table_create_from_buffer(shm_rptr->buf, SHM_LENGTH);
             if (!addr_cache) {
@@ -454,17 +265,15 @@ connection* connection_get(const url_info* ui)
       connect:
             PDEBUG ("Connecting to: %s:%d\n", ui->host, ui->port);
 
-            conn->sock = socket(conn->addr->ai_family,
-                                conn->addr->ai_socktype,
-                                conn->addr->ai_protocol);
-            if (connect (conn->sock, conn->addr->ai_addr,
-                         conn->addr->ai_addrlen) == -1) {
+            conn->sock = connect_to(conn->addr->ai_family,
+                                    conn->addr->ai_socktype,
+                                    conn->addr->ai_protocol,
+                                    conn->addr->ai_addr,
+                                    conn->addr->ai_addrlen, 2);
+            if (conn->sock == -1) {
                 perror("Failed to connect");
                 goto hint;
             }
-
-            PDEBUG ("conn: %p, sock: %d\n", conn, conn->sock);
-
         } else {
       hint:;
             address hints;
@@ -478,26 +287,26 @@ connection* connection_get(const url_info* ui)
             struct addrinfo* infos = NULL;
             int ret = getaddrinfo(ui->host, ui->sport, &hints, &infos);
 
-            PDEBUG ("getaddrinfo(): ret = %d, error: %s\n", ret, strerror(errno));
+            PDEBUG (": ret = %d, error: %s\n", ret, strerror(errno));
 
             if (ret)
                 goto err;
             address *rp = NULL;
 
             for (rp = infos; rp != NULL; rp = rp->ai_next) {
-                conn->sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-                if (conn->sock == -1) {
-                    continue;
-                }
-
                 PDEBUG ("Connecting to %s:%u\n", ui->host, ui->port);
-                if (connect(conn->sock, rp->ai_addr, rp->ai_addrlen) != -1) {
+                conn->sock = connect_to(rp->ai_family, rp->ai_socktype,
+                                        rp->ai_protocol,
+                                        rp->ai_addr, rp->ai_addrlen, 2);
+                if (conn->sock != -1) {
                     PDEBUG ("Connected ...\n");
 
                     conn->connected = true;
                     break;
                 }
                 close(conn->sock);
+                conn->sock = -1;
+                PDEBUG ("rp: %p\n", rp->ai_next);
             }
 
             if (rp != NULL) {
@@ -522,6 +331,9 @@ connection* connection_get(const url_info* ui)
                     }
                 }
             }
+            else  {
+                goto err;
+            }
         }
     }
 
@@ -544,14 +356,14 @@ post_connected: ;
                 ssl_init();
                 if ((conn->priv = make_socket_secure(conn->sock)) == NULL) {
                     fprintf(stderr, "Failed to make socket secure\n");
-                    exit(1);
+                    abort();
                 }
                 conn->conn.ci.writer = secure_connection_write;
                 conn->conn.ci.reader = secure_connection_read;
 #else
                 fprintf(stderr,
                         "FATAL: HTTPS requires GnuTLS, which is not installed....\n");
-                exit(1);
+                abort();
 #endif
                 break;
             }
@@ -629,6 +441,254 @@ clean:
     FIF(pconn);
     PDEBUG ("leave with connection cleared...\n");
 
+}
+
+
+int connection_perform(connection_group* group)
+{
+    PDEBUG("enter, sg: %p\n", group);
+
+    int cnt = group->cnt;
+    PDEBUG("total socket: %d\n", cnt);
+
+    if (!cnt)
+        return -1;
+
+    cnt = do_perform_select(group);
+
+    return cnt;
+}
+
+
+connection_group *connection_group_create(bool * flag)
+{
+    connection_group *group = ZALLOC1(connection_group);
+
+    group->cflag = flag;
+
+    return group;
+}
+
+void connection_group_destroy(connection_group* group)
+{
+    slist_head* g = group->lst;
+
+    while (g) {
+        slist_head*   ng    = g->next;
+        connection_p* pconn = LIST2PCONN(g);
+        connection_put((connection*)pconn);
+        g = ng;
+    }
+
+    FIF(group);
+}
+
+void connection_add_to_group(connection_group* group, connection* conn)
+{
+    group->cnt++;
+    connection_p* pconn = CONN2CONNP(conn);
+    pconn->lst.next = group->lst;
+    group->lst = &pconn->lst;
+    PDEBUG("Socket: %p added to group: %p, current count: %d\n",
+           conn, group, group->cnt);
+}
+
+ // local functions
+static inline address* addrentry_to_address(addr_entry* entry)
+{
+    address* addr = NULL;
+    if (entry && (addr = ZALLOC1(address)))
+    {
+        addr->ai_family    = entry->ai_family;
+        addr->ai_socktype  = entry->ai_socktype;
+        addr->ai_protocol  = entry->ai_protocol;
+        addr->ai_addrlen   = entry->ai_addrlen;
+        addr->ai_addr = ZALLOC1(struct sockaddr);
+
+        memcpy(addr->ai_addr, entry->buffer, addr->ai_addrlen);
+        entry->addr = addr;
+
+        OUT_ADDR(family);
+        OUT_ADDR(socktype);
+        OUT_ADDR(protocol);
+        OUT_BIN(addr->ai_addr, addr->ai_addrlen);
+    }
+    return addr;
+}
+
+static inline addr_entry* address_to_addrentry(address* addr)
+{
+    addr_entry* entry = NULL;
+    if (addr && (entry = ALLOC_ADDR_ENTRY(addr->ai_addrlen))) {
+        entry->size        = sizeof(*entry) + addr->ai_addrlen;
+        entry->ai_family   = addr->ai_family;
+        entry->ai_socktype = addr->ai_socktype;
+        entry->ai_protocol = addr->ai_protocol;
+        entry->ai_addrlen  = addr->ai_addrlen;
+        memcpy(entry->buffer, addr->ai_addr, addr->ai_addrlen);
+
+        OUT_ADDR(family);
+        OUT_ADDR(socktype);
+        OUT_ADDR(protocol);
+        OUT_BIN(entry->buffer, entry->ai_addrlen);
+
+        // update entry->addr to itself.
+        void* ptr = addrentry_to_address(entry);
+        PDEBUG ("ptr: %p -- %p\n", entry->addr, ptr);
+    }
+
+    return entry;
+}
+
+static inline void addr_entry_destroy(void *entry)
+{
+    addr_entry *e = (addr_entry *) entry;
+
+    if (e) {
+        free(e);
+    }
+}
+
+static inline uint32 tcp_connection_read(connection * conn, char *buf,
+                                         uint32 size, void *priv)
+{
+    connection_p *pconn = (connection_p *) conn;
+    if (pconn && pconn->sock && buf) {
+
+        // double check to ensure there are something to read.
+        fd_set r, err;
+        FD_ZERO(&r);
+        FD_ZERO(&err);
+        FD_SET(pconn->sock, &r);
+        FD_SET(pconn->sock, &err);
+
+        // check if the socket is ready
+        int ret = select(pconn->sock+1, &r, NULL, &err, NULL);
+        if (ret <= 0)
+        {
+            PDEBUG ("Nothing to read: ret: %d, (%d):%s\n",
+                    ret, errno, strerror(errno));
+            abort();
+            return 0;
+        }
+
+
+        uint32 rd = (uint32) read(pconn->sock, buf, size);
+        if (rd == -1) {
+            PDEBUG ("rd: %d, sock: %d, errno: (%d) - %s\n",
+                    rd, pconn->sock, errno, strerror(errno));
+            if (errno == EAGAIN) { // nothing to read, normal if non-blocking
+                ;
+            }
+            else  {
+                PDEBUG ("Read connection: %p returns -1, (%d): %s.\n",
+                        pconn, errno, strerror(errno));
+                rd = 0;
+                abort();
+            }
+        }
+        else if (!rd)  {
+            PDEBUG ("Read connection: %p, sock: %d returns 0, connection closed...\n",
+                    pconn, pconn->sock);
+            PDEBUG ("Set %p disconnected\n", pconn);
+
+            pconn->connected = false;
+        }
+
+        return rd;
+    }
+
+    return 0;
+
+}
+
+static inline uint32 tcp_connection_write(connection * conn, char *buf,
+                                          uint32 size, void *priv)
+{
+    connection_p *pconn = (connection_p *) conn;
+
+    if (pconn && pconn->sock && buf) {
+        PDEBUG ("begin write, conn: %p, sock: %d ....\n",
+                pconn, pconn->sock);
+        int wd = write(pconn->sock, buf, size);
+        PDEBUG ("%d bytes written\n", wd);
+        if (wd < 0)
+        {
+            PDEBUG ("failed to write to sock: %d, (%d):%s\n",
+                    pconn->sock, errno, strerror(errno));
+        }
+
+
+        return (uint32) wd;
+    }
+    return 0;
+}
+
+static inline void tcp_connection_close(connection * conn, char *buf,
+                                        uint32 size, void *priv)
+{
+}
+
+#ifdef HAVE_GNUTLS
+static inline uint32 secure_connection_read(connection * conn, char *buf,
+                                            uint32 size, void *priv)
+{
+    connection_p *pconn = (connection_p *) conn;
+
+    if (pconn && pconn->sock && buf) {
+        return secure_socket_read(pconn->sock, buf, size, pconn->priv);
+    }
+    return 0;
+}
+
+static inline uint32 secure_connection_write(connection * conn, char *buf,
+                                             uint32 size, void *priv)
+{
+    connection_p *pconn = (connection_p *) conn;
+
+    if (pconn && pconn->sock && buf) {
+        return secure_socket_write(pconn->sock, buf, size, pconn->priv);
+    }
+    return 0;
+}
+#endif
+
+/* Return true iff the connection to the remote site established
+   through SOCK is still open.
+
+   Specifically, this function returns true if SOCK is not ready for
+   reading.  This is because, when the connection closes, the socket
+   is ready for reading because EOF is about to be delivered.  A side
+   effect of this method is that sockets that have pending data are
+   considered non-open.  This is actually a good thing for callers of
+   this function, where such pending data can only be unwanted
+   leftover from a previous request.  */
+
+static inline bool
+validate_connection (connection_p* pconn)
+{
+    fd_set check_set;
+    struct timeval to;
+    int ret = 0;
+
+    /* Check if we still have a valid (non-EOF) connection.  From Andrew
+     * Maholski's code in the Unix Socket FAQ.  */
+
+    FD_ZERO (&check_set);
+    FD_SET (pconn->sock, &check_set);
+
+    /* Wait one microsecond */
+    to.tv_sec = 0;
+    to.tv_usec = 1;
+
+    ret = select (pconn->sock + 1, &check_set, NULL, NULL, &to);
+    if ( !ret )
+        /* We got a timeout, it means we're still connected. */
+        return true;
+    else
+        /* Read now would not wait, it means we have either pending data
+           or EOF/error. */
+        return false;
 }
 
 static inline int do_perform_select(connection_group* group)
@@ -751,53 +811,74 @@ static inline int do_perform_select(connection_group* group)
     return cnt;
 }
 
-int connection_perform(connection_group* group)
+static inline int connect_to(int ai_family, int ai_socktype, int ai_protocol,
+                             const struct sockaddr *addr,
+                             socklen_t addrlen, int timeout)
 {
-    PDEBUG("enter, sg: %p\n", group);
-
-    int cnt = group->cnt;
-    PDEBUG("total socket: %d\n", cnt);
-
-    if (!cnt)
-        return -1;
-
-    cnt = do_perform_select(group);
-
-    return cnt;
-}
-
-
-connection_group *connection_group_create(bool * flag)
-{
-    connection_group *group = ZALLOC1(connection_group);
-
-    group->cflag = flag;
-
-    return group;
-}
-
-void connection_group_destroy(connection_group* group)
-{
-    slist_head* g = group->lst;
-
-    while (g) {
-        slist_head*   ng    = g->next;
-        connection_p* pconn = LIST2PCONN(g);
-        connection_put((connection*)pconn);
-        g = ng;
+    int sock = socket(PF_INET, SOCK_STREAM|SOCK_NONBLOCK, 0);
+    if (sock == -1) {
+        mlog(LL_ALWAYS, "Failed to create socket - %s ...\n",
+             strerror(errno));
+        goto ret;
     }
 
-    FIF(group);
+    if (!try_connect(sock, addr, addrlen, timeout))
+    {
+        close(sock);
+        sock = -1;
+    }
+
+ret:
+    return sock;
 }
 
-void connection_add_to_group(connection_group* group, connection* conn)
+static inline bool try_connect(int sockfd, const struct sockaddr *addr,
+                               socklen_t addrlen, int timeout)
 {
-    group->cnt++;
-    connection_p* pconn = CONN2CONNP(conn);
-    pconn->lst.next = group->lst;
-    group->lst = &pconn->lst;
-    PDEBUG("Socket: %p added to group: %p, current count: %d\n",
-           conn, group, group->cnt);
+    if(connect(sockfd, addr, addrlen) == -1)
+    {
+        PDEBUG ("connection failed, (%d) -- %s\n", errno, strerror(errno));
+        // failed to connect if sock is non-blocking or error is not EINTR.
+        if (errno != EINPROGRESS)
+        {
+            PDEBUG ("here\n");
+
+            return false;
+        }
+    }
+
+    struct timeval tv;
+    fd_set write, err;
+
+    tv.tv_sec = timeout;
+    tv.tv_usec = 0;
+
+    FD_ZERO(&write);
+    FD_ZERO(&err);
+    FD_SET(sockfd, &write);
+    FD_SET(sockfd, &err);
+
+    // check if the socket is ready
+    int ret = select(sockfd+1, NULL, &write, &err, &tv);
+    if (ret > 0)
+    {
+        if(FD_ISSET(sockfd, &write))
+        {
+            PDEBUG ("Connected...\n");
+            return true;
+        }
+    }
+    else if (!ret)
+    {
+        PDEBUG ("Connection timed out...\n");
+    }
+    else
+    {
+        PDEBUG ("Failed to select sock: %d, (%d):%s\n",
+                sockfd, errno, strerror(errno));
+    }
+
+    return false;
 }
 
 /*

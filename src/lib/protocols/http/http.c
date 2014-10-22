@@ -207,7 +207,7 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn,
             if (!ptr) {
                 fprintf(stderr, "Content Length not returned!\n");
                 t = 0;
-                goto ret;
+                goto show_rsp;
             }
 
             PDEBUG("Content-Length: %s\n", ptr);
@@ -229,6 +229,7 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn,
                 mlog(LL_ALWAYS, "Not implemented for status code: %d\n",
                           stat);
             }
+      show_rsp:
             mlog(LL_ALWAYS, "Detail Responds: %s\n", bq->p);
             goto ret;
         }
@@ -257,7 +258,7 @@ typedef struct _connection_operation_param {
     void* user_data;
 } co_param;
 
-int http_read_sock(connection * conn, void *priv)
+int http_read_sock(connection* conn, void *priv)
 {
     if (!priv) {
         return -1;
@@ -283,7 +284,7 @@ int http_read_sock(connection * conn, void *priv)
                 return 1;
             }
 
-            int    r  = dissect_header(param->bq, &param->ht);
+            int r  = dissect_header(param->bq, &param->ht);
             if (r != 206 && r != 200) { /* Some server returns 200?? */
                 fprintf(stderr, "status code is %d!\n", r);
                 exit(1);
