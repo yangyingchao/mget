@@ -134,11 +134,11 @@ void print_help()
         "\t-l:  set log level(0-9) of mget."
                 " The smaller value means less verbose.\n",
         "\t-H:  set host cache type, can be one of 'B', 'D' or 'U':\n",
-        "\t     'B': Don't use cached addresses\n",
-        "\t     'D': (Default)Use host cache to reduce time cost for"
-                     " resolving host names\n",
-        "\t     'U': Don't get address from cache, get address from DNS"
-                       " server and store it into cache.\n",
+        "\t     'B': Bypass, don't use cached addresses.\n",
+        "\t     'D': Default, use host cache to reduce time cost for "
+                     "resolving host names.\n",
+        "\t     'U': Update, get address from DNS server instead of "
+                    "from cache, but update cache after name resolved.\n",
         "\t-h:  show this help.\n",
         "\n",
         NULL
