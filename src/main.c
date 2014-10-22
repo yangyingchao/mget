@@ -131,12 +131,13 @@ void print_help()
         "\t-u:  set user name.\n",
         "\t-p:  set user password.\n",
         "\t-s:  show metadata of unfinished task.\n",
-        "\t-l:  set log level(0-9) of mget. The smaller value means less verbose.\n",
+        "\t-l:  set log level(0-9) of mget."
+                " The smaller value means less verbose.\n",
         "\t-H:  set host cache type, can be one of 'B', 'D' or 'U':\n",
-        "\t        'B': Bypass using host cache, don't use cached host names\n",
-        "\t        'D': (Default)Use host cache to reduce time cost for"
-                         " resolving host names\n",
-        "\t        'U': Don't get address from cache, get address from DNS"
+        "\t     'B': Don't use cached addresses\n",
+        "\t     'D': (Default)Use host cache to reduce time cost for"
+                     " resolving host names\n",
+        "\t     'U': Don't get address from cache, get address from DNS"
                        " server and store it into cache.\n",
         "\t-h:  show this help.\n",
         "\n",
