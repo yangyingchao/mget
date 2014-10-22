@@ -37,22 +37,6 @@ typedef struct _file_name {
     char *basen;
 } file_name;
 
-typedef struct _mget_option
-{
-    int max_connections;
-    char* user;
-    char* passwd;
-    bool recursive; //@todo:
-} mget_option;
-
-// dp stands for download_progress
-typedef void (*dp_callback) (metadata * md, void* user_data);
-
-typedef struct _mget_callbacks
-{
-    void (*status_callback)();
-    void (*progress_callback)();
-} mget_callbacks;
 
 
 typedef enum
@@ -76,7 +60,32 @@ typedef enum _log_level
     LL_ALWAYS,
 } log_level;
 
-extern log_level g_log_level;
+typedef enum _host_cache_type
+{
+    HC_DEFAULT = 0,
+    HC_BYPASS,
+    HC_UPDATE
+} host_cache_type;
+
+
+typedef struct _mget_option
+{
+    int             max_connections;
+    char*           user;
+    char*           passwd;
+    bool            recursive;          //@todo:
+    log_level       ll;
+    host_cache_type hct;
+} mget_option;
+
+// dp stands for download_progress
+typedef void (*dp_callback) (metadata * md, void* user_data);
+
+typedef struct _mget_callbacks
+{
+    void (*status_callback)();
+    void (*progress_callback)();
+} mget_callbacks;
 
 /**
  * @name start_request - start processing request.

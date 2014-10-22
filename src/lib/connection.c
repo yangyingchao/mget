@@ -45,6 +45,8 @@
 
 #define MAX_CONNS_PER_HOST  32
 
+host_cache_type g_hct = HC_DEFAULT;
+
 typedef struct addrinfo address;
 
 typedef enum _connection_feature {
@@ -172,16 +174,17 @@ static uint32 tcp_connection_read(connection * conn, char *buf,
                 ;
             }
             else  {
-                PDEBUG ("Read connection: %p returns -1.\n", pconn);
+                PDEBUG ("Read connection: %p returns -1, (%d): %s.\n",
+                        pconn, errno, strerror(errno));
+                rd = 0;
             }
         }
         else if (!rd)  {
-            /* PDEBUG ("Read connection: %p, sock: %d returns 0, connection closed...\n", */
-            /*         pconn, pconn->sock); */
-            /* PDEBUG ("Set %p disconnected\n", pconn); */
+            PDEBUG ("Read connection: %p, sock: %d returns 0, connection closed...\n",
+                    pconn, pconn->sock);
+            PDEBUG ("Set %p disconnected\n", pconn);
 
-            /* pconn->connected = false; */
-            ;
+            pconn->connected = false;
         }
 
         return rd;
@@ -334,6 +337,8 @@ validate_connection (connection_p* pconn)
         return false;
 }
 
+//FIXME: Sometimes it stuck at connect()....
+
 connection* connection_get(const url_info* ui)
 {
     PDEBUG ("%p -- %p\n", ui, ui->addr);
@@ -412,8 +417,8 @@ connection* connection_get(const url_info* ui)
         static hash_table* addr_cache = NULL;
         static shm_region* shm_rptr   = NULL;
         if (!addr_cache) {
-#define handle_error(msg)                                           \
-            do { perror(msg); goto alloc_addr_cache; } while (0)
+            if (g_hct == HC_BYPASS)
+                goto alloc_addr_cache;
 
             //@todo: should check if shm is supported..
             char key[64] = {'\0'};
@@ -440,7 +445,9 @@ connection* connection_get(const url_info* ui)
             }
         }
 
-        entry = GET_HASH_ENTRY(addr_entry, addr_cache, ui->host);
+        if (g_hct == HC_DEFAULT)
+            entry = GET_HASH_ENTRY(addr_entry, addr_cache, ui->host);
+
         if (entry) {
             PDEBUG ("Using cached address...\n");
             conn->addr = addrentry_to_address(entry);
@@ -471,7 +478,7 @@ connection* connection_get(const url_info* ui)
             struct addrinfo* infos = NULL;
             int ret = getaddrinfo(ui->host, ui->sport, &hints, &infos);
 
-            PDEBUG ("ret = %d, error: %s\n", ret, strerror(errno));
+            PDEBUG ("getaddrinfo(): ret = %d, error: %s\n", ret, strerror(errno));
 
             if (ret)
                 goto err;
@@ -482,7 +489,11 @@ connection* connection_get(const url_info* ui)
                 if (conn->sock == -1) {
                     continue;
                 }
+
+                PDEBUG ("Connecting to %s:%u\n", ui->host, ui->port);
                 if (connect(conn->sock, rp->ai_addr, rp->ai_addrlen) != -1) {
+                    PDEBUG ("Connected ...\n");
+
                     conn->connected = true;
                     break;
                 }
@@ -501,7 +512,8 @@ connection* connection_get(const url_info* ui)
                     // Only update cache to shm when it is not used by others.
                     // This is just for optimization, and it does not hurt
                     // much if one or two cache is missing...
-                    if (shm_rptr && shm_rptr != MAP_FAILED && !shm_rptr->busy) {
+                    if (shm_rptr && shm_rptr != MAP_FAILED && !shm_rptr->busy
+                        && g_hct != HC_BYPASS) {
                         shm_rptr->busy = true;
                         shm_rptr->len = dump_hash_table(addr_cache,
                                                         shm_rptr->buf,

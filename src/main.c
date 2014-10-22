@@ -132,6 +132,12 @@ void print_help()
         "\t-p:  set user password.\n",
         "\t-s:  show metadata of unfinished task.\n",
         "\t-l:  set log level(0-9) of mget. The smaller value means less verbose.\n",
+        "\t-H:  set host cache type, can be one of 'B', 'D' or 'U':\n",
+        "\t        'B': Bypass using host cache, don't use cached host names\n",
+        "\t        'D': (Default)Use host cache to reduce time cost for"
+                         " resolving host names\n",
+        "\t        'U': Don't get address from cache, get address from DNS"
+                       " server and store it into cache.\n",
         "\t-h:  show this help.\n",
         "\n",
         NULL
@@ -166,10 +172,11 @@ int main(int argc, char *argv[])
     mget_option opts;
     memset(&opts, 0, sizeof(mget_option));
     opts.max_connections = -1;
+    opts.ll = LL_NONVERBOSE;
 
     memset(&fn, 0, sizeof(file_name));
 
-    while ((opt = getopt(argc, argv, "hj:d:o:r:svu:p:l:")) != -1) {
+    while ((opt = getopt(argc, argv, "hH:j:d:o:r:svu:p:l:")) != -1) {
         switch (opt) {
             case 'h':
             {
@@ -198,6 +205,27 @@ int main(int argc, char *argv[])
 
                 break;
             }
+            case 'H':
+            {
+                switch (*optarg)
+                {
+                    case 'B':
+                    {
+                        opts.hct = HC_BYPASS;
+                        break;
+                    }
+                    case 'U':
+                    {
+                        opts.hct = HC_UPDATE;
+                        break;
+                    }
+                    default:
+                    {
+                        opts.hct = HC_DEFAULT;
+                    }
+                }
+                break;
+            }
             case 'u':
             {
                 opts.user = strdup(optarg);
@@ -212,7 +240,7 @@ int main(int argc, char *argv[])
             {
                 int dl = ((int)LL_NONE) - atoi(optarg); // debug level
                 if (dl < 0) dl = 0;
-                g_log_level = (dl < (int)LL_NONE) ? ((log_level) dl) : LL_NONE;
+                opts.ll = (dl < (int)LL_NONE) ? ((log_level) dl) : LL_NONE;
                 break;
             }
             case 'o':

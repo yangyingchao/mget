@@ -39,6 +39,8 @@
 
 #include "log.h"
 
+extern log_level       g_log_level;
+
 #define FPUTS( s, f) fputs( (s), (f))
 
 /* This file implements support for "logging".  Logging means printing

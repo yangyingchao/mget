@@ -29,6 +29,9 @@
 #include <stdio.h>
 #include <strings.h>
 
+extern log_level       g_log_level;
+extern host_cache_type g_hct;
+
 typedef mget_err (*protocol_handler)(dinfo*, dp_callback, bool*, void*);
 static hash_table* g_handlers = NULL;
 
@@ -60,6 +63,9 @@ mget_err start_request(const char *url, const file_name* fn, mget_option* opt,
     }
 
     fprintf(stderr, "Found handler: %p for %s\n", handler, info->ui->protocol);
+
+    g_log_level = opt->ll;
+    g_hct       = opt->hct;
 
     ret = handler(info, cb, stop_flag, user_data);
 
