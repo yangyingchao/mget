@@ -103,13 +103,6 @@ typedef struct _metadata {
     char raw_data[0];                   // start to body of raw_data.
 } metadata;
 
-/**
- * @name metadata_inspect - show content of metadata
- * @param  - path of metadata.
- * @return void
- */
-void metadata_inspect(const char*);
-
 #ifdef __cplusplus
 }
 #endif

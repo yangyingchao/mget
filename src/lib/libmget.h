@@ -52,12 +52,12 @@ typedef enum
 
 typedef enum _log_level
 {
-    LL_DEBUG,
-    LL_VERBOSE,
-    LL_NOTQUIET,
-    LL_NONVERBOSE,
-    LL_NONE,
-    LL_ALWAYS,
+    LL_DEBUG      = 1,
+    LL_VERBOSE    = 3,
+    LL_NOTQUIET   = 5,
+    LL_NONVERBOSE = 7,
+    LL_ALWAYS     = 9,
+    LL_INVLID     = 0xFFFFFFFF
 } log_level;
 
 typedef enum _host_cache_type
@@ -98,6 +98,14 @@ typedef struct _mget_callbacks
  */
 mget_err start_request(const char *url, const file_name* fn, mget_option* opt,
                        dp_callback cb, bool * stop_flag, void* user_data);
+
+
+/**
+ * @name metadata_inspect - show content of metadata
+ * @param  - path of metadata.
+ * @return void
+ */
+void metadata_inspect(const char* path, mget_option* opts);
 
 #ifdef __cplusplus
 }

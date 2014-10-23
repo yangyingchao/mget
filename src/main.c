@@ -239,9 +239,9 @@ int main(int argc, char *argv[])
             }
             case 'l':
             {
-                int dl = ((int)LL_NONE) - atoi(optarg); // debug level
-                if (dl < 0) dl = 0;
-                opts.ll = (dl < (int)LL_NONE) ? ((log_level) dl) : LL_NONE;
+                int dl = ((int)LL_ALWAYS) - atoi(optarg); // debug level
+                if (dl < 0) dl = LL_INVLID;
+                opts.ll = ((log_level) dl);
                 break;
             }
             case 'o':
@@ -279,7 +279,7 @@ int main(int argc, char *argv[])
 
     if (view_only) {
         if (file_existp(target)) {
-            metadata_inspect(target);
+            metadata_inspect(target, &opts);
         } else {
             printf("File: %s not exists!\n", target);
         }

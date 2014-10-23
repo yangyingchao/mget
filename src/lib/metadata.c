@@ -34,6 +34,7 @@
 
 #define SHOW_CHUNK(p)  PDEBUG ("%p, cur_pos: %08llX, end_pos: %08llX\n",p,p->cur_pos, p->end_pos)
 
+extern log_level g_log_level;
 
 bool metadata_create_from_file(const char *fn, metadata** md, fh_map** fm_md)
 {
@@ -184,10 +185,13 @@ metadata* metadata_create_empty()
     return NULL;
 }
 
-void metadata_inspect(const char* path)
+void metadata_inspect(const char* path, mget_option* opts)
 {
     metadata* md = NULL;
     fh_map*   fm = NULL;
+    if (opts)
+        g_log_level = opts->ll;
+
     if (!metadata_create_from_file(path, &md, &fm))
     {
         printf ("Failed to create metadata from file: %s\n", path);

@@ -299,6 +299,8 @@ hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size)
 {
     if (!buffer || buffer_size <= 3 * sizeof(int))
     {
+        mlog(LL_NOTQUIET, "Invalid arguments: buffer: %p, size: %d\n",
+                buffer, buffer_size);
         return NULL;
     }
 
@@ -307,7 +309,12 @@ hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size)
     hash_table* ht  = NULL;
 
     int v = *(int*)ptr;
-    log_level lo = LL_NONE;
+    if (!v) {
+        PDEBUG ("nothing in this buffer...\n");
+        return NULL;
+    }
+
+    log_level lo = LL_INVLID;
     if (VER_TO_MAJOR(v) != VERSION_MAJOR)
         lo = LL_ALWAYS;
     else if (VER_TO_MINOR(v) != VERSION_MINOR)
@@ -315,7 +322,7 @@ hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size)
     else if (VER_TO_PATCH(v) != VERSION_PATCH)
         lo = LL_DEBUG;
 
-    if (lo != LL_NONE) {
+    if (lo != LL_INVLID) {
         mlog(lo, "Version changed!!!\n"
              " You're reading hash tables of old version!!"
              " -- %u.%u.%u: %u.%u.%u\n", DIVIDE_VERSION(v),

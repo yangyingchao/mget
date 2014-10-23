@@ -77,7 +77,7 @@ fd_read_line (ftp_connection* conn)
         }
     }
 
-    PDEBUG("MSG: %s\n", bq->r);
+    mlog(LL_VERBOSE, "MSG:\n%s\n", bq->r);
 
     if (p)
     {
