@@ -152,7 +152,13 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn,
     do {
         bq         = bq_enlarge(bq, SIZE);
         size_t rd  = (*conn)->ci.reader((*conn), bq->w, bq->x - bq->w, NULL);
-        bq->w     += rd;
+        if (!rd) {
+            PDEBUG ("Failed to read from connection(%p),"
+                    " connection closed.\n", *conn);
+            return 0;
+        }
+
+        bq->w += rd;
     } while ((eptr = strstr(bq->r, HEADER_END)) == NULL);
 
     int stat = dissect_header(bq, ht);
@@ -310,10 +316,14 @@ int http_read_sock(connection* conn, void *priv)
             }
             bq_destroy(&param->bq);
         }
+        else {
+            PDEBUG ("Read from connection %p returns 0, socket closed..\n",
+                    conn);
+            return rd;
+        }
     }
 
-    int rd;
-
+    int rd = 0;
     do {
         rd = conn->ci.reader(conn, param->addr + dp->cur_pos,
                              dp->end_pos - dp->cur_pos, NULL);

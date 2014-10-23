@@ -583,7 +583,7 @@ static inline uint32 tcp_connection_read(connection * conn, char *buf,
             if (errno == EAGAIN) { // nothing to read, normal if non-blocking
                 ;
             }
-            else  {
+            else {
                 PDEBUG ("Read connection: %p returns -1, (%d): %s.\n",
                         pconn, errno, strerror(errno));
                 rd = 0;
