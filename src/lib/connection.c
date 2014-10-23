@@ -155,9 +155,9 @@ static inline int connect_to(int ai_family, int ai_socktype,
 
 static inline bool try_connect(int sock, const struct sockaddr *addr,
                                socklen_t addrlen, int timeout);
+static inline char* get_host_key(const char* host, int port);
 
 
-//FIXME: Sometimes it stuck at connect()....
 connection* connection_get(const url_info* ui)
 {
     PDEBUG ("%p -- %p\n", ui, ui->addr);
@@ -200,9 +200,8 @@ connection* connection_get(const url_info* ui)
     }
     else
     {
-        char* host_key = NULL;
-        int ret = asprintf(&host_key, "%s:%u", ui->host, ui->port);
-        if (!ret) {
+        char* host_key = get_host_key(ui->host, ui->port);
+        if (!host_key) {
             goto alloc;
         }
 
@@ -256,8 +255,11 @@ connection* connection_get(const url_info* ui)
             }
         }
 
-        if (g_hct == HC_DEFAULT)
-            entry = GET_HASH_ENTRY(addr_entry, addr_cache, ui->host);
+        if (g_hct == HC_DEFAULT) {
+            char* key = get_host_key(ui->host, ui->port);
+            entry = GET_HASH_ENTRY(addr_entry, addr_cache, key);
+            FIF(key);
+        }
 
         if (entry) {
             PDEBUG ("Using cached address...\n");
@@ -310,9 +312,10 @@ connection* connection_get(const url_info* ui)
             }
 
             if (rp != NULL) {
+                char* key = get_host_key(ui->host, ui->port);
                 entry = address_to_addrentry(rp);
                 conn->addr = entry->addr;
-                if (!hash_table_update(addr_cache, (char*)ui->host, entry,
+                if (!hash_table_update(addr_cache, key, entry,
                                        entry->size)) {
                     addr_entry_destroy(entry);
                     fprintf(stderr, "Failed to insert cache: %s\n", ui->host);
@@ -330,6 +333,7 @@ connection* connection_get(const url_info* ui)
                         shm_rptr->busy = false;
                     }
                 }
+                FIF(key);
             }
             else  {
                 goto err;
@@ -571,7 +575,6 @@ static inline uint32 tcp_connection_read(connection * conn, char *buf,
             abort();
             return 0;
         }
-
 
         uint32 rd = (uint32) read(pconn->sock, buf, size);
         if (rd == -1) {
@@ -837,32 +840,31 @@ static inline bool try_connect(int sockfd, const struct sockaddr *addr,
 {
     if(connect(sockfd, addr, addrlen) == -1)
     {
-        PDEBUG ("connection failed, (%d) -- %s\n", errno, strerror(errno));
         // failed to connect if sock is non-blocking or error is not EINTR.
         if (errno != EINPROGRESS)
         {
-            PDEBUG ("here\n");
-
+            PDEBUG ("connection failed, (%d) - %s\n", errno, strerror(errno));
             return false;
         }
+        PDEBUG ("Connecting ... (%d) - %s\n", errno, strerror(errno));
     }
 
     struct timeval tv;
-    fd_set write, err;
+    fd_set w, err;
 
     tv.tv_sec = timeout;
     tv.tv_usec = 0;
 
-    FD_ZERO(&write);
+    FD_ZERO(&w);
     FD_ZERO(&err);
-    FD_SET(sockfd, &write);
+    FD_SET(sockfd, &w);
     FD_SET(sockfd, &err);
 
     // check if the socket is ready
-    int ret = select(sockfd+1, NULL, &write, &err, &tv);
+    int ret = select(sockfd+1, NULL, &w, &err, &tv);
     if (ret > 0)
     {
-        if(FD_ISSET(sockfd, &write))
+        if(FD_ISSET(sockfd, &w))
         {
             PDEBUG ("Connected...\n");
             return true;
@@ -879,6 +881,19 @@ static inline bool try_connect(int sockfd, const struct sockaddr *addr,
     }
 
     return false;
+}
+
+static inline char* get_host_key(const char* host, int port)
+{
+    char* key = NULL;
+    asprintf(&key, "%s:%d", host, port);
+    if (!key) {
+        mlog(LL_ALWAYS, "Failed to create host key -- %s: %d\n",
+             host, port);
+        abort();
+    }
+
+    return key;
 }
 
 /*

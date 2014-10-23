@@ -69,7 +69,7 @@ uerr_t get_remote_file_size_ftp(dinfo* info, ftp_connection* conn,
     /* First: Establish the control ftp_connection, already done.  */
 
     /* Second: Login with proper USER/PASS sequence.  */
-    logprintf (LOG_VERBOSE, "Logging in as %s ... \n", info->md->ptrs->user);
+    mlog (LL_VERBOSE, "Logging in as %s ... \n", info->md->ptrs->user);
 
     uerr_t err = ftp_login (conn, info->md->ptrs->user, info->md->ptrs->passwd);
 
@@ -660,6 +660,9 @@ start: ;
     PDEBUG ("cflag: %p -- %d, thread_number: %d, maxfd: %d\n",
             cflag, *cflag, thread_number, maxfd);
 
+    if (!thread_number)
+        goto check_status;
+
     int active_threads = thread_number;
     struct timeval tv;
     while (!*cflag && active_threads) {
@@ -737,7 +740,7 @@ start: ;
         (void)pthread_cancel(tids[i]);
     }
 
-    for (int i = 0; i < md->hd.nr_effective; i++) {
+    for (int i = 0; i < thread_number; i++) {
         int tr = pthread_join(tids[i], NULL);
         if (tr < 0)
         {
@@ -753,6 +756,7 @@ start: ;
     dinfo_sync(info);
     sleep(1);
 
+check_status:
     dp = md->ptrs->body;
     bool finished = true;
 
