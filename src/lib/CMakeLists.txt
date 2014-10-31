@@ -3,12 +3,16 @@ ADD_DEFINITIONS("-g")
 
 set(VERSION_MAJOR 1)
 set(VERSION_MINOR 2)
-set(VERSION_PATCH 3)
+set(VERSION_PATCH 4)
 
 find_package (GnuTLS)
 if (GNUTLS_FOUND)
   set(HAVE_GNUTLS 1)
 endif (GNUTLS_FOUND)
+
+if (APPLE)
+  set(USE_FCNTL 1)
+endif (APPLE)
 
 configure_file(mget_config.h.in mget_config.h)
 

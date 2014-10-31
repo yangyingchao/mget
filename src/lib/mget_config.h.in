@@ -39,6 +39,8 @@
 
 #cmakedefine HAVE_GNUTLS
 
+#cmakedefine USE_FCNTL
+
 #define VERSION_STRING       "@VERSION_MAJOR@.@VERSION_MINOR@.@VERSION_PATCH@"
 
 

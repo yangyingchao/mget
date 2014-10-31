@@ -113,7 +113,7 @@ typedef struct _connection_cache
 #define LIST2PCONN(X) (connection_p*)((char*)X - offsetof(connection_p, lst))
 
 #define shm_error(msg)                                   \
-    do { perror(msg); goto alloc_addr_cache; } while (0)
+    do { perror("sm_error, " msg); goto alloc_addr_cache; } while (0)
 
 
 
@@ -149,13 +149,16 @@ static inline uint32 secure_connection_write(connection * conn, char *buf,
 static inline int do_perform_select(connection_group* group);
 
 static inline int connect_to(int ai_family, int ai_socktype,
-                               int ai_protocol,
-                               const struct sockaddr *addr,
-                               socklen_t addrlen, int timeout);
+                             int ai_protocol,
+                             const struct sockaddr *addr,
+                             socklen_t addrlen, int timeout);
 
 static inline bool try_connect(int sock, const struct sockaddr *addr,
                                socklen_t addrlen, int timeout);
+
 static inline char* get_host_key(const char* host, int port);
+
+static inline int create_nonblocking_socket();
 
 
 connection* connection_get(const url_info* ui)
@@ -234,6 +237,7 @@ connection* connection_get(const url_info* ui)
             char key[64] = {'\0'};
             sprintf(key, "/libmget_%s_uid_%d", VERSION_STRING, getuid());
             int fd = shm_open(key, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
+            PDEBUG ("shared_memory: %d\n", fd);
             if (fd == -1)
                 shm_error("Failed to open shared memory");
 
@@ -262,7 +266,7 @@ connection* connection_get(const url_info* ui)
         }
 
         if (entry) {
-            PDEBUG ("Using cached address...\n");
+            mlog (LL_NOTQUIET, "Using cached address...\n");
             conn->addr = addrentry_to_address(entry);
       connect:
             PDEBUG ("Connecting to: %s:%d\n", ui->host, ui->port);
@@ -277,6 +281,7 @@ connection* connection_get(const url_info* ui)
                 goto hint;
             }
         } else {
+            mlog (LL_NOTQUIET, "Can't find cached address..\n");
       hint:;
             address hints;
 
@@ -818,7 +823,7 @@ static inline int connect_to(int ai_family, int ai_socktype, int ai_protocol,
                              const struct sockaddr *addr,
                              socklen_t addrlen, int timeout)
 {
-    int sock = socket(PF_INET, SOCK_STREAM|SOCK_NONBLOCK, 0);
+    int sock = create_nonblocking_socket();
     if (sock == -1) {
         mlog(LL_ALWAYS, "Failed to create socket - %s ...\n",
              strerror(errno));
@@ -896,6 +901,20 @@ static inline char* get_host_key(const char* host, int port)
     return key;
 }
 
+static inline int create_nonblocking_socket()
+{
+#if defined(USE_FCNTL)
+    int sock = socket(PF_INET, SOCK_STREAM, 0);
+    if (sock != -1 && fcntl(sock, F_SETFL, O_NONBLOCK) == -1) {
+        mlog(LL_ALWAYS, "Failed to make socket (%d) non-blocking: %s ...\n",
+             sock, strerror(errno));
+        close(sock);
+    }
+#else
+    int sock = socket(PF_INET, SOCK_STREAM|SOCK_NONBLOCK, 0);
+#endif
+    return sock;
+}
 /*
  * Editor modelines
  *
