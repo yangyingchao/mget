@@ -28,24 +28,13 @@
 #include "lib/mget_utils.h"
 #include <signal.h>
 
-#ifdef DEBUG
-#define PDEBUG(fmt, args...)                                            \
+#if !defined (PDEBUG)
+#define PDEBUG(fmt, ...)                                                \
     do {                                                                \
-        char msg[256] = {'\0'};                                         \
-        const char* file = __FILE__;                                    \
-        const char* ptr = file;                                         \
-        const char* sep = "/";                                          \
-        while ((ptr = strstr(file, sep)) != NULL) {                     \
-            file = ptr;                                                 \
-            file = ++ptr;                                               \
-        }                                                               \
-                                                                        \
-        sprintf(msg, "TDEBUG: - %s(%d)-%s\t: ",                         \
-                file, __LINE__,__FUNCTION__);                           \
-        fprintf(stderr, strcat(msg, fmt ), ##args);                     \
-        } while(0)
-#else
-#define PDEBUG(fmt, args...)
+        fprintf(stderr, "mget: - %s(%d)-%s: ",                          \
+                __FILE__, __LINE__,__FUNCTION__);                       \
+        fprintf(stderr, fmt, ##  __VA_ARGS__);                          \
+    } while(0)
 #endif  /*End of if PDEBUG*/
 
 #define MAX_NC       40
@@ -85,6 +74,15 @@ void show_progress(metadata* md, void* user_data)
     if (idx < threshhold) {
         if (!ts) {
             ts = get_time_ms();
+            if (!last_recv) {
+                // If last_recv is zero, try to load it from metadata.
+                data_chunk *dp    = md->ptrs->body;
+                for (int i = 0; i < md->hd.nr_effective; ++i) {
+                    last_recv += dp->cur_pos - dp->start_pos;
+                    dp++;
+                }
+            }
+
             fprintf(stderr, ".");
         } else if ((get_time_ms() - ts) > 1000 / threshhold * idx) {
             fprintf(stderr, ".");
