@@ -575,7 +575,7 @@ static inline uint32 tcp_connection_read(connection * conn, char *buf,
         int ret = select(pconn->sock+1, &r, NULL, &err, NULL);
         if (ret <= 0)
         {
-            PDEBUG ("Nothing to read: ret: %d, (%d):%s\n",
+            mlog (LL_ALWAYS, "Nothing to read: ret: %d, (%d):%s\n",
                     ret, errno, strerror(errno));
             abort();
             return 0;
@@ -589,17 +589,17 @@ static inline uint32 tcp_connection_read(connection * conn, char *buf,
                 ;
             }
             else {
-                PDEBUG ("Read connection: %p returns -1, (%d): %s.\n",
+                mlog (LL_ALWAYS, "Read connection:"
+                      " %p returns -1, (%d): %s.\n",
                         pconn, errno, strerror(errno));
                 rd = 0;
                 abort();
             }
         }
         else if (!rd)  {
-            PDEBUG ("Read connection: %p, sock: %d returns 0, connection closed...\n",
-                    pconn, pconn->sock);
-            PDEBUG ("Set %p disconnected\n", pconn);
-
+            mlog (LL_NONVERBOSE, "Read connection: "
+                  "%p, sock: %d returns 0, connection closed...\n",
+                  pconn, pconn->sock);
             pconn->connected = false;
         }
 
