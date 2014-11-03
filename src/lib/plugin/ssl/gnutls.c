@@ -128,13 +128,15 @@ void *make_socket_secure(int sk)
     err = gnutls_protocol_set_priority(*session, allowed_protocols);
 
     if (err < 0) {
-        mlog(LL_NOTQUIET, "GnuTLS: %s\n", gnutls_strerror(err));
+        mlog(LL_NOTQUIET, "GnuTLS: (set_priority) %s\n",
+             gnutls_strerror(err));
         goto err;
     }
 
     err = gnutls_handshake(*session);
     if (err < 0) {
-        mlog(LL_NOTQUIET, "GnuTLS: %s\n", gnutls_strerror(err));
+        mlog(LL_NOTQUIET, "GnuTLS: (handshake) %s\n",
+             gnutls_strerror(err));
         goto err;
     } else {
         goto ret;

@@ -22,7 +22,7 @@
 #include <stdarg.h>
 #include <string.h>
 
-log_level g_log_level = LL_NONVERBOSE;
+log_level g_log_level = LL_NOTQUIET;
 
 void mlog(log_level o, const char *fmt, ...)
 {
