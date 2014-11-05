@@ -59,7 +59,6 @@ int dissect_header(byte_queue* bq, hash_table** ht)
         return -1;
     }
 
-    size_t length = bq->w - bq->r;
     char *fptr = strstr(bq->r, HEADER_END);
     if (!fptr)  {
         fprintf(stderr,
@@ -108,12 +107,15 @@ int dissect_header(byte_queue* bq, hash_table** ht)
     num = sscanf(value, "%d", &stat);
     assert(num);
 
-    char k[256] = { '\0' };
-    char v[256] = { '\0' };
+    // It is the worst case to allocate such a large memory region ...
+    size_t length = (char*)bq->w - ptr;;
+    char* k = ZALLOC(char, length);
+    char* v = ZALLOC(char, length);
     while ((ptr < (char*)bq->r + length) && fptr && ptr < fptr) {
-        memset(k, 0, 256);
-        memset(v, 0, 256);
-        if (sscanf((const char *) ptr, "%[^:]: %[^\r\n]\r\n%n", k, v, &n)) {
+        memset(k, 0, length);
+        memset(v, 0, length);
+        if (sscanf((const char *) ptr, "%[^ 	:]: %[^\r\n]\r\n%n",
+                   k, v, &n)) {
             lowwer_case(k, strlen(k));
             hash_table_insert(pht, k, strdup(v), strlen(v));
             ldsize += n;
@@ -123,6 +125,8 @@ int dissect_header(byte_queue* bq, hash_table** ht)
 
     bq->r = fptr + 4;
 
+    FIF(k);
+    FIF(v);
     return stat;
 }
 
