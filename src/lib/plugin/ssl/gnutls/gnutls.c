@@ -20,9 +20,9 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#include "../../logutils.h"
-#include "../../mget_macros.h"
-#include "ssl.h"
+#include "../../../logutils.h"
+#include "../../../mget_macros.h"
+#include "../ssl.h"
 #include <arpa/inet.h>
 #include <dirent.h>
 #include <errno.h>

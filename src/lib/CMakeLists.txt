@@ -21,7 +21,7 @@ file(GLOB_RECURSE PROTOCOLS "protocols/*.c")
 list(APPEND SOURCES ${PROTOCOLS})
 
 if(GNUTLS_FOUND)
-  file(GLOB SSL_SOURCES "plugin/ssl/*.c")
+  file(GLOB SSL_SOURCES "plugin/ssl/gnutls/*.c")
   foreach(item ${SSL_SOURCES})
     list(APPEND SOURCES ${item})
   endforeach()
