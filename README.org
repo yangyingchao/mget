@@ -27,7 +27,7 @@ ifconfig eth0 mtu 7200
 
 * SSL Support
 
- It uses GnuTls to implement SSL support...
+ It needs OpenSsl or GnuTls for SSL support...
 
 * TODO:
 
