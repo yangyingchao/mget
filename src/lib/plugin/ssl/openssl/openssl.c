@@ -46,21 +46,27 @@ typedef struct _ssl_wrapper
 #define CHECK_PTR(X, msg) if (!X) berr_exit(msg)
 #define CHECK_W_PTR(X)    if (!X) berr_exit("Failed to create "#X)
 
+static bool g_initilized = false;
 bool ssl_init()
 {
-    SSL_library_init();
-    SSL_load_error_strings();
-    ERR_load_BIO_strings();
-    OpenSSL_add_all_algorithms();
-    SSLeay_add_ssl_algorithms ();
+    if (!g_initilized)
+    {
+        SSL_library_init();
+        SSL_load_error_strings();
+        ERR_load_BIO_strings();
+        OpenSSL_add_all_algorithms();
+        SSLeay_add_ssl_algorithms ();
+
+        g_initilized = true;
+    }
 
     return true;
 }
 
 uint32 secure_socket_read(int sk, char *buf, uint32 size, void *priv)
 {
-    PDEBUG ("here\n");
     ssl_wrapper* wrapper = (ssl_wrapper*)priv;
+    int wtype  = WT_READ;
 
 retry :
     if (!timed_wait(wrapper->sock, WT_READ, -1)) {
@@ -70,7 +76,6 @@ retry :
 
     int ret = SSL_read(wrapper->ssl, buf, size);
     int e   = SSL_get_error(wrapper->ssl, ret);
-    PDEBUG ("ret: %d -- %d\n", ret, e);
 
     switch (e) {
         case SSL_ERROR_NONE:
@@ -80,11 +85,11 @@ retry :
             SSL_shutdown(wrapper->ssl);
             break;
         case SSL_ERROR_WANT_READ:
+            wtype = WT_READ;
             goto retry;
         case SSL_ERROR_WANT_WRITE:
-            PDEBUG ("Rehandshake.....\n");
-            sleep(1);
-            break;
+            wtype = WT_WRITE;
+            goto retry;
         default:
             berr_exit("SSL read problem");
     }
@@ -92,39 +97,35 @@ retry :
     if (SSL_pending(wrapper->ssl))  {
         PDEBUG ("pending data...\n");
     }
-    else  {
-        PDEBUG ("No pending data ....\n");
-    }
-
     return ret;
 }
 
 uint32 secure_socket_write(int sk, char *buf, uint32 size, void *priv)
 {
-    PDEBUG ("here\n");
-
     ssl_wrapper* wrapper = (ssl_wrapper*)priv;
+    int wtype = WT_WRITE;
+
     /* Try to write */
+retry:
+    if (!timed_wait(wrapper->sock, wtype, -1)) {
+        mlog (LL_ALWAYS, "%s: socket not ready.\n", __func__);
+        return 0;
+    }
+
     int r = SSL_write(wrapper->ssl, buf, size);
     int e = SSL_get_error(wrapper->ssl, r);
-    PDEBUG ("ret: %d -- %d\n", r, e);
-
-
-    switch(SSL_get_error(wrapper->ssl, r)){
+    switch(SSL_get_error(wrapper->ssl, r)) {
         /* We wrote something*/
         case SSL_ERROR_NONE:
             break;
 
             /* We would have blocked */
         case SSL_ERROR_WANT_WRITE:
-            break;
-
+            wtype = WT_WRITE;
+            goto retry;
         case SSL_ERROR_WANT_READ:
-            PDEBUG ("Rehandshake...\n");
-            sleep(1);
-            break;
-
-            /* Some other error */
+            wtype = WT_READ;
+            goto retry;
         default:
             berr_exit("SSL write problem");
     }
