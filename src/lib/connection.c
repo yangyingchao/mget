@@ -39,7 +39,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#ifdef HAVE_GNUTLS
+#ifdef SSL_SUPPORT
 #include "plugin/ssl/ssl.h"
 #endif
 
@@ -139,7 +139,7 @@ static inline void tcp_connection_close(connection * conn, char *buf,
                                         uint32 size, void *priv);
 static inline bool validate_connection (connection_p* pconn);
 
-#ifdef HAVE_GNUTLS
+#ifdef SSL_SUPPORT
 static inline uint32 secure_connection_read(connection * conn, char *buf,
                                             uint32 size, void *priv);
 static inline uint32 secure_connection_write(connection * conn, char *buf,
@@ -361,7 +361,7 @@ post_connected: ;
         switch (ui->eprotocol) {
             case UP_HTTPS:
             {
-#ifdef HAVE_GNUTLS
+#ifdef SSL_SUPPORT
                 ssl_init();
                 if ((conn->priv = make_socket_secure(conn->sock)) == NULL) {
                     fprintf(stderr, "Failed to make socket secure\n");
@@ -637,7 +637,7 @@ static inline void tcp_connection_close(connection * conn, char *buf,
 {
 }
 
-#ifdef HAVE_GNUTLS
+#ifdef SSL_SUPPORT
 static inline uint32 secure_connection_read(connection * conn, char *buf,
                                             uint32 size, void *priv)
 {

@@ -1,14 +1,6 @@
 project (mget)
 cmake_minimum_required(VERSION 2.6)
 
-option (DLOG
-  "Enable debug..."
-  OFF)
-
-if(DLOG)
-ADD_DEFINITIONS("-DDEBUG")
-endif(DLOG)
-
 set(CMAKE_INSTALL_PREFIX "/usr")
 
 # uninstall target

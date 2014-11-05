@@ -37,9 +37,9 @@
 #define DIVIDE_VERSION(X) VER_TO_MAJOR(X), VER_TO_MINOR(X),VER_TO_PATCH(X)
 
 
-#cmakedefine HAVE_GNUTLS
-
 #cmakedefine USE_FCNTL
+
+#cmakedefine SSL_SUPPORT
 
 #define VERSION_STRING       "@VERSION_MAJOR@.@VERSION_MINOR@.@VERSION_PATCH@"
 
