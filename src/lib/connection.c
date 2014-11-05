@@ -169,13 +169,11 @@ connection* connection_get(const url_info* ui)
         goto ret;
     }
 
-    if (!dq) // init this drop queue.
-    {
+    if (!dq) { // init this drop queue.
         dq = bq_init(1024);
     }
 
-    if (!g_conn_cache)
-    {
+    if (!g_conn_cache) {
         g_conn_cache = hash_table_create(64, free);
         assert(g_conn_cache);
     }
@@ -502,6 +500,38 @@ void connection_add_to_group(connection_group* group, connection* conn)
            conn, group, group->cnt);
 }
 
+bool timed_wait(int sock, int type, int delay)
+{
+    fd_set r, w, err;
+
+    FD_ZERO(&r);
+    FD_ZERO(&w);
+    FD_ZERO(&err);
+    FD_SET(sock, &err);
+
+    if (type & WT_READ)
+        FD_SET(sock, &r);
+
+    if (type & WT_WRITE)
+        FD_SET(sock, &w);
+
+    struct timeval tv;
+    tv.tv_sec = delay;
+    tv.tv_usec = 0;
+
+    int ret = select(sock+1, &r, &w, &err, delay == -1 ? NULL : &tv);
+    if (ret < 0) {
+        mlog(LL_ALWAYS, "select fail: %s\n", strerror(errno));
+        return false;
+    }
+    else if (!ret) {
+        mlog(LL_ALWAYS, "Connection timed out...\n");
+        return false;
+    }
+
+    return true;
+}
+
  // local functions
 static inline address* addrentry_to_address(addr_entry* entry)
 {
@@ -565,18 +595,9 @@ static inline uint32 tcp_connection_read(connection * conn, char *buf,
     if (pconn && pconn->sock && buf) {
 
         // double check to ensure there are something to read.
-        fd_set r, err;
-        FD_ZERO(&r);
-        FD_ZERO(&err);
-        FD_SET(pconn->sock, &r);
-        FD_SET(pconn->sock, &err);
-
-        // check if the socket is ready
-        int ret = select(pconn->sock+1, &r, NULL, &err, NULL);
-        if (ret <= 0)
-        {
-            mlog (LL_ALWAYS, "Nothing to read: ret: %d, (%d):%s\n",
-                    ret, errno, strerror(errno));
+        if (!timed_wait(pconn->sock, WT_READ, -1))  {
+            mlog (LL_ALWAYS, "Nothing to read: (%d):%s\n",
+                  errno, strerror(errno));
             abort();
             return 0;
         }
@@ -854,38 +875,8 @@ static inline bool try_connect(int sockfd, const struct sockaddr *addr,
         PDEBUG ("Connecting ... (%d) - %s\n", errno, strerror(errno));
     }
 
-    struct timeval tv;
-    fd_set w, err;
-
-    tv.tv_sec = timeout;
-    tv.tv_usec = 0;
-
-    FD_ZERO(&w);
-    FD_ZERO(&err);
-    FD_SET(sockfd, &w);
-    FD_SET(sockfd, &err);
-
     // check if the socket is ready
-    int ret = select(sockfd+1, NULL, &w, &err, &tv);
-    if (ret > 0)
-    {
-        if(FD_ISSET(sockfd, &w))
-        {
-            PDEBUG ("Connected...\n");
-            return true;
-        }
-    }
-    else if (!ret)
-    {
-        PDEBUG ("Connection timed out...\n");
-    }
-    else
-    {
-        PDEBUG ("Failed to select sock: %d, (%d):%s\n",
-                sockfd, errno, strerror(errno));
-    }
-
-    return false;
+    return timed_wait(sockfd, WT_WRITE, timeout);
 }
 
 static inline char* get_host_key(const char* host, int port)

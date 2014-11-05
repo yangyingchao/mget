@@ -21,8 +21,8 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#ifndef _SSL_H_
-#define _SSL_H_
+#ifndef _MGET_SSL_H_
+#define _MGET_SSL_H_
 
 #include "mget_types.h"
 
@@ -30,18 +30,18 @@
 extern "C" {
 #endif
 
-bool ssl_init();
+bool  ssl_init();
+void* make_socket_secure(int);
+void  ssl_destroy(void*);
 
-void *make_socket_secure(int sk);
-uint32 secure_socket_read(int sk, char *buf, uint32 size, void *priv);
-
-uint32 secure_socket_write(int sk, char *buf, uint32 size, void *priv);
+uint32  secure_socket_read(int, char*, uint32, void*);
+uint32  secure_socket_write(int, char*, uint32, void*);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif				/* _SSL_H_ */
+#endif				/* _MGET_SSL_H_ */
 
 /*
  * Editor modelines

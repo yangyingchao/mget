@@ -38,15 +38,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-/* A very basic TLS client, with anonymous authentication.
- */
+/* A very basic TLS client, with anonymous authentication. */
 
-#define MAX_BUF 1024
-
-void log_func(int l, const char *msg)
-{
-    fprintf(stderr, "Msg: %s\n", msg);
-}
 
 /* Note: some of the functions private to this file have names that
    begin with "gnutls_" (e.g. gnutls_read) so that they wouldn't be

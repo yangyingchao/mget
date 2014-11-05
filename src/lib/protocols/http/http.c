@@ -143,8 +143,6 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn,
     (*conn)->ci.writer((*conn), hd, strlen(hd), NULL);
     free(hd);
 
-    PDEBUG ("reading...\n");
-
     // we are in blocking mode for now.
     byte_queue* bq = bq_init(SIZE);
     char* eptr = NULL;

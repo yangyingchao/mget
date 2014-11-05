@@ -1,4 +1,4 @@
-ADD_DEFINITIONS("-std=gnu99")
+ADD_DEFINITIONS(-std=gnu99 -g)
 
 set(VERSION_MAJOR 1)
 set(VERSION_MINOR 3)

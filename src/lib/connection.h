@@ -80,6 +80,23 @@ int connection_perform(connection_group* group);
 connection *connection_get(const url_info * ui);
 void connection_put(connection * sock);
 
+
+typedef enum _wait_type
+{
+    WT_NONE  = 0,
+    WT_READ  = 1,
+    WT_WRITE = 1 << 1,
+} wait_type;
+
+/**
+ * @name timed_wait - Waits a period and see if socket is readable/writable..
+ * @param sock - socket to be checked
+ * @param type - Type of wait.
+ * @param delay - Number of delay in seconds, set to -1 means infinite.
+ * @return true if ok.
+ */
+bool timed_wait(int sock, int type, int delay);
+
 #ifdef __cplusplus
 }
 #endif
