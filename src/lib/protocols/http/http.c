@@ -277,6 +277,7 @@ int http_read_sock(connection* conn, void *priv)
 
     void *addr = param->addr + dp->cur_pos;
     if (!param->header_finished) {
+        bq_enlarge(param->bq, 4096);
         int rd = conn->ci.reader(conn, param->bq->w,
                                  param->bq->x - param->bq->w, NULL);
 
@@ -321,7 +322,7 @@ int http_read_sock(connection* conn, void *priv)
             return rd;
         }
         else {
-            mlog(LL_NONVERBOSE, "Read returns 0: showing chunk: "
+            mlog(LL_NONVERBOSE, "Read returns -1: showing chunk: "
              "retuned zero: dp: %p : %llX -- %llX\n",
                  dp, dp->cur_pos, dp->end_pos);
             if (errno != EAGAIN) {
@@ -351,7 +352,8 @@ int http_read_sock(connection* conn, void *priv)
         PDEBUG("read returns %d\n", rd);
         if (errno != EAGAIN) {
             mlog(LL_ALWAYS, "read returns %d: %s\n", rd, strerror(errno));
-            rd = COF_AGAIN;
+            rd = COF_ABORT;
+            metadata_display(param->md);
         }
     }
 

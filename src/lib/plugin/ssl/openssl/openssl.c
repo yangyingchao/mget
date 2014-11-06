@@ -57,6 +57,7 @@ bool ssl_init()
         OpenSSL_add_all_algorithms();
         SSLeay_add_ssl_algorithms ();
 
+        /* SSL_CTX_set_cipher_list */
         g_initilized = true;
     }
 
@@ -92,6 +93,7 @@ retry :
             wtype = WT_WRITE;
             goto retry;
         case SSL_ERROR_SYSCALL: {
+            fprintf(stderr, "buf: %p, size: %lu\n", buf, size);
             if (!ERR_get_error()) {
                 if (!ret) {
                     mlog (LL_ALWAYS,
