@@ -420,6 +420,13 @@ byte_queue* bq_init(size_t size)
     return  bq;
 }
 
+void bq_reset(byte_queue* bq)
+{
+    size_t size = bq->x - bq->p;
+    memset(bq->p, 0, size);
+    bq->r = bq->w = bq->p;
+}
+
 //@todo: align to page??
 byte_queue* bq_enlarge(byte_queue* bq, size_t sz)
 {

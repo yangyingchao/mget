@@ -52,7 +52,6 @@ static inline char *generate_request_header(const char* method, url_info* uri,
     return strdup(buffer);
 }
 
-//@todo: should make sure header is complete before dissecting header!
 int dissect_header(byte_queue* bq, hash_table** ht)
 {
     if (!ht || !bq || !bq->r) {
@@ -123,7 +122,7 @@ int dissect_header(byte_queue* bq, hash_table** ht)
         }
     }
 
-    bq->r = fptr + 4;
+    bq->r = fptr + 4; // seek to \r\n\r\n..
 
     FIF(k);
     FIF(v);
@@ -133,8 +132,8 @@ int dissect_header(byte_queue* bq, hash_table** ht)
 /* This function accepts an pointer of connection pointer, on return. When 302
  * is detected, it will modify both ui and conn to ensure a valid connection
  * can be initialized. */
-uint64 get_remote_file_size_http(url_info* ui, connection** conn,
-                                 hash_table** ht)
+uint64 get_remote_file_size_http(url_info* ui, byte_queue* bq,
+                                 connection** conn, hash_table** ht)
 {
     if (!conn ||!*conn || !ui) {
         return 0;
@@ -147,8 +146,6 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn,
     (*conn)->ci.writer((*conn), hd, strlen(hd), NULL);
     free(hd);
 
-    // we are in blocking mode for now.
-    byte_queue* bq = bq_init(SIZE);
     char* eptr = NULL;
     int i = 1;
     do {
@@ -203,7 +200,8 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn,
                 url_info_destroy(&nui);
                 connection_put(*conn);
                 *conn = connection_get(ui);
-                return get_remote_file_size_http(ui, conn, ht);
+                bq_reset(bq);
+                return get_remote_file_size_http(ui, bq, conn, ht);
             }
             fprintf(stderr,
                     "Failed to get new location for status code: 302\n");
@@ -213,7 +211,7 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn,
         {
             ptr = (char *) hash_table_entry_get(*ht, "Content-Length");
             if (!ptr) {
-                fprintf(stderr, "Content Length not returned!\n");
+                mlog(LL_ALWAYS, "Content Length not returned!\n");
                 t = 0;
                 goto show_rsp;
             }
@@ -250,7 +248,6 @@ uint64 get_remote_file_size_http(url_info* ui, connection** conn,
     }
 
 ret:
-    bq_destroy(&bq);
     return t;
 }
 
@@ -392,18 +389,21 @@ mget_err process_http_request(dinfo* info, dp_callback cb, bool* stop_flag,
     }
     PDEBUG ("conn : %p\n", conn);
 
-    //TODO: real file name might be stored in "Content-Disposition" of http
-    //      header, for example:
-    //      Content-Disposition:attachment;filename="The.Vampire.Diaries.S06E02.mp4",
-    //      we should guess file name from it!!
-
-    hash_table *ht   = NULL;
-    uint64 total_size = get_remote_file_size_http(info->ui, &conn, &ht);
+    hash_table  *ht         = NULL;
+    byte_queue*  bq         = bq_init(SIZE);
+    uint64       total_size = get_remote_file_size_http(info->ui, bq, &conn, &ht);
 
     if (!total_size) {
         fprintf(stderr, "Can't get remote file size: %s\n", ui->furl);
+        //TODO: Some servers may not support "Range" request, such servers
+        //      will return contents in HTML body directly, needs to handle
+        //      this case. Some part of data is stored in bq->r, and remained
+        //      should be read from connection....
+        //      https://github.com/yangyingchao/mget/archive/v1.3.1.tar.gz
         return ME_RES_ERR;
     }
+
+    bq_destroy(&bq);
 
     // try to get file name from http header..
     char* fn = NULL;
