@@ -21,19 +21,18 @@
  */
 #include "../../logutils.h"
 #include "http.h"
-#include "connection.h"
+#include "../../connection.h"
 #include <unistd.h>
 #include <errno.h>
-#include "data_utlis.h"
-#include "metadata.h"
-#include "mget_utils.h"
+#include "../../data_utlis.h"
+#include "../../metadata.h"
+#include "../../mget_utils.h"
 
 #define DEFAULT_HTTP_CONNECTIONS 5
 #define BUF_SIZE                 4096
 #define SIZE                     1024
 
 static const char* HEADER_END = "\r\n\r\n";
-
 
 static inline char *generate_request_header(const char* method, url_info* uri,
                                             uint64 start_pos, uint64 end_pos)
@@ -209,7 +208,7 @@ uint64 get_remote_file_size_http(url_info* ui, byte_queue* bq,
         }
         case 200:
         {
-            ptr = (char *) hash_table_entry_get(*ht, "Content-Length");
+            ptr = (char *) hash_table_entry_get(*ht, "content-length");
             if (!ptr) {
                 mlog(LL_ALWAYS, "Content Length not returned!\n");
                 t = 0;
@@ -278,10 +277,10 @@ int http_read_sock(connection* conn, void *priv)
 
     void *addr = param->addr + dp->cur_pos;
     if (!param->header_finished) {
-        size_t rd = conn->ci.reader(conn, param->bq->w,
-                                    param->bq->x - param->bq->w, NULL);
+        int rd = conn->ci.reader(conn, param->bq->w,
+                                 param->bq->x - param->bq->w, NULL);
 
-        if (rd) {
+        if (rd > 0) {
             param->bq->w += rd;
             char *ptr = strstr(param->bq->r, "\r\n\r\n");
             if (ptr == NULL) {
@@ -315,10 +314,22 @@ int http_read_sock(connection* conn, void *priv)
             }
             bq_destroy(&param->bq);
         }
-        else {
-            PDEBUG ("Read from connection %p returns 0, socket closed..\n",
-                    conn);
+        else if (rd == 0) {
+            PDEBUG("Read returns 0: showing chunk: "
+                   "retuned zero: dp: %p : %llX -- %llX\n",
+                   dp, dp->cur_pos, dp->end_pos);
             return rd;
+        }
+        else {
+            mlog(LL_NONVERBOSE, "Read returns 0: showing chunk: "
+             "retuned zero: dp: %p : %llX -- %llX\n",
+                 dp, dp->cur_pos, dp->end_pos);
+            if (errno != EAGAIN) {
+                mlog(LL_ALWAYS, "read returns %d: %s\n", rd, strerror(errno));
+                rd = COF_ABORT;
+                metadata_display(param->md);
+                return rd;
+            }
         }
     }
 
@@ -339,7 +350,7 @@ int http_read_sock(connection* conn, void *priv)
     } else {
         PDEBUG("read returns %d\n", rd);
         if (errno != EAGAIN) {
-            fprintf(stderr, "read returns %d: %s\n", rd, strerror(errno));
+            mlog(LL_ALWAYS, "read returns %d: %s\n", rd, strerror(errno));
             rd = COF_AGAIN;
         }
     }
@@ -409,10 +420,16 @@ mget_err process_http_request(dinfo* info, dp_callback cb, bool* stop_flag,
     char* fn = NULL;
     if (info->md->hd.update_name)  {
         char* dis = hash_table_entry_get(ht, "content-disposition");
+        PDEBUG ("updating name based on disposition: %s\n", dis);
+
         if (dis) {
             fn = ZALLOC(char, strlen(dis));
             char* tmp = ZALLOC(char, strlen(dis));
-            (void)sscanf((const char *) dis, "%*[^;];filename=\"%[^\"]\"", tmp);
+            (void)sscanf(dis, "%*[^;];filename=%s", tmp);
+
+            // some server may add whitespace between ";" and "filename"..
+            if (!*tmp)
+                (void)sscanf( dis, "%*[^;];%*[ ]filename=%s", tmp);
 
             // file name is encoded...
             int idx = 0;
@@ -426,11 +443,23 @@ mget_err process_http_request(dinfo* info, dp_callback cb, bool* stop_flag,
                     fn[idx++] = X;
                     ptr += n;
                 }
-                else
-                {
+                else if (*ptr == '"')
+                    continue;
+                else {
                     fn[idx++] = *ptr;
                     ptr ++;
                 }
+            }
+            FIF(tmp);
+
+            if (fn && !(*fn)) {
+                mlog(LL_NOTQUIET, "Sadly, we can't parse filename: %s\n",
+                     dis);
+                FIFZ(&fn)
+            }
+            else
+            {
+                mlog(LL_ALWAYS, "Renaming file name to: %s\n", fn);
             }
         }
     }

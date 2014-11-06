@@ -68,13 +68,14 @@ uint32 secure_socket_read(int sk, char *buf, uint32 size, void *priv)
     ssl_wrapper* wrapper = (ssl_wrapper*)priv;
     int wtype  = WT_READ;
 
+    int ret = 0;
 retry :
     if (!timed_wait(wrapper->sock, WT_READ, -1)) {
         mlog (LL_ALWAYS, "%s: socket not ready.\n", __func__);
         return 0;
     }
 
-    int ret = SSL_read(wrapper->ssl, buf, size);
+    ret += SSL_read(wrapper->ssl, buf, size);
     int e   = SSL_get_error(wrapper->ssl, ret);
 
     switch (e) {
@@ -90,6 +91,21 @@ retry :
         case SSL_ERROR_WANT_WRITE:
             wtype = WT_WRITE;
             goto retry;
+        case SSL_ERROR_SYSCALL: {
+            if (!ERR_get_error()) {
+                if (!ret) {
+                    mlog (LL_ALWAYS,
+                          "EOF was observed that violates the protocol.\n");
+                    return -1;
+                }
+                else {
+                    mlog (LL_ALWAYS, "BIO reported an I/O error: %s\n",
+                            strerror(errno));
+                }
+            }
+            break;
+        }
+
         default:
             berr_exit("SSL read problem");
     }
@@ -97,6 +113,7 @@ retry :
     if (SSL_pending(wrapper->ssl))  {
         PDEBUG ("pending data...\n");
     }
+
     return ret;
 }
 

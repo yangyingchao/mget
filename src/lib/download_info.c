@@ -251,7 +251,8 @@ extern bool chunk_split(uint64 start, uint64 size, int *num,
 
 bool dinfo_update_metadata(dinfo* info, uint64 size, const char* fn)
 {
-    PDEBUG ("enter\n");
+    PDEBUG ("enter, info: %p, size: %llu, fn: %s\n",
+            info, size, fn);
 
     if (!info || !info->md)
         return false;
@@ -312,19 +313,23 @@ bool dinfo_update_metadata(dinfo* info, uint64 size, const char* fn)
             md->raw_data, md->ptrs->body, md->ptrs->ht_buffer);
 
     // now update fm_file.
+    PDEBUG ("info->fm_file: %p\n", info->fm_file);
+
     if (!info->fm_file) {
         char* fpath = NULL;
         char* dirn  = fm_get_directory(info->fm_md);
         if (dirn) {
             fpath = ZALLOC(char, strlen(dirn) + strlen(md->ptrs->fn) + 2);
             sprintf(fpath, "%s/%s", dirn, md->ptrs->fn);
+            PDEBUG ("Creating file mapping: %s, dirn: %s, fn: %s\n",
+                    fpath, dirn ? dirn : "NULL", md->ptrs->fn);
         }
         else
         {
             fpath = strdup(md->ptrs->fn);
         }
-
         PDEBUG ("Creating file mapping: %s\n", fpath);
+
         info->fm_file = fm_create(fpath, info->md->hd.package_size);
         FIF(fpath);
     }

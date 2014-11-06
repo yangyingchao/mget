@@ -807,6 +807,11 @@ static inline int do_perform_select(connection_group* group)
                         pconn->busy   = false;
                         break;
                     }
+                    case COF_ABORT:
+                    {
+                        exit(1);
+                        break;
+                    }
                     case COF_AGAIN:
                     default:
                     {
