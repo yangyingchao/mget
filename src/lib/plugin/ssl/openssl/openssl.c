@@ -23,6 +23,7 @@
 #include "../../../logutils.h"
 #include "../../../mget_macros.h"
 #include "../../../connection.h"
+#include "../../../data_utlis.h"
 #include "../ssl.h"
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -30,10 +31,11 @@
 
 typedef struct _ssl_wrapper
 {
-    SSL_CTX* ctx;
-    SSL*     ssl;
-    BIO*     bio;
-    int      sock;
+    SSL_CTX*    ctx;
+    SSL*        ssl;
+    BIO*        bio;
+    int         sock;
+    byte_queue* bq;
 } ssl_wrapper;
 
 #define berr_exit(msg)                                  \
@@ -68,15 +70,25 @@ uint32 secure_socket_read(int sk, char *buf, uint32 size, void *priv)
 {
     ssl_wrapper* wrapper = (ssl_wrapper*)priv;
     int wtype  = WT_READ;
-
     int ret = 0;
+    bool extended = false;
 retry :
     if (!timed_wait(wrapper->sock, WT_READ, -1)) {
         mlog (LL_ALWAYS, "%s: socket not ready.\n", __func__);
         return 0;
     }
 
-    ret += SSL_read(wrapper->ssl, buf, size);
+read:
+    if (extended)
+    {
+        int tmp = SSL_read(wrapper->ssl, buf, size);
+        printf ("tmp: %d\n", tmp);
+    }
+    else
+    {
+        ret = SSL_read(wrapper->ssl, buf, size);
+    }
+
     int e   = SSL_get_error(wrapper->ssl, ret);
 
     switch (e) {
@@ -113,7 +125,19 @@ retry :
     }
 
     if (SSL_pending(wrapper->ssl))  {
-        PDEBUG ("pending data...\n");
+        PDEBUG ("pending data, size: %d, ret: %d...\n", size, ret);
+        buf += ret;
+        size -= ret;
+        PDEBUG ("pending data, size: %d...\n", (int)size);
+        if ((int)size <= 0)
+        {
+            bq_enlarge(wrapper->bq, 4096*100);
+            buf = wrapper->bq->w;
+            size = wrapper->bq->x - wrapper->bq->w;
+            mlog (LL_ALWAYS, "Data save to bq\n");
+            extended = true;
+        }
+        goto read;
     }
 
     return ret;
@@ -170,6 +194,7 @@ void *make_socket_secure(int sock)
     CHECK_W_PTR(wrapper->bio);
 
     wrapper->sock = sock;
+    wrapper->bq = bq_init(4096*100);
 
     PDEBUG ("ctx: %p ssl: %p, bio: %p\n", wrapper->ctx, wrapper->ssl,
             wrapper->bio);

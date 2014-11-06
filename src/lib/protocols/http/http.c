@@ -30,7 +30,7 @@
 
 #define DEFAULT_HTTP_CONNECTIONS 5
 #define BUF_SIZE                 4096
-#define SIZE                     1024
+#define SIZE                     1024*100
 
 static const char* HEADER_END = "\r\n\r\n";
 
@@ -218,7 +218,8 @@ uint64 get_remote_file_size_http(url_info* ui, byte_queue* bq,
             PDEBUG("Content-Length: %s\n", ptr);
 
             num = sscanf(ptr, "%llu", &t);
-
+            //@todo: this kind of server don't support multi connection.
+            // handle this!
             break;
         }
         default:
@@ -277,7 +278,7 @@ int http_read_sock(connection* conn, void *priv)
 
     void *addr = param->addr + dp->cur_pos;
     if (!param->header_finished) {
-        bq_enlarge(param->bq, 4096);
+        bq_enlarge(param->bq, 4096*100);
         int rd = conn->ci.reader(conn, param->bq->w,
                                  param->bq->x - param->bq->w, NULL);
 
@@ -313,7 +314,17 @@ int http_read_sock(connection* conn, void *priv)
                 memcpy(addr, param->bq->r, length);
                 dp->cur_pos += length;
             }
+            PDEBUG("Showing chunk: "
+                   "dp: %p : %llX -- %llX\n",
+                   dp, dp->cur_pos, dp->end_pos);
+
             bq_destroy(&param->bq);
+            if (dp->cur_pos == dp->end_pos)
+                goto ret;
+            else if (dp->cur_pos == dp->end_pos)
+                mlog(LL_ALWAYS, "Wrong data: dp: %p : %llX -- %llX\n",
+                     dp, dp->cur_pos, dp->end_pos);
+
         }
         else if (rd == 0) {
             PDEBUG("Read returns 0: showing chunk: "
@@ -328,6 +339,7 @@ int http_read_sock(connection* conn, void *priv)
             if (errno != EAGAIN) {
                 mlog(LL_ALWAYS, "read returns %d: %s\n", rd, strerror(errno));
                 rd = COF_ABORT;
+                exit(1);
                 metadata_display(param->md);
                 return rd;
             }
@@ -366,6 +378,7 @@ int http_read_sock(connection* conn, void *priv)
                dp, dp->cur_pos, dp->end_pos);
     }
 
+ret:
     return rd;
 }
 
@@ -510,7 +523,7 @@ restart:
 
     bool need_request = false;
     data_chunk *dp = md->ptrs->body;
-
+    conn = NULL; // leak...
     for (int i = 0; i < md->hd.nr_effective; ++i, ++dp) {
         if (dp->cur_pos >= dp->end_pos) {
             continue;
