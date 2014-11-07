@@ -5,7 +5,7 @@ MulityGet to speed up downloading from server.
 It provides a library named libmget and a sample app named tmget.
 
 
-You can download it from:[[https://github.com/yangyingchao/mget/archive/v1.3.1.tar.gz][here]].
+You can download it from:[[https://github.com/yangyingchao/mget/archive/1.3.2.tar.gz][here]].
 
 * Use mget in gentoo
 
