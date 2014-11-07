@@ -29,8 +29,7 @@
 #include "../../mget_utils.h"
 
 #define DEFAULT_HTTP_CONNECTIONS 5
-#define BUF_SIZE                 4096
-#define SIZE                     1024*100
+#define PAGE                     4096
 
 static const char* HEADER_END = "\r\n\r\n";
 static const char* CAN_SPLIT = "can_split";
@@ -211,16 +210,11 @@ mget_err process_http_request(dinfo* info, dp_callback cb, bool* stop_flag,
     PDEBUG ("conn : %p\n", conn);
 
     hash_table  *ht         = NULL;
-    byte_queue*  bq         = bq_init(SIZE);
+    byte_queue*  bq         = bq_init(PAGE);
     uint64       total_size = get_remote_file_size_http(info->ui, bq, &conn, &ht);
 
     if (!total_size) {
         fprintf(stderr, "Can't get remote file size: %s\n", ui->furl);
-        //TODO: Some servers may not support "Range" request, such servers
-        //      will return contents in HTML body directly, needs to handle
-        //      this case. Some part of data is stored in bq->r, and remained
-        //      should be read from connection....
-        //      https://github.com/yangyingchao/mget/archive/v1.3.1.tar.gz
         return ME_RES_ERR;
     }
 
@@ -346,7 +340,7 @@ restart:
         param->dp        = dp;
         param->ui        = ui;
         param->md        = md;
-        param->bq        = bq_init(SIZE);
+        param->bq        = bq_init(PAGE);
         param->cb        = cb;
         param->user_data = user_data;
 
@@ -410,8 +404,8 @@ ret:
 static inline char *generate_request_header(const char* method, url_info* uri,
                                             uint64 start_pos, uint64 end_pos)
 {
-    static char buffer[BUF_SIZE];
-    memset(buffer, 0, BUF_SIZE);
+    static char buffer[PAGE];
+    memset(buffer, 0, PAGE);
 
     sprintf(buffer,
             "%s %s HTTP/1.1\r\nHost: %s\r\n"
@@ -521,7 +515,7 @@ static inline uint64 get_remote_file_size_http(url_info* ui, byte_queue* bq,
     char* eptr = NULL;
     int i = 1;
     do {
-        bq         = bq_enlarge(bq, SIZE);
+        bq         = bq_enlarge(bq, PAGE);
         size_t rd  = (*conn)->ci.reader((*conn), bq->w, bq->x - bq->w, NULL);
         if (!rd) {
             PDEBUG ("Failed to read from connection(%p),"
