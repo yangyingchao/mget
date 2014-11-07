@@ -125,7 +125,7 @@ hash_table*hash_table_create(uint32 hashSize, DestroyFunction dFunctor)
     return table;
 }
 
-bool hash_table_insert(hash_table* table, char *key, void *val, uint32 len)
+bool hash_table_insert(hash_table* table, const char *key, void *val, uint32 len)
 {
     bool ret = false;
     if (table && key && val) {
