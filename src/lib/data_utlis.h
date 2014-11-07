@@ -107,7 +107,7 @@ struct _hash_table {
 // Functions.
 void hash_table_destroy(hash_table* table);
 hash_table*hash_table_create(uint32 size, DestroyFunction dFunctor);
-bool hash_table_insert(hash_table* table, char *key, void *val, uint32 val_len);
+bool hash_table_insert(hash_table* table, const char *key, void *val, uint32 val_len);
 bool hash_table_update(hash_table* table, char *key, void *val, uint32 val_len);
 void *hash_table_entry_get(hash_table* table, const char *key);
 
@@ -155,6 +155,7 @@ byte_queue* bq_init(size_t size);
 // it will ensure there are at least sz bytes left for writting...
 byte_queue* bq_enlarge(byte_queue* bq, size_t sz);
 void bq_destroy(byte_queue**);
+void bq_reset(byte_queue*);
 
 void lowwer_case(char* p, size_t len);
 

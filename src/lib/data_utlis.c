@@ -125,7 +125,7 @@ hash_table*hash_table_create(uint32 hashSize, DestroyFunction dFunctor)
     return table;
 }
 
-bool hash_table_insert(hash_table* table, char *key, void *val, uint32 len)
+bool hash_table_insert(hash_table* table, const char *key, void *val, uint32 len)
 {
     bool ret = false;
     if (table && key && val) {
@@ -418,6 +418,13 @@ byte_queue* bq_init(size_t size)
     bq->r = bq->w = bq->p = ZALLOC(byte, size);
     bq->x = bq->p + size;
     return  bq;
+}
+
+void bq_reset(byte_queue* bq)
+{
+    size_t size = bq->x - bq->p;
+    memset(bq->p, 0, size);
+    bq->r = bq->w = bq->p;
 }
 
 //@todo: align to page??
