@@ -64,8 +64,8 @@ fd_read_line (ftp_connection* conn)
     if (!p)
     {
         conn->bq = bq_enlarge(conn->bq, 256);
-        uint32 rd = conn->conn->ci.reader(conn->conn, bq->w,
-                                          bq->x - bq->w, NULL);
+        uint32 rd = conn->conn->co.read(conn->conn, bq->w,
+                                        bq->x - bq->w, NULL);
         if (rd != -1)
         {
             bq->w += rd;
@@ -91,7 +91,7 @@ fd_read_line (ftp_connection* conn)
 }
 
 
-#define fd_write(C, R, L, U)  ((C)->conn)->ci.writer((C)->conn, (R), (L), NULL)
+#define fd_write(C, R, L, U)  ((C)->conn)->co.write((C)->conn, (R), (L), NULL)
 
 
 /* Get the response of FTP server and allocate enough room to handle
@@ -209,7 +209,7 @@ ftp_login (ftp_connection* conn, const char *acc, const char *pass)
     xfree (respline);
     /* Send USER username.  */
     request = ftp_request ("USER", acc);
-    nwritten = conn->conn->ci.writer(conn->conn, request, strlen (request), NULL);
+    nwritten = conn->conn->co.write(conn->conn, request, strlen (request), NULL);
     if (nwritten < 0)
     {
         xfree (request);

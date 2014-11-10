@@ -137,6 +137,7 @@ void print_help()
                      "resolving host names.\n",
         "\t     'U': Update, get address from DNS server instead of "
                     "from cache, but update cache after name resolved.\n",
+        "\t-L:  limit bandwidth.\n",
         "\t-h:  show this help.\n",
         "\n",
         NULL
@@ -175,7 +176,7 @@ int main(int argc, char *argv[])
 
     memset(&fn, 0, sizeof(file_name));
 
-    while ((opt = getopt(argc, argv, "hH:j:d:o:r:svu:p:l:")) != -1) {
+    while ((opt = getopt(argc, argv, "hH:j:d:o:r:svu:p:l:L:")) != -1) {
         switch (opt) {
             case 'h':
             {
@@ -240,6 +241,11 @@ int main(int argc, char *argv[])
                 int dl = ((int)LL_ALWAYS) - atoi(optarg); // debug level
                 if (dl < 0) dl = LL_INVLID;
                 opts.ll = ((log_level) dl);
+                break;
+            }
+            case 'L':
+            {
+                /* set_global_bandwidth(integer_size(optarg)); */
                 break;
             }
             case 'o':

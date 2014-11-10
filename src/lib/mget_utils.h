@@ -36,6 +36,8 @@ extern "C" {
 
 // user should copy this tring after it returns!
 const char *stringify_size(uint64 sz);
+int integer_size(const char* size);
+
 bool file_existp(const char *fn);
 
 uint32 get_time_ms();

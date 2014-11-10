@@ -82,6 +82,12 @@ char *current_time_str()
     return datetime_str(time(NULL));
 }
 
+
+int integer_size(const char* size)
+{
+    return 1024*4;
+}
+
 /*
  * Editor modelines
  *

@@ -77,7 +77,7 @@ static void gnutls_close(int fd, void *arg)
     close(fd);
 }
 
-uint32 secure_socket_read(int sk, char *buf, uint32 size, void *priv)
+int secure_socket_read(int sk, char *buf, uint32 size, void *priv)
 {
     if (priv)			//@todo: need to read all content in tls buffer!!!
     {
@@ -89,7 +89,7 @@ uint32 secure_socket_read(int sk, char *buf, uint32 size, void *priv)
     return 0;
 }
 
-uint32 secure_socket_write(int sk, char *buf, uint32 size, void *priv)
+int secure_socket_write(int sk, char *buf, uint32 size, void *priv)
 {
     if (priv) {
         gnutls_session_t *session = (gnutls_session_t *) priv;

@@ -67,7 +67,7 @@ bool ssl_init()
     return true;
 }
 
-uint32 secure_socket_read(int sk, char *buf, uint32 size, void *priv)
+int secure_socket_read(int sk, char *buf, uint32 size, void *priv)
 {
     ssl_wrapper* wrapper = (ssl_wrapper*)priv;
     int ret = 0;
@@ -140,7 +140,7 @@ read:
     return ret;
 }
 
-uint32 secure_socket_write(int sk, char *buf, uint32 size, void *priv)
+int secure_socket_write(int sk, char *buf, uint32 size, void *priv)
 {
     ssl_wrapper* wrapper = (ssl_wrapper*)priv;
 
