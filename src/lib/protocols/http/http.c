@@ -211,9 +211,10 @@ mget_err process_http_request(dinfo* info, dp_callback cb, bool* stop_flag,
 
     hash_table  *ht         = NULL;
     byte_queue*  bq         = bq_init(PAGE);
-    uint64       total_size = get_remote_file_size_http(info->ui, bq, &conn, &ht);
+    uint64       total = get_remote_file_size_http(info->ui, bq, &conn,
+                                                        &ht);
 
-    if (!total_size) {
+    if (!total) {
         fprintf(stderr, "Can't get remote file size: %s\n", ui->furl);
         return ME_RES_ERR;
     }
@@ -268,7 +269,7 @@ mget_err process_http_request(dinfo* info, dp_callback cb, bool* stop_flag,
         }
     }
 
-    PDEBUG("total_size: %llu, fileName: %s\n", total_size, fn);
+    PDEBUG("total: %llu, fileName: %s\n", total, fn);
 
     /*
       If it goes here, means metadata is not ready, get nc (number of
@@ -285,7 +286,7 @@ mget_err process_http_request(dinfo* info, dp_callback cb, bool* stop_flag,
         info->md->hd.nr_user = 1;
     }
 
-    if (!dinfo_update_metadata(info, total_size, fn)) {
+    if (!dinfo_update_metadata(info, total, fn)) {
         fprintf(stderr, "Failed to create metadata from url: %s\n", ui->furl);
         return ME_ABORT;
     }

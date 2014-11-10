@@ -44,7 +44,6 @@ typedef struct _connection connection;
 #define COF_AGAIN      -5               // No data, try again.
 #define COF_ABORT      -6               // Connection Operation Finished
 #define COF_CLOSED     0                // Connection was closed.
-#define COF_SUCCESS(X) ((X)>0)
 
 /* Connection operation functions, it returns number of bytes it operated, or
  * COF_XXX to indicate detailed errors.

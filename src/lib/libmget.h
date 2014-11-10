@@ -73,6 +73,7 @@ typedef struct _mget_option
     int             max_connections;
     char*           user;
     char*           passwd;
+    int             limit;
     bool            recursive;          //@todo:
     log_level       ll;
     host_cache_type hct;

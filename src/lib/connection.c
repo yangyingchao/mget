@@ -959,10 +959,10 @@ static inline int mget_connection_write(connection* conn, char *buf,
 
 static inline void limit_bandwidth(connection_p* conn, int size)
 {
-// TODO: Remove this ifdef!
+    // TODO: Remove this ifdef!
 #if 0
 
-if (bw_limit == -1) // not enabled.
+    if (bw_limit == -1) // not enabled.
         return;
 
     //Don't enable this for ftp which using multi-threads...
@@ -977,26 +977,27 @@ if (bw_limit == -1) // not enabled.
 
     static int    chunk = 0;
     uint32        cts   = get_time_ms();
-
-    if (chunk < bw_limit) {
+    int delta = chunk - bw_limit;
+    if (delta < 0) {
         if (cts - ts > 1000)
         {
             chunk = 0;
             ts    = cts;
         }
         else
-        {
             chunk += size;
-        }
         return;
     }
 
-    chunk = 0;
-    int slp = ts + 1000 - cts;
+    int slp = (int)(((float)chunk)/bw_limit*1000) + ts - cts;
+    PDEBUG ("d: %d, limit: %d, ts: %u, c_ts: %u, sleep for: %d mseconds\n",
+            delta, bw_limit, ts, cts, slp);
     if (slp > 0)
     {
         usleep(slp * 1000);
     }
+
+    chunk = 0;
     ts    = cts;
 #endif // End of #if 0
 }

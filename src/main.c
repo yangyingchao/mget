@@ -245,7 +245,7 @@ int main(int argc, char *argv[])
             }
             case 'L':
             {
-                /* set_global_bandwidth(integer_size(optarg)); */
+                opts.limit = integer_size(optarg);
                 break;
             }
             case 'o':
