@@ -104,7 +104,7 @@ void show_progress(metadata* md, void* user_data)
         uint64 bps       = (uint64)((double) (diff_size) * 1000 / (c_time - ts))+1;
 
         fprintf(stderr,
-                "] %.02f percent finished, speed: %s/s, eta: %s\r",
+                "] %.02f, SPD: %s/s, ETA: %s\r",
                 (double) recv / total * 100,
                 stringify_size(bps),
                 stringify_time((total-recv)/bps));
