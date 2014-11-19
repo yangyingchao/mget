@@ -53,7 +53,7 @@ char *stringify_time(uint64 ts)
     memset(str_time, 0, 64);
 
     if (ts < MINUTE) {
-        sprintf(str_time, "%" PRIuFAST64 " seconds", ts);
+        sprintf(str_time, "%" PRIu64 " seconds", ts);
     } else if (ts < HOUR) {
         sprintf(str_time, "%.01f minutes", (double) ts / MINUTE);
     } else if (ts < DAY) {
