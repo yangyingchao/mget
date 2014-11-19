@@ -185,7 +185,7 @@ Error in server response, closing control ftp_connection.\n"));
     }
 
 
-    err = ftp_size (conn, info->ui->uri, psize);
+    err = ftp_size (conn, info->ui->uri, (wgint*)psize);
     /* FTPRERR */
     switch (err)
     {
@@ -333,7 +333,7 @@ Error in server response, closing control ftp_connection.\n"));
     }
 
     uint64 size = 0;
-    err = ftp_size (conn, info->ui->uri, &size);
+    err = ftp_size (conn, info->ui->uri, (wgint*)&size);
     /* FTPRERR */
     switch (err)
     {

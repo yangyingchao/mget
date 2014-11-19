@@ -269,7 +269,7 @@ mget_err process_http_request(dinfo* info, dp_callback cb, bool* stop_flag,
         }
     }
 
-    PDEBUG("total: %llu, fileName: %s\n", total, fn);
+    PDEBUG("total: %"PRIuFAST64", fileName: %s\n", total, fn);
 
     /*
       If it goes here, means metadata is not ready, get nc (number of
@@ -413,7 +413,7 @@ static inline char *generate_request_header(const char* method, url_info* uri,
             "Accept: *\r\n"
             "Connection: Keep-Alive\r\n"
             "Keep-Alive: timeout=600\r\n"
-            "Range: bytes=%llu-%llu\r\n\r\n",
+            "Range: bytes=%" PRIuFAST64 "-%" PRIuFAST64"\r\n\r\n",
             method, uri->uri, uri->host, start_pos, end_pos);
 
     return strdup(buffer);
@@ -549,7 +549,7 @@ static inline uint64 get_remote_file_size_http(url_info* ui, byte_queue* bq,
             PDEBUG("Range:: %s\n", ptr);
             hash_table_insert(*ht, CAN_SPLIT, strdup("true"), 4);
             uint64 s, e;
-            num = sscanf(ptr, "bytes %llu-%llu/%llu",
+            num = sscanf(ptr, "bytes %"PRIuFAST64"-%"PRIuFAST64"/%"PRIuFAST64,
                          &s, &e, &t);
             break;
         }
@@ -588,7 +588,7 @@ static inline uint64 get_remote_file_size_http(url_info* ui, byte_queue* bq,
                  " Will not use multi-connections..\n");
             PDEBUG("Content-Length: %s\n", ptr);
 
-            num = sscanf(ptr, "%llu", &t);
+            num = sscanf(ptr, "%"PRIuFAST64, &t);
             //@todo: this kind of server don't support multi connection.
             // handle this!
             break;

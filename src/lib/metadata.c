@@ -110,7 +110,7 @@ void metadata_display(metadata * md)
         return;
     }
 
-    fprintf(stderr, "size: %08llX (%.2f)M, nc: %d,url: %s, user: %p, passwd: %p\n",
+    fprintf(stderr, "size: %08" PRIXFAST64 " (%.2f)M, nc: %d,url: %s, user: %p, passwd: %p\n",
             md->hd.package_size, (float) md->hd.package_size / (1 * M),
             md->hd.nr_effective, md->ptrs->url,
             md->ptrs->user, md->ptrs->passwd);
@@ -128,7 +128,8 @@ void metadata_display(metadata * md)
 
         recv += chunk_recv;
         fprintf(stderr,
-                "Chunk: %p -- (%s), start: %08llX, cur: %08llX, end: %08llX (%s) -- %.02f%%\n",
+                "Chunk: %p -- (%s), start: %08" PRIXFAST64 ", cur: %08"
+                PRIXFAST64", end: %08" PRIXFAST64" (%s) -- %.02f%%\n",
                 cp, cs, cp->start_pos, cp->cur_pos,
                 cp->end_pos, es, (float) (chunk_recv) / chunk_size * 100);
         free(cs);

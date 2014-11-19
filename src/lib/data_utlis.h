@@ -95,8 +95,8 @@ typedef uint32(*HashFunction) (const char *key);
 typedef struct _TableEntry TableEntry;
 
 struct _hash_table {
-    int         capacity;
-    int         occupied;
+    uint32         capacity;
+    uint32         occupied;
     TableEntry *entries;
 
     HashFunction    hashFunctor;
@@ -129,13 +129,6 @@ uint32 dump_hash_table(hash_table* ht, void *buffer, uint32 buffer_size);
  * @return hash_table*
  */
 hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size);
-
-/**
- * @name calculate_hash_table_size - calculate buffer size to hold hash table
- * @param ht -  hash table.
- * @return uint32
- */
-uint32 calculate_hash_table_buffer(hash_table* ht);
 
 char *rstrip(char *str);
 

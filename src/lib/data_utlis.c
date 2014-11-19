@@ -46,7 +46,7 @@ static const int HASH_SIZE = 256;
 
 // debug int ptr.
 #define DIP(X, Y)\
-    PDEBUG (#X": (%p): %X\n", (Y), *((int*)(Y)));
+    PDEBUG (#X": (%p): %X\n", (Y), *((uint32*)(Y)));
 
 
 uint32 StringHashFunction(const char *str)
@@ -247,7 +247,7 @@ void *hash_table_entry_get(hash_table* table, const char *key)
 
 uint32 dump_hash_table(hash_table* ht, void *buffer, uint32 buffer_size)
 {
-    if (!buffer || buffer_size <= 3 * sizeof(int))
+    if (!buffer || buffer_size <= 3 * sizeof(uint32))
     {
         return -1;
     }
@@ -257,19 +257,18 @@ uint32 dump_hash_table(hash_table* ht, void *buffer, uint32 buffer_size)
     char* ptr = buffer;
 
     // Version Number
-    *(int*)ptr = GET_VERSION();
+    *(uint32*)ptr = GET_VERSION();
     DIP(version, ptr);
-
-    ptr += sizeof(int);
+    ptr += sizeof(uint32);
 
     // Capacity.
-    *(int*)ptr = ht->capacity;
+    *(uint32*)ptr = ht->capacity;
     DIP(capacity, ptr);
-    ptr += sizeof(int);
+    ptr += sizeof(uint32);
 
-    *(int*)ptr = ht->occupied;
+    *(uint32*)ptr = ht->occupied;
     DIP(occupied, ptr);
-    ptr += sizeof(int);
+    ptr += sizeof(uint32);
 
     TableEntry *entry = NULL;
     for (int i = 0; i < ht->capacity; i++) {
@@ -277,16 +276,16 @@ uint32 dump_hash_table(hash_table* ht, void *buffer, uint32 buffer_size)
 
         if (entry->key && entry->val)
         {
-            int key_len = (int)strlen(entry->key);
+            uint32 key_len = (uint32)strlen(entry->key);
             //todo: check buffer size.
 
-            *(int*)ptr = key_len;
-            ptr += sizeof(int);
+            *(uint32*)ptr = key_len;
+            ptr += sizeof(uint32);
             memcpy(ptr, entry->key, key_len);
             ptr += key_len;
 
-            *(int*)ptr = entry->val_len;
-            ptr += sizeof(int);
+            *(uint32*)ptr = entry->val_len;
+            ptr += sizeof(uint32);
             memcpy(ptr, entry->val, entry->val_len);
             ptr += entry->val_len;
         }
@@ -297,7 +296,7 @@ uint32 dump_hash_table(hash_table* ht, void *buffer, uint32 buffer_size)
 
 hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size)
 {
-    if (!buffer || buffer_size <= 3 * sizeof(int))
+    if (!buffer || buffer_size <= 3 * sizeof(uint32))
     {
         mlog(LL_NOTQUIET, "Invalid arguments: buffer: %p, size: %d\n",
                 buffer, buffer_size);
@@ -308,7 +307,7 @@ hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size)
     char*       ptr = buffer;
     hash_table* ht  = NULL;
 
-    int v = *(int*)ptr;
+    uint32 v = *(uint32*)ptr;
     if (!v) {
         PDEBUG ("nothing in this buffer...\n");
         return NULL;
@@ -330,32 +329,33 @@ hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size)
     }
 
     DIP(version, ptr);
-    ptr += sizeof(int);
+    ptr += sizeof(uint32);
 
     DIP(capacity, ptr);
-    if (*((int*)ptr) == 0 || !(ht = hash_table_create(*((int*)ptr), NULL))) {
-        PDEBUG ("ptr: (%p): %d, ht: %p\n", ptr, *((int*)ptr), ht);
+    if (*((int*)ptr) == 0 || !(ht = hash_table_create(*((uint32*)ptr), NULL))) {
+        PDEBUG ("ptr: (%p): %d, ht: %p\n", ptr, *((uint32*)ptr), ht);
         return NULL;
     }
 
-    ptr += sizeof(int);
+    ptr += sizeof(uint32);
 
     DIP(occupied, ptr);
-    int i = 0, total = *(int*)ptr;
-    ptr += sizeof(int);
+    ptr += sizeof(uint32);
+
+    uint32 i = 0, total = *(uint32*)ptr;
     while (i++ < total) {
         assert(ptr - (char*)buffer <= buffer_size);
 
-        int key_len = *(int*)ptr;
+        uint32 key_len = *(uint32*)ptr;
         char* key = ZALLOC(char, key_len+1);
-        ptr += sizeof(int);
+        ptr += sizeof(uint32);
 
         memcpy(key, ptr, key_len);
         ptr += key_len;
 
-        int val_len = *(int*)ptr;
+        uint32 val_len = *(uint32*)ptr;
         void* val = ZALLOC(char, val_len+1);
-        ptr += sizeof(int);
+        ptr += sizeof(uint32);
 
         memcpy(val, ptr, val_len);
         ptr += val_len;
@@ -365,21 +365,6 @@ hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size)
 
 ret:
     return ht;
-}
-
-uint32 calculate_hash_table_buffer(hash_table* ht)
-{
-    uint32 size = 3 * sizeof(int);
-    TableEntry* entry = NULL;
-    for (int i = 0; i < ht->capacity; i++) {
-        entry = ht->entries+i;
-        if (entry->key && entry->val)
-        {
-            size += 2 * sizeof(int) + strlen(entry->key) + entry->val_len;
-        }
-    }
-
-    return size;
 }
 
 char *rstrip(char *str)
