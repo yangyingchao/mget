@@ -35,7 +35,6 @@
 #include "data_utlis.h"
 #define FM_DEFAULT       (S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)
 
-
 fhandle *fhandle_create(const char *fn, FHM mode)
 {
     fhandle *fh = ZALLOC1(fhandle);
@@ -63,17 +62,17 @@ err:
     return NULL;
 }
 
-void fhandle_destroy(fhandle ** fh)
+void fhandle_destroy(fhandle** fh)
 {
     if (fh && *fh) {
         if ((*fh)->fd != -1) {
             close((*fh)->fd);
         }
 
-        if ((*fh)->fn) {
-            if ((*fh)->auto_remove) {
-                PDEBUG("Autoremove: %s\n", (*fh)->fn);
+        PDEBUG ("fh: %p, fn: %s\n", *fh, (*fh)->fn);
 
+        if ((*fh)->fn) {
+            if (0) {
                 remove_file((*fh)->fn);
             }
             free((*fh)->fn);

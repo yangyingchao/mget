@@ -274,8 +274,7 @@ uint32 dump_hash_table(hash_table* ht, void *buffer, uint32 buffer_size)
     for (int i = 0; i < ht->capacity; i++) {
         entry = &ht->entries[i];
 
-        if (entry->key && entry->val)
-        {
+        if (entry->key && entry->val) {
             uint32 key_len = (uint32)strlen(entry->key);
             //todo: check buffer size.
 
@@ -313,6 +312,9 @@ hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size)
         return NULL;
     }
 
+    PDEBUG ("buffer info: version: %d.%d.%d\n",
+            DIVIDE_VERSION(v));
+
     log_level lo = LL_INVLID;
     if (VER_TO_MAJOR(v) != VERSION_MAJOR)
         lo = LL_ALWAYS;
@@ -340,10 +342,11 @@ hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size)
     ptr += sizeof(uint32);
 
     DIP(occupied, ptr);
+    ht->occupied = *((uint32*)ptr);
     ptr += sizeof(uint32);
 
-    uint32 i = 0, total = *(uint32*)ptr;
-    while (i++ < total) {
+    uint32 i = 0;
+    while (i++ < ht->occupied) {
         assert(ptr - (char*)buffer <= buffer_size);
 
         uint32 key_len = *(uint32*)ptr;

@@ -41,8 +41,8 @@ typedef enum _FHM {
     FHM_CREATE = 1
 } FHM;
 
-fhandle *fhandle_create(const char *fn, FHM mode);
-void fhandle_destroy(fhandle ** fh);
+fhandle *fhandle_create(const char* fn, FHM mode);
+void fhandle_destroy(fhandle** fh);
 
 typedef struct _fh_map {
     fhandle *fh;

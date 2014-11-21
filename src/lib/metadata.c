@@ -38,14 +38,16 @@ extern log_level g_log_level;
 
 bool metadata_create_from_file(const char *fn, metadata** md, fh_map** fm_md)
 {
-    PDEBUG ("enter with fn: %s\n", fn);
-
     bool     ret = false;
     fhandle *fh  = NULL;
     fh_map  *fm  = NULL;
 
+    PDEBUG ("Aenter with fn: %s\n", fn);
+
     if (!fn || !md ||!fm_md)
         goto ret;
+
+    PDEBUG ("Loading task from metadata...\n");
 
     if ((fh = fhandle_create(fn, FHM_DEFAULT)) &&
         (fm = fhandle_mmap(fh, 0, fh->size))) {
@@ -77,7 +79,7 @@ bool metadata_create_from_file(const char *fn, metadata** md, fh_map** fm_md)
                                                  pmd->hd.ebl);
         if (!ptrs->ht)
         {
-            fprintf(stderr, "Failed to create hash table from buffer.\n");
+            mlog (LL_ALWAYS, "Failed to create hash table from buffer.\n");
             goto ret;
         }
 
@@ -195,7 +197,7 @@ void metadata_inspect(const char* path, mget_option* opts)
 
     if (!metadata_create_from_file(path, &md, &fm))
     {
-        printf ("Failed to create metadata from file: %s\n", path);
+        mlog (LL_ALWAYS, "Failed to create metadata from file: %s\n", path);
         return;
     }
 
