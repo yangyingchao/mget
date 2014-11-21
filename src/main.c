@@ -28,15 +28,6 @@
 #include "lib/mget_utils.h"
 #include <signal.h>
 
-#if !defined (PDEBUG)
-#define PDEBUG(fmt, ...)                                                \
-    do {                                                                \
-        fprintf(stderr, "mget: - %s(%d)-%s: ",                          \
-                __FILE__, __LINE__,__FUNCTION__);                       \
-        fprintf(stderr, fmt, ##  __VA_ARGS__);                          \
-    } while(0)
-#endif  /*End of if PDEBUG*/
-
 #define MAX_NC       40
 
 #define handle_error(msg)                               \
@@ -304,8 +295,6 @@ int main(int argc, char *argv[])
         act.sa_flags     = SA_SIGINFO;
         int ret = sigaction(SIGINT, &act, NULL);
 
-        PDEBUG("ret = %d\n", ret);
-
         for (int i = optind; i < argc; i++) {
             int  retry_time = 0;
             mget_err result = ME_OK;
@@ -316,8 +305,6 @@ int main(int argc, char *argv[])
             while (retry_time++ < MAX_RETRY_TIMES && !control_byte) {
                 result = start_request(target, &fn, &opts, show_progress,
                                        &control_byte, NULL);
-                PDEBUG ("result : %d\n", result);
-
                 if (result == ME_OK || result == ME_ABORT || result == ME_RES_ERR) {
                     goto next;
                 }
