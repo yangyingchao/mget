@@ -347,6 +347,8 @@ hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size)
 
     uint32 i = 0;
     while (i++ < ht->occupied) {
+        PDEBUG ("i : %u, occupied: %u\n", i, ht->occupied);
+
         assert(ptr - (char*)buffer <= buffer_size);
 
         uint32 key_len = *(uint32*)ptr;
@@ -364,6 +366,8 @@ hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size)
         ptr += val_len;
 
         hash_table_insert(ht, key, val, val_len);
+        // ht->occupied get increased in `hash_table_insert`, change it back..
+        -- ht->occupied;
     }
 
 ret:
