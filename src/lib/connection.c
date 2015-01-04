@@ -118,6 +118,8 @@ typedef struct _connection_cache
 
 
 
+#define TIME_OUT      3
+
 #define MAX_CONNS_PER_HOST  32
 host_cache_type g_hct = HC_DEFAULT;
 static hash_table* g_conn_cache = NULL;
@@ -200,7 +202,7 @@ connection* connection_get(const url_info* ui)
                 print_address (ui->addr), ui->port);
         conn->sock = connect_to(
             AF_INET, SOCK_STREAM, 0,
-            (struct sockaddr *)&sa, sizeof sa, 2);
+            (struct sockaddr *)&sa, sizeof sa, TIME_OUT);
         if (conn->sock == -1) {
             perror("connect");
             close(conn->sock);
@@ -281,7 +283,7 @@ connection* connection_get(const url_info* ui)
                                     conn->addr->ai_socktype,
                                     conn->addr->ai_protocol,
                                     conn->addr->ai_addr,
-                                    conn->addr->ai_addrlen, 2);
+                                    conn->addr->ai_addrlen, TIME_OUT);
             if (conn->sock == -1) {
                 perror("Failed to connect");
                 goto hint;
@@ -310,7 +312,7 @@ connection* connection_get(const url_info* ui)
                 PDEBUG ("Connecting to %s:%u\n", ui->host, ui->port);
                 conn->sock = connect_to(rp->ai_family, rp->ai_socktype,
                                         rp->ai_protocol,
-                                        rp->ai_addr, rp->ai_addrlen, 2);
+                                        rp->ai_addr, rp->ai_addrlen, TIME_OUT);
                 if (conn->sock != -1) {
                     PDEBUG ("Connected ...\n");
 
