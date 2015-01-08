@@ -73,6 +73,7 @@ typedef struct _connection_p {
     bool        connected;
     bool        active;
     bool        busy;
+    int         last_access; // last connected..
 } connection_p;
 
 struct _connection_group {
@@ -190,8 +191,7 @@ connection* connection_get(const url_info* ui)
 
     connection_p* conn = NULL;
     addr_entry *entry = NULL;
-    if (ui->addr)
-    {
+    if (ui->addr) {
         conn = ZALLOC1(connection_p);
         struct sockaddr_in sa;
         bzero(&sa, sizeof sa);
@@ -209,8 +209,7 @@ connection* connection_get(const url_info* ui)
             goto err;
         }
     }
-    else
-    {
+    else {
         char* host_key = get_host_key(ui->host, ui->port);
         if (!host_key) {
             goto alloc;
@@ -715,6 +714,9 @@ static inline int secure_connection_write(connection* conn, char* buf,
 static inline bool
 validate_connection (connection_p* pconn)
 {
+    if (!pconn->connected || pconn->sock == -1)
+        return false;
+
     fd_set check_set;
     struct timeval to;
     int ret = 0;
@@ -739,6 +741,13 @@ validate_connection (connection_p* pconn)
         return false;
 }
 
+#define close_connection(x) do {                \
+        close(x->sock);                         \
+        x->sock = -1;                           \
+        x->active = false;                      \
+        x->connected = false;                   \
+    } while (0)
+
 static inline int do_perform_select(connection_group* group)
 {
     int    maxfd = 0;
@@ -748,24 +757,16 @@ static inline int do_perform_select(connection_group* group)
     FD_ZERO(&rfds);
     fd_set wfds;
     FD_ZERO(&wfds);
+    fd_set efds;
+    FD_ZERO(&efds);
 
     slist_head* p = group->lst;
-    PDEBUG("p: %p, next: %p\n", p, p->next);
     while (p) {
-        connection_p* conn = LIST2PCONN(p);
-        PDEBUG("p: %p, conn: %p, sock: %d, off: %ld, next: %p\n",
-               p, conn, conn->sock, offsetof(connection_p, lst), p->next);
-        if ((conn->sock != 0) && conn->conn.recv_data && conn->conn.write_data) {
-            int ret = fcntl(conn->sock, F_SETFD, O_NONBLOCK);
-            if (ret == -1)
-            {
-                fprintf(stderr, "Failed to unblock socket!\n");
-                return -1;
-            }
-            FD_SET(conn->sock, &wfds);
-            if (maxfd < conn->sock) {
-                maxfd = conn->sock;
-            }
+        connection_p* pconn = LIST2PCONN(p);
+        if ((pconn->sock != 0) && pconn->conn.recv_data && pconn->conn.write_data) {
+            FD_SET(pconn->sock, &wfds);
+            FD_SET(pconn->sock, &efds);
+            maxfd = maxfd > pconn->sock ? maxfd : pconn->sock;
         }
         p = p->next;
     }
@@ -773,77 +774,100 @@ static inline int do_perform_select(connection_group* group)
     maxfd++;
 
     int nfds = 0;
-
-    PDEBUG("%p: %d\n", group->cflag, *group->cflag);
     struct timeval tv;
-
     while (!(*(group->cflag))) {
         tv.tv_sec = 1;
         tv.tv_usec = 0;
-        nfds = select(maxfd, &rfds, &wfds, NULL, &tv);
+        nfds = select(maxfd, &rfds, &wfds, &efds, &tv);
         if (nfds == -1) {
-            perror("select fail:");
+            fprintf(stderr, "Failed to select: %s\n", strerror(errno));
             break;
         }
 
-        /* if (nfds == 0) { */
-        /*     fprintf(stderr, "time out ....\n"); */
-        /* } */
-
         slist_head* p = group->lst;
+        if (nfds == 0) {
+            PDEBUG ("timed out...\n");
+            int cts = get_time_s();
+            while (p) {
+                connection_p* pconn = LIST2PCONN(p);
+                if (pconn->active) {
+                    if (cts - pconn->last_access > TIME_OUT) {
+                        close_connection(pconn);
+                        cnt --;
+                        PDEBUG ("cnt: %d\n",  cnt);
 
-        while (p) {
-            connection_p* pconn = LIST2PCONN(p);
-            int           ret   = 0;
-
-            if (FD_ISSET(pconn->sock, &wfds)) {
-                ret = pconn->conn.write_data((connection *) pconn, pconn->conn.priv);
-                PDEBUG ("%d byte written\n", ret);
-
-                if (ret > 0) {
-                    FD_CLR(pconn->sock, &wfds);
-                    FD_SET(pconn->sock, &rfds);
-                }
-            }
-            else if (FD_ISSET(pconn->sock, &rfds)) {
-                ret = pconn->conn.recv_data((connection *) pconn, pconn->conn.priv);
-                switch (ret)
-                {
-                    case COF_CLOSED:
-                    {
-                        pconn->connected = false;
                     }
-                    case COF_FAILED:
-                    case COF_FINISHED:
-                    {
-                        PDEBUG("remove conn: %p socket: %d, ret: %d...\n",
-                               pconn, pconn->sock, ret);
-                        FD_CLR(pconn->sock, &rfds);
-                        /* close(pconn->sock); */
-                        cnt--;
-                        PDEBUG("remaining sockets: %d\n", cnt);
-                        pconn->active = false;
-                        pconn->busy   = false;
-                        break;
-                    }
-                    case COF_ABORT:
-                    {
-                        exit(1);
-                        break;
-                    }
-                    case COF_AGAIN:
-                    default:
-                    {
+                    else {
                         FD_SET(pconn->sock, &rfds);
-                        break;
                     }
                 }
+                p = p->next;
             }
-            else if (pconn->active) {
-                FD_SET(pconn->sock, &rfds);
-            }
+        }
+        else {
+            while (p) {
+                connection_p* pconn = LIST2PCONN(p);
+                int           ret   = 0;
 
-            p = p->next;
+                if (!pconn->active) {
+                    p = p->next;
+                    continue;
+                }
+
+                if (FD_ISSET(pconn->sock, &wfds)) {
+                    ret = pconn->conn.write_data((connection *) pconn, pconn->conn.priv);
+                    PDEBUG ("%d byte written\n", ret);
+
+                    if (ret > 0) {
+                        FD_CLR(pconn->sock, &wfds);
+                        FD_SET(pconn->sock, &rfds);
+                    }
+                    pconn->last_access = get_time_s();
+                }
+                else if (FD_ISSET(pconn->sock, &rfds)) {
+                    ret = pconn->conn.recv_data((connection *) pconn, pconn->conn.priv);
+                    pconn->last_access = get_time_s();
+                    switch (ret)
+                    {
+                        case COF_CLOSED: {
+                            close_connection(pconn);
+                        }
+                        case COF_FAILED:
+                        case COF_FINISHED: {
+                            PDEBUG("remove conn: %p socket: %d, ret: %d...\n",
+                                   pconn, pconn->sock, ret);
+                            FD_CLR(pconn->sock, &rfds);
+                            /* close(pconn->sock); */
+                            cnt--;
+                            PDEBUG("remaining sockets: %d\n", cnt);
+                            pconn->active = false;
+                            pconn->connected = false;
+                            break;
+                        }
+                        case COF_ABORT:
+                        {
+                            exit(1);
+                            break;
+                        }
+                        case COF_AGAIN:
+                        default:
+                        {
+                            FD_SET(pconn->sock, &rfds);
+                            break;
+                        }
+                    }
+                }
+                else if (FD_ISSET(pconn->sock, &efds)) {
+                    close_connection(pconn);
+                    cnt --;
+                }
+                else if (pconn->active) {
+                    FD_SET(pconn->sock, &rfds);
+                    FD_SET(pconn->sock, &efds);
+                }
+
+                p = p->next;
+            }
         }
 
         if (cnt == 0) {

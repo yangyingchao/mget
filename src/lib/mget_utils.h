@@ -40,8 +40,8 @@ int integer_size(const char* size);
 
 bool file_existp(const char *fn);
 
-uint32 get_time_ms();
-uint32 get_time_s();
+int get_time_ms();
+int get_time_s();
 char *stringify_time(uint64 ts);
 char *current_time_str();
 

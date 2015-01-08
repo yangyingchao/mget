@@ -27,7 +27,7 @@
 #include <sys/time.h>
 #include <stdlib.h>
 
-uint32 get_time_ms()
+int get_time_ms()
 {
     struct timeval tv;
 
@@ -35,12 +35,12 @@ uint32 get_time_ms()
         return 0;
     }
 
-    return (uint32) tv.tv_sec * 1000 + tv.tv_usec / 1000;
+    return (int) tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 
-uint32 get_time_s()
+int get_time_s()
 {
-    return (uint32) time(NULL);
+    return (int) time(NULL);
 }
 
 #define MINUTE     (60)
