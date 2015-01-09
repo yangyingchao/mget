@@ -80,6 +80,9 @@ typedef struct _slist_head {
         }                                                   \
     } while (0)                                             \
 
+#define SLIST_FOREACH(var, head)                        \
+    for ((var) = (head); (var);  (var) = (var)->next)   \
+
 
 typedef struct _kv_pair {
     char *k;

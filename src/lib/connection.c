@@ -760,17 +760,15 @@ static inline int do_perform_select(connection_group* group)
     fd_set efds;
     FD_ZERO(&efds);
 
-    slist_head* p = group->lst;
-    while (p) {
+    slist_head* p;
+    SLIST_FOREACH(p, group->lst) {
         connection_p* pconn = LIST2PCONN(p);
         if ((pconn->sock != 0) && pconn->conn.recv_data && pconn->conn.write_data) {
             FD_SET(pconn->sock, &wfds);
             FD_SET(pconn->sock, &efds);
             maxfd = maxfd > pconn->sock ? maxfd : pconn->sock;
         }
-        p = p->next;
     }
-
     maxfd++;
 
     int nfds = 0;
@@ -784,11 +782,10 @@ static inline int do_perform_select(connection_group* group)
             break;
         }
 
-        slist_head* p = group->lst;
         if (nfds == 0) {
             PDEBUG ("timed out...\n");
             int cts = get_time_s();
-            while (p) {
+            SLIST_FOREACH(p, group->lst) {
                 connection_p* pconn = LIST2PCONN(p);
                 if (pconn->active) {
                     if (cts - pconn->last_access > TIME_OUT) {
@@ -801,11 +798,10 @@ static inline int do_perform_select(connection_group* group)
                         FD_SET(pconn->sock, &rfds);
                     }
                 }
-                p = p->next;
             }
         }
         else {
-            while (p) {
+            SLIST_FOREACH(p, group->lst) {
                 connection_p* pconn = LIST2PCONN(p);
                 int           ret   = 0;
 
@@ -865,8 +861,6 @@ static inline int do_perform_select(connection_group* group)
                     FD_SET(pconn->sock, &rfds);
                     FD_SET(pconn->sock, &efds);
                 }
-
-                p = p->next;
             }
         }
 
