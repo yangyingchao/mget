@@ -40,49 +40,10 @@ typedef struct _slist_head {
     struct _slist_head *next;
 } slist_head;
 
-#define INIT_LIST(instance, type) do {                                  \
-        if (instance == NULL) {                                         \
-            instance = (type *)malloc(sizeof(type));                    \
-            if (instance == NULL) {                                     \
-                fprintf(stderr, "ERROR: failed to alloc memory.\n");    \
-                return NULL;                                            \
-            }                                                           \
-            memset(instance, 0, sizeof(type));                          \
-        }                                                               \
-    } while (0);
-
-// Seek to list tail and create new empty.
-#define SEEK_LIST_TAIL(lst, ptr, type)                  \
-    do                                                  \
-    {                                                   \
-        ptr = lst;                                      \
-        while (ptr)                                     \
-        {                                               \
-            if (ptr->next == NULL)                      \
-            {                                           \
-                ptr->next = (slist_head*)ZALLOC1(type); \
-                ptr = (type*)ptr->next;                 \
-                break;                                  \
-            }                                           \
-            else                                        \
-            {                                           \
-                ptr = (type*)ptr->next;                 \
-            }                                           \
-        }                                               \
-    } while (0)                                         \
-
 #define SLIST_FOREACH(var, head)                        \
     for ((var) = (head); (var);  (var) = (var)->next)   \
 
-
-typedef struct _kv_pair {
-    char *k;
-    char *v;
-} kvp;
-
-
 // Hash Tables.
-
 typedef void (*DestroyFunction) (void *data);
 typedef uint32(*HashFunction) (const char *key);
 
@@ -127,7 +88,6 @@ hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size);
 char *rstrip(char *str);
 
 #define GET_HASH_ENTRY(T, H, K)       ((T*)hash_table_entry_get(H, K))
-
 
 typedef struct _byte_queue
 {
