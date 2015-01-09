@@ -28,11 +28,6 @@
 #include <ctype.h>
 #include <time.h>
 
-mget_slis *mget_slis_append(mget_slis * l, void *data, free_func f)
-{
-    return NULL;
-}
-
 // Hash table operations.
 
 struct _TableEntry {

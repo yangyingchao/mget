@@ -36,15 +36,6 @@ extern "C" {
 
 typedef void (*free_func) (void *);
 
-typedef struct _mget_slis {
-    void *data;
-    free_func f;
-    struct _mget_slis *next;
-} mget_slis;
-
-mget_slis *mget_slist_append(mget_slis * l, void *data, free_func f);
-void mget_slist_free(mget_slis * lst);
-
 typedef struct _slist_head {
     struct _slist_head *next;
 } slist_head;
@@ -54,31 +45,31 @@ typedef struct _slist_head {
             instance = (type *)malloc(sizeof(type));                    \
             if (instance == NULL) {                                     \
                 fprintf(stderr, "ERROR: failed to alloc memory.\n");    \
-                return NULL;                                              \
+                return NULL;                                            \
             }                                                           \
             memset(instance, 0, sizeof(type));                          \
         }                                                               \
     } while (0);
 
 // Seek to list tail and create new empty.
-#define SEEK_LIST_TAIL(lst, ptr, type)                      \
-    do                                                      \
-    {                                                       \
-        ptr = lst;                                          \
-        while (ptr)                                         \
-        {                                                   \
-            if (ptr->next == NULL)                          \
-            {                                               \
-                ptr->next = (slist_head*)ZALLOC1(type);    \
-                ptr = (type*)ptr->next;                         \
-                break;                                      \
-            }                                               \
-            else                                            \
-            {                                               \
-                ptr = (type*)ptr->next;                     \
-            }                                               \
-        }                                                   \
-    } while (0)                                             \
+#define SEEK_LIST_TAIL(lst, ptr, type)                  \
+    do                                                  \
+    {                                                   \
+        ptr = lst;                                      \
+        while (ptr)                                     \
+        {                                               \
+            if (ptr->next == NULL)                      \
+            {                                           \
+                ptr->next = (slist_head*)ZALLOC1(type); \
+                ptr = (type*)ptr->next;                 \
+                break;                                  \
+            }                                           \
+            else                                        \
+            {                                           \
+                ptr = (type*)ptr->next;                 \
+            }                                           \
+        }                                               \
+    } while (0)                                         \
 
 #define SLIST_FOREACH(var, head)                        \
     for ((var) = (head); (var);  (var) = (var)->next)   \
