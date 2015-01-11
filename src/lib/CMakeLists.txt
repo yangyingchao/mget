@@ -2,7 +2,7 @@ add_definitions(-std=gnu99)
 
 set(VERSION_MAJOR 1)
 set(VERSION_MINOR 3)
-set(VERSION_PATCH 6)
+set(VERSION_PATCH 7)
 
 find_package(OpenSSL)
 if (OPENSSL_FOUND)

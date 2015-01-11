@@ -249,7 +249,7 @@ mget_err process_http_request(dinfo* info, dp_callback cb, bool* stop_flag,
                     ptr += n;
                 }
                 else if (*ptr == '"')
-                    continue;
+                    ptr++;
                 else {
                     fn[idx++] = *ptr;
                     ptr ++;
