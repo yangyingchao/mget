@@ -553,6 +553,7 @@ static inline uint64 get_remote_file_size_http(url_info* ui, byte_queue* bq,
                          &s, &e, &t);
             break;
         }
+        case 301:
         case 302:			// Resource moved to other place.
         case 307:
         {
