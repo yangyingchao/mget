@@ -85,9 +85,29 @@ int http_read_sock(connection* conn, void *priv)
             }
 
             int r  = dissect_header(param->bq, &param->ht);
-            if (r != 206 && r != 200) { /* Some server returns 200?? */
-                fprintf(stderr, "status code is %d!\n", r);
-                exit(1);
+            switch (r)
+            {
+                case 206:
+                case 200:
+                {
+                    break;
+                }
+                case 301:
+                case 302:			// Resource moved to other place.
+                case 307:
+                {
+                    char *loc = (char *) hash_table_entry_get(*ht, "location");
+                    printf("TODO: Server returns 302, will restart downloading from"
+                           " new locations: %s...\n", loc);
+                    exit(1);
+                    }
+                    break;
+                }
+                default:
+                {
+                    fprintf(stderr, "Error occurred, status code is %d!\n", r);
+                    exit(1);
+                }
             }
 
             ptr += 4;		// adjust to the tail of "\r\n\r\n"
