@@ -63,6 +63,7 @@ typedef struct _addr_entry {
 
 typedef struct _connection_p {
     connection  conn;
+    connection_operations rco; // real operators..
     slist_head  lst;
     int         sock;
     int         port;
@@ -72,6 +73,7 @@ typedef struct _connection_p {
     bool        connected;
     bool        active;
     bool        busy;
+    int         last_access; // last connected..
 } connection_p;
 
 struct _connection_group {
@@ -117,11 +119,14 @@ typedef struct _connection_cache
 
 
 
+#define TIME_OUT      3
+
 #define MAX_CONNS_PER_HOST  32
 host_cache_type g_hct = HC_DEFAULT;
 static hash_table* g_conn_cache = NULL;
 static byte_queue* dq = NULL; // drop queue
 
+static int bw_limit = -1; // band-width limit.
 
 
 /* Address entry related. */
@@ -130,9 +135,9 @@ static inline addr_entry* address_to_addrentry(address* addr);
 static inline void addr_entry_destroy(void *entry);
 
 /* tcp socket operations */
-static inline uint32 tcp_connection_read(connection * conn, char *buf,
+static inline int tcp_connection_read(connection * conn, char *buf,
                                          uint32 size, void *priv);
-static inline uint32 tcp_connection_write(connection * conn, char *buf,
+static inline int tcp_connection_write(connection * conn, char *buf,
                                           uint32 size, void *priv);
 
 static inline void tcp_connection_close(connection * conn, char *buf,
@@ -140,11 +145,17 @@ static inline void tcp_connection_close(connection * conn, char *buf,
 static inline bool validate_connection (connection_p* pconn);
 
 #ifdef SSL_SUPPORT
-static inline uint32 secure_connection_read(connection * conn, char *buf,
+static inline int secure_connection_read(connection * conn, char *buf,
                                             uint32 size, void *priv);
-static inline uint32 secure_connection_write(connection * conn, char *buf,
+static inline int secure_connection_write(connection * conn, char *buf,
                                              uint32 size, void *priv);
 #endif
+
+static inline int mget_connection_read(connection * conn, char *buf,
+                                       uint32 size, void *priv);
+static inline int mget_connection_write(connection * conn, char *buf,
+                                        uint32 size, void *priv);
+static inline void limit_bandwidth(connection_p* conn, int size);
 
 static inline int do_perform_select(connection_group* group);
 
@@ -180,8 +191,7 @@ connection* connection_get(const url_info* ui)
 
     connection_p* conn = NULL;
     addr_entry *entry = NULL;
-    if (ui->addr)
-    {
+    if (ui->addr) {
         conn = ZALLOC1(connection_p);
         struct sockaddr_in sa;
         bzero(&sa, sizeof sa);
@@ -192,15 +202,14 @@ connection* connection_get(const url_info* ui)
                 print_address (ui->addr), ui->port);
         conn->sock = connect_to(
             AF_INET, SOCK_STREAM, 0,
-            (struct sockaddr *)&sa, sizeof sa, 2);
+            (struct sockaddr *)&sa, sizeof sa, TIME_OUT);
         if (conn->sock == -1) {
             perror("connect");
             close(conn->sock);
             goto err;
         }
     }
-    else
-    {
+    else {
         char* host_key = get_host_key(ui->host, ui->port);
         if (!host_key) {
             goto alloc;
@@ -273,7 +282,7 @@ connection* connection_get(const url_info* ui)
                                     conn->addr->ai_socktype,
                                     conn->addr->ai_protocol,
                                     conn->addr->ai_addr,
-                                    conn->addr->ai_addrlen, 2);
+                                    conn->addr->ai_addrlen, TIME_OUT);
             if (conn->sock == -1) {
                 perror("Failed to connect");
                 goto hint;
@@ -302,14 +311,13 @@ connection* connection_get(const url_info* ui)
                 PDEBUG ("Connecting to %s:%u\n", ui->host, ui->port);
                 conn->sock = connect_to(rp->ai_family, rp->ai_socktype,
                                         rp->ai_protocol,
-                                        rp->ai_addr, rp->ai_addrlen, 2);
+                                        rp->ai_addr, rp->ai_addrlen, TIME_OUT);
                 if (conn->sock != -1) {
                     PDEBUG ("Connected ...\n");
 
                     conn->connected = true;
                     break;
                 }
-                close(conn->sock);
                 conn->sock = -1;
                 PDEBUG ("rp: %p\n", rp->ai_next);
             }
@@ -365,8 +373,8 @@ post_connected: ;
                     fprintf(stderr, "Failed to make socket secure\n");
                     abort();
                 }
-                conn->conn.ci.writer = secure_connection_write;
-                conn->conn.ci.reader = secure_connection_read;
+                conn->rco.write = secure_connection_write;
+                conn->rco.read  = secure_connection_read;
 #else
                 fprintf(stderr,
                         "FATAL: HTTPS requires GnuTLS, which is not installed....\n");
@@ -376,11 +384,13 @@ post_connected: ;
             }
             default:
             {
-                conn->conn.ci.writer = tcp_connection_write;
-                conn->conn.ci.reader = tcp_connection_read;
+                conn->rco.write = tcp_connection_write;
+                conn->rco.read  = tcp_connection_read;
                 break;
             }
         }
+        conn->conn.co.write = mget_connection_write;
+        conn->conn.co.read  = mget_connection_read;
         goto ret;
     }
 
@@ -532,6 +542,14 @@ bool timed_wait(int sock, int type, int delay)
     return true;
 }
 
+void set_global_bandwidth(int limit)
+{
+    if (limit > 1024)
+    {
+        bw_limit = limit;
+    }
+}
+
  // local functions
 static inline address* addrentry_to_address(addr_entry* entry)
 {
@@ -588,8 +606,8 @@ static inline void addr_entry_destroy(void *entry)
     }
 }
 
-static inline uint32 tcp_connection_read(connection * conn, char *buf,
-                                         uint32 size, void *priv)
+static inline int tcp_connection_read(connection * conn, char *buf,
+                                      uint32 size, void *priv)
 {
     connection_p *pconn = (connection_p *) conn;
     if (pconn && pconn->sock && buf) {
@@ -599,7 +617,6 @@ static inline uint32 tcp_connection_read(connection * conn, char *buf,
             mlog (LL_ALWAYS, "Nothing to read: (%d):%s\n",
                   errno, strerror(errno));
             abort();
-            return 0;
         }
 
         uint32 rd = (uint32) read(pconn->sock, buf, size);
@@ -607,14 +624,14 @@ static inline uint32 tcp_connection_read(connection * conn, char *buf,
             PDEBUG ("rd: %d, sock: %d, errno: (%d) - %s\n",
                     rd, pconn->sock, errno, strerror(errno));
             if (errno == EAGAIN) { // nothing to read, normal if non-blocking
-                ;
+                return COF_AGAIN;
             }
             else {
                 mlog (LL_ALWAYS, "Read connection:"
                       " %p returns -1, (%d): %s.\n",
-                        pconn, errno, strerror(errno));
+                      pconn, errno, strerror(errno));
                 rd = 0;
-                abort();
+                return COF_FAILED;
             }
         }
         else if (!rd)  {
@@ -622,17 +639,17 @@ static inline uint32 tcp_connection_read(connection * conn, char *buf,
                   "%p, sock: %d returns 0, connection closed...\n",
                   pconn, pconn->sock);
             pconn->connected = false;
+            return COF_CLOSED;
         }
 
         return rd;
     }
 
-    return 0;
-
+    return COF_INVALID;
 }
 
-static inline uint32 tcp_connection_write(connection * conn, char *buf,
-                                          uint32 size, void *priv)
+static inline int tcp_connection_write(connection * conn, char *buf,
+                                       uint32 size, void *priv)
 {
     connection_p *pconn = (connection_p *) conn;
 
@@ -659,8 +676,8 @@ static inline void tcp_connection_close(connection * conn, char *buf,
 }
 
 #ifdef SSL_SUPPORT
-static inline uint32 secure_connection_read(connection * conn, char *buf,
-                                            uint32 size, void *priv)
+static inline int secure_connection_read(connection * conn, char *buf,
+                                         uint32 size, void *priv)
 {
     connection_p *pconn = (connection_p *) conn;
 
@@ -670,10 +687,10 @@ static inline uint32 secure_connection_read(connection * conn, char *buf,
     return 0;
 }
 
-static inline uint32 secure_connection_write(connection * conn, char *buf,
-                                             uint32 size, void *priv)
+static inline int secure_connection_write(connection* conn, char* buf,
+                                          uint32 size, void *priv)
 {
-    connection_p *pconn = (connection_p *) conn;
+    connection_p* pconn = (connection_p*) conn;
 
     if (pconn && pconn->sock && buf) {
         return secure_socket_write(pconn->sock, buf, size, pconn->priv);
@@ -696,6 +713,9 @@ static inline uint32 secure_connection_write(connection * conn, char *buf,
 static inline bool
 validate_connection (connection_p* pconn)
 {
+    if (!pconn->connected || pconn->sock == -1)
+        return false;
+
     fd_set check_set;
     struct timeval to;
     int ret = 0;
@@ -720,6 +740,13 @@ validate_connection (connection_p* pconn)
         return false;
 }
 
+#define close_connection(x) do {                \
+        close(x->sock);                         \
+        x->sock = -1;                           \
+        x->active = false;                      \
+        x->connected = false;                   \
+    } while (0)
+
 static inline int do_perform_select(connection_group* group)
 {
     int    maxfd = 0;
@@ -729,102 +756,110 @@ static inline int do_perform_select(connection_group* group)
     FD_ZERO(&rfds);
     fd_set wfds;
     FD_ZERO(&wfds);
+    fd_set efds;
+    FD_ZERO(&efds);
 
-    slist_head* p = group->lst;
-    PDEBUG("p: %p, next: %p\n", p, p->next);
-    while (p) {
-        connection_p* conn = LIST2PCONN(p);
-        PDEBUG("p: %p, conn: %p, sock: %d, off: %ld, next: %p\n",
-               p, conn, conn->sock, offsetof(connection_p, lst), p->next);
-        if ((conn->sock != 0) && conn->conn.rf && conn->conn.wf) {
-            int ret = fcntl(conn->sock, F_SETFD, O_NONBLOCK);
-            if (ret == -1)
-            {
-                fprintf(stderr, "Failed to unblock socket!\n");
-                return -1;
-            }
-            FD_SET(conn->sock, &wfds);
-            if (maxfd < conn->sock) {
-                maxfd = conn->sock;
-            }
+    slist_head* p;
+    SLIST_FOREACH(p, group->lst) {
+        connection_p* pconn = LIST2PCONN(p);
+        if ((pconn->sock != 0) && pconn->conn.recv_data && pconn->conn.write_data) {
+            FD_SET(pconn->sock, &wfds);
+            FD_SET(pconn->sock, &efds);
+            maxfd = maxfd > pconn->sock ? maxfd : pconn->sock;
         }
-        p = p->next;
     }
-
     maxfd++;
 
     int nfds = 0;
-
-    PDEBUG("%p: %d\n", group->cflag, *group->cflag);
     struct timeval tv;
-
     while (!(*(group->cflag))) {
         tv.tv_sec = 1;
         tv.tv_usec = 0;
-        nfds = select(maxfd, &rfds, &wfds, NULL, &tv);
+        nfds = select(maxfd, &rfds, &wfds, &efds, &tv);
         if (nfds == -1) {
-            perror("select fail:");
+            fprintf(stderr, "Failed to select: %s\n", strerror(errno));
             break;
         }
 
-        /* if (nfds == 0) { */
-        /*     fprintf(stderr, "time out ....\n"); */
-        /* } */
+        if (nfds == 0) {
+            PDEBUG ("timed out...\n");
+            int cts = get_time_s();
+            SLIST_FOREACH(p, group->lst) {
+                connection_p* pconn = LIST2PCONN(p);
+                if (pconn->active) {
+                    if (cts - pconn->last_access > TIME_OUT) {
+                        close_connection(pconn);
+                        cnt --;
+                        PDEBUG ("cnt: %d\n",  cnt);
 
-        slist_head* p = group->lst;
-
-        while (p) {
-            connection_p* pconn = LIST2PCONN(p);
-            int           ret   = 0;
-
-            if (FD_ISSET(pconn->sock, &wfds)) {
-                ret = pconn->conn.wf((connection *) pconn, pconn->conn.priv);
-                PDEBUG ("%d byte written\n", ret);
-
-                if (ret > 0) {
-                    FD_CLR(pconn->sock, &wfds);
-                    FD_SET(pconn->sock, &rfds);
-                }
-            }
-            else if (FD_ISSET(pconn->sock, &rfds)) {
-                ret = pconn->conn.rf((connection *) pconn, pconn->conn.priv);
-                switch (ret)
-                {
-                    case COF_CLOSED:
-                    {
-                        pconn->connected = false;
                     }
-                    case COF_FAILED:
-                    case COF_FINISHED:
-                    {
-                        PDEBUG("remove conn: %p socket: %d, ret: %d...\n",
-                               pconn, pconn->sock, ret);
-                        FD_CLR(pconn->sock, &rfds);
-                        /* close(pconn->sock); */
-                        cnt--;
-                        PDEBUG("remaining sockets: %d\n", cnt);
-                        pconn->active = false;
-                        pconn->busy   = false;
-                        break;
-                    }
-                    case COF_ABORT:
-                    {
-                        exit(1);
-                        break;
-                    }
-                    case COF_AGAIN:
-                    default:
-                    {
+                    else {
                         FD_SET(pconn->sock, &rfds);
-                        break;
                     }
                 }
             }
-            else if (pconn->active) {
-                FD_SET(pconn->sock, &rfds);
-            }
+        }
+        else {
+            SLIST_FOREACH(p, group->lst) {
+                connection_p* pconn = LIST2PCONN(p);
+                int           ret   = 0;
 
-            p = p->next;
+                if (!pconn->active) {
+                    continue;
+                }
+
+                if (FD_ISSET(pconn->sock, &wfds)) {
+                    ret = pconn->conn.write_data((connection *) pconn, pconn->conn.priv);
+                    PDEBUG ("%d byte written\n", ret);
+
+                    if (ret > 0) {
+                        FD_CLR(pconn->sock, &wfds);
+                        FD_SET(pconn->sock, &rfds);
+                    }
+                    pconn->last_access = get_time_s();
+                }
+                else if (FD_ISSET(pconn->sock, &rfds)) {
+                    ret = pconn->conn.recv_data((connection *) pconn, pconn->conn.priv);
+                    pconn->last_access = get_time_s();
+                    switch (ret)
+                    {
+                        case COF_CLOSED: {
+                            close_connection(pconn);
+                        }
+                        case COF_FAILED:
+                        case COF_FINISHED: {
+                            PDEBUG("remove conn: %p socket: %d, ret: %d...\n",
+                                   pconn, pconn->sock, ret);
+                            FD_CLR(pconn->sock, &rfds);
+                            /* close(pconn->sock); */
+                            cnt--;
+                            PDEBUG("remaining sockets: %d\n", cnt);
+                            pconn->active = false;
+                            pconn->connected = false;
+                            break;
+                        }
+                        case COF_ABORT:
+                        {
+                            exit(1);
+                            break;
+                        }
+                        case COF_AGAIN:
+                        default:
+                        {
+                            FD_SET(pconn->sock, &rfds);
+                            break;
+                        }
+                    }
+                }
+                else if (FD_ISSET(pconn->sock, &efds)) {
+                    close_connection(pconn);
+                    cnt --;
+                }
+                else if (pconn->active) {
+                    FD_SET(pconn->sock, &rfds);
+                    FD_SET(pconn->sock, &efds);
+                }
+            }
         }
 
         if (cnt == 0) {
@@ -911,6 +946,80 @@ static inline int create_nonblocking_socket()
 #endif
     return sock;
 }
+
+/** Wrapper of tcp_connection_read/secure_connection_read. */
+static inline int mget_connection_read(connection* conn, char *buf,
+                                       uint32 size, void *priv)
+{
+    connection_p *pconn = (connection_p *) conn;
+    int ret = 0;
+
+    if (pconn && pconn->sock && buf) {
+        ret = pconn->rco.read(conn, buf, size, priv);
+    }
+
+    limit_bandwidth(pconn, ret);
+
+    return ret;
+}
+
+/** wrapper of tcp_connection_write/secure_connection_write. */
+static inline int mget_connection_write(connection* conn, char *buf,
+                                        uint32 size, void *priv)
+{
+    // do nothing but invoke real writer..
+    connection_p *pconn = (connection_p *) conn;
+    if (pconn && pconn->sock && buf) {
+        return pconn->rco.write(conn, buf, size, priv);
+    }
+    return 0;
+}
+
+static inline void limit_bandwidth(connection_p* conn, int size)
+{
+    // TODO: Remove this ifdef!
+#if 0
+
+    if (bw_limit == -1) // not enabled.
+        return;
+
+    //Don't enable this for ftp which using multi-threads...
+    if (conn->port == IPPORT_FTP)
+    {
+        return;
+    }
+
+    static uint32 ts    = 0;
+    if (!ts)
+        ts = get_time_ms();
+
+    static int    chunk = 0;
+    uint32        cts   = get_time_ms();
+    int delta = chunk - bw_limit;
+    if (delta < 0) {
+        if (cts - ts > 1000)
+        {
+            chunk = 0;
+            ts    = cts;
+        }
+        else
+            chunk += size;
+        return;
+    }
+
+    int slp = (int)(((float)chunk)/bw_limit*1000) + ts - cts;
+    PDEBUG ("d: %d, limit: %d, ts: %u, c_ts: %u, sleep for: %d mseconds\n",
+            delta, bw_limit, ts, cts, slp);
+    if (slp > 0)
+    {
+        usleep(slp * 1000);
+    }
+
+    chunk = 0;
+    ts    = cts;
+#endif // End of #if 0
+}
+
 /*
  * Editor modelines
  *

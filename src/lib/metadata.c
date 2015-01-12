@@ -38,14 +38,16 @@ extern log_level g_log_level;
 
 bool metadata_create_from_file(const char *fn, metadata** md, fh_map** fm_md)
 {
-    PDEBUG ("enter with fn: %s\n", fn);
-
     bool     ret = false;
     fhandle *fh  = NULL;
     fh_map  *fm  = NULL;
 
+    PDEBUG ("Aenter with fn: %s\n", fn);
+
     if (!fn || !md ||!fm_md)
         goto ret;
+
+    PDEBUG ("Loading task from metadata...\n");
 
     if ((fh = fhandle_create(fn, FHM_DEFAULT)) &&
         (fm = fhandle_mmap(fh, 0, fh->size))) {
@@ -77,7 +79,7 @@ bool metadata_create_from_file(const char *fn, metadata** md, fh_map** fm_md)
                                                  pmd->hd.ebl);
         if (!ptrs->ht)
         {
-            fprintf(stderr, "Failed to create hash table from buffer.\n");
+            mlog (LL_ALWAYS, "Failed to create hash table from buffer.\n");
             goto ret;
         }
 
@@ -110,7 +112,7 @@ void metadata_display(metadata * md)
         return;
     }
 
-    fprintf(stderr, "size: %08llX (%.2f)M, nc: %d,url: %s, user: %p, passwd: %p\n",
+    fprintf(stderr, "size: %08" PRIXFAST64 " (%.2f)M, nc: %d,url: %s, user: %p, passwd: %p\n",
             md->hd.package_size, (float) md->hd.package_size / (1 * M),
             md->hd.nr_effective, md->ptrs->url,
             md->ptrs->user, md->ptrs->passwd);
@@ -128,7 +130,8 @@ void metadata_display(metadata * md)
 
         recv += chunk_recv;
         fprintf(stderr,
-                "Chunk: %p -- (%s), start: %08llX, cur: %08llX, end: %08llX (%s) -- %.02f%%\n",
+                "Chunk: %p -- (%s), start: %08" PRIXFAST64 ", cur: %08"
+                PRIXFAST64", end: %08" PRIXFAST64" (%s) -- %.02f%%\n",
                 cp, cs, cp->start_pos, cp->cur_pos,
                 cp->end_pos, es, (float) (chunk_recv) / chunk_size * 100);
         free(cs);
@@ -194,7 +197,7 @@ void metadata_inspect(const char* path, mget_option* opts)
 
     if (!metadata_create_from_file(path, &md, &fm))
     {
-        printf ("Failed to create metadata from file: %s\n", path);
+        mlog (LL_ALWAYS, "Failed to create metadata from file: %s\n", path);
         return;
     }
 

@@ -28,15 +28,6 @@
 #include "lib/mget_utils.h"
 #include <signal.h>
 
-#if !defined (PDEBUG)
-#define PDEBUG(fmt, ...)                                                \
-    do {                                                                \
-        fprintf(stderr, "mget: - %s(%d)-%s: ",                          \
-                __FILE__, __LINE__,__FUNCTION__);                       \
-        fprintf(stderr, fmt, ##  __VA_ARGS__);                          \
-    } while(0)
-#endif  /*End of if PDEBUG*/
-
 #define MAX_NC       40
 
 #define handle_error(msg)                               \
@@ -104,7 +95,7 @@ void show_progress(metadata* md, void* user_data)
         uint64 bps       = (uint64)((double) (diff_size) * 1000 / (c_time - ts))+1;
 
         fprintf(stderr,
-                "] %.02f percent finished, speed: %s/s, eta: %s\r",
+                "] %.02f, SPD: %s/s, ETA: %s\r",
                 (double) recv / total * 100,
                 stringify_size(bps),
                 stringify_time((total-recv)/bps));
@@ -137,6 +128,7 @@ void print_help()
                      "resolving host names.\n",
         "\t     'U': Update, get address from DNS server instead of "
                     "from cache, but update cache after name resolved.\n",
+        "\t-L:  limit bandwidth.\n",
         "\t-h:  show this help.\n",
         "\n",
         NULL
@@ -175,7 +167,7 @@ int main(int argc, char *argv[])
 
     memset(&fn, 0, sizeof(file_name));
 
-    while ((opt = getopt(argc, argv, "hH:j:d:o:r:svu:p:l:")) != -1) {
+    while ((opt = getopt(argc, argv, "hH:j:d:o:r:svu:p:l:L:")) != -1) {
         switch (opt) {
             case 'h':
             {
@@ -242,6 +234,11 @@ int main(int argc, char *argv[])
                 opts.ll = ((log_level) dl);
                 break;
             }
+            case 'L':
+            {
+                opts.limit = integer_size(optarg);
+                break;
+            }
             case 'o':
             {
                 fn.basen = strdup(optarg);
@@ -298,8 +295,6 @@ int main(int argc, char *argv[])
         act.sa_flags     = SA_SIGINFO;
         int ret = sigaction(SIGINT, &act, NULL);
 
-        PDEBUG("ret = %d\n", ret);
-
         for (int i = optind; i < argc; i++) {
             int  retry_time = 0;
             mget_err result = ME_OK;
@@ -310,8 +305,6 @@ int main(int argc, char *argv[])
             while (retry_time++ < MAX_RETRY_TIMES && !control_byte) {
                 result = start_request(target, &fn, &opts, show_progress,
                                        &control_byte, NULL);
-                PDEBUG ("result : %d\n", result);
-
                 if (result == ME_OK || result == ME_ABORT || result == ME_RES_ERR) {
                     goto next;
                 }

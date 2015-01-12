@@ -26,13 +26,14 @@
 #include <stddef.h>
 #include <sys/types.h>
 #include <stdbool.h>
+#include <inttypes.h>
 
 typedef unsigned char byte;
-typedef unsigned char uint8;
-typedef unsigned short uint16;
-typedef unsigned int uint32;
-typedef int int32;
-typedef unsigned long long uint64;
+typedef uint8_t       uint8;
+typedef uint16_t      uint16;
+typedef uint32_t      uint32;
+typedef int32_t       int32;
+typedef uint64_t      uint64;
 
 #endif				/* _TYPES_H_ */
 

@@ -47,6 +47,7 @@ typedef struct _ssl_wrapper
 
 #define CHECK_PTR(X, msg) if (!X) berr_exit(msg)
 #define CHECK_W_PTR(X)    if (!X) berr_exit("Failed to create "#X)
+#define PAGE       4096
 
 static bool g_initilized = false;
 bool ssl_init()
@@ -66,7 +67,7 @@ bool ssl_init()
     return true;
 }
 
-uint32 secure_socket_read(int sk, char *buf, uint32 size, void *priv)
+int secure_socket_read(int sk, char *buf, uint32 size, void *priv)
 {
     ssl_wrapper* wrapper = (ssl_wrapper*)priv;
     int ret = 0;
@@ -127,7 +128,7 @@ read:
         PDEBUG ("pending data, size: %d...\n", (int)size);
         if ((int)size <= 0)
         {
-            bq_enlarge(wrapper->bq, 4096*100);
+            bq_enlarge(wrapper->bq, PAGE);
             buf = wrapper->bq->w;
             size = wrapper->bq->x - wrapper->bq->w;
             mlog (LL_ALWAYS, "Data save to bq\n");
@@ -139,7 +140,7 @@ read:
     return ret;
 }
 
-uint32 secure_socket_write(int sk, char *buf, uint32 size, void *priv)
+int secure_socket_write(int sk, char *buf, uint32 size, void *priv)
 {
     ssl_wrapper* wrapper = (ssl_wrapper*)priv;
 
@@ -188,7 +189,7 @@ void *make_socket_secure(int sock)
     CHECK_W_PTR(wrapper->bio);
 
     wrapper->sock = sock;
-    wrapper->bq = bq_init(4096*100);
+    wrapper->bq = bq_init(PAGE);
 
     PDEBUG ("ctx: %p ssl: %p, bio: %p\n", wrapper->ctx, wrapper->ssl,
             wrapper->bio);

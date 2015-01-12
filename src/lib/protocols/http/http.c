@@ -29,8 +29,7 @@
 #include "../../mget_utils.h"
 
 #define DEFAULT_HTTP_CONNECTIONS 5
-#define BUF_SIZE                 4096
-#define SIZE                     1024*100
+#define PAGE                     4096
 
 static const char* HEADER_END = "\r\n\r\n";
 static const char* CAN_SPLIT = "can_split";
@@ -74,8 +73,8 @@ int http_read_sock(connection* conn, void *priv)
     void *addr = param->addr + dp->cur_pos;
     if (!param->header_finished) {
         bq_enlarge(param->bq, 4096*100);
-        int rd = conn->ci.reader(conn, param->bq->w,
-                                 param->bq->x - param->bq->w, NULL);
+        int rd = conn->co.read(conn, param->bq->w,
+                               param->bq->x - param->bq->w, NULL);
 
         if (rd > 0) {
             param->bq->w += rd;
@@ -129,7 +128,7 @@ int http_read_sock(connection* conn, void *priv)
         }
         else {
             mlog(LL_NONVERBOSE, "Read returns -1: showing chunk: "
-             "retuned zero: dp: %p : %llX -- %llX\n",
+                 "retuned zero: dp: %p : %llX -- %llX\n",
                  dp, dp->cur_pos, dp->end_pos);
             if (errno != EAGAIN) {
                 mlog(LL_ALWAYS, "read returns %d: %s\n", rd, strerror(errno));
@@ -143,8 +142,8 @@ int http_read_sock(connection* conn, void *priv)
 
     int rd = 0;
     do {
-        rd = conn->ci.reader(conn, param->addr + dp->cur_pos,
-                             dp->end_pos - dp->cur_pos, NULL);
+        rd = conn->co.read(conn, param->addr + dp->cur_pos,
+                           dp->end_pos - dp->cur_pos, NULL);
     } while (rd == -1 && errno == EINTR);
     if (rd > 0) {
         dp->cur_pos += rd;
@@ -187,7 +186,7 @@ int http_write_sock(connection * conn, void *priv)
     co_param *cp = (co_param *) priv;
     char     *hd = generate_request_header("GET", cp->ui, cp->dp->cur_pos,
                                            cp->dp->end_pos);
-    size_t written = conn->ci.writer(conn, hd, strlen(hd), NULL);
+    size_t written = conn->co.write(conn, hd, strlen(hd), NULL);
 
     free(hd);
     return written;
@@ -211,16 +210,12 @@ mget_err process_http_request(dinfo* info, dp_callback cb, bool* stop_flag,
     PDEBUG ("conn : %p\n", conn);
 
     hash_table  *ht         = NULL;
-    byte_queue*  bq         = bq_init(SIZE);
-    uint64       total_size = get_remote_file_size_http(info->ui, bq, &conn, &ht);
+    byte_queue*  bq         = bq_init(PAGE);
+    uint64       total = get_remote_file_size_http(info->ui, bq, &conn,
+                                                        &ht);
 
-    if (!total_size) {
+    if (!total) {
         fprintf(stderr, "Can't get remote file size: %s\n", ui->furl);
-        //TODO: Some servers may not support "Range" request, such servers
-        //      will return contents in HTML body directly, needs to handle
-        //      this case. Some part of data is stored in bq->r, and remained
-        //      should be read from connection....
-        //      https://github.com/yangyingchao/mget/archive/v1.3.1.tar.gz
         return ME_RES_ERR;
     }
 
@@ -254,7 +249,7 @@ mget_err process_http_request(dinfo* info, dp_callback cb, bool* stop_flag,
                     ptr += n;
                 }
                 else if (*ptr == '"')
-                    continue;
+                    ptr++;
                 else {
                     fn[idx++] = *ptr;
                     ptr ++;
@@ -266,7 +261,7 @@ mget_err process_http_request(dinfo* info, dp_callback cb, bool* stop_flag,
                 mlog(LL_NOTQUIET, "Sadly, we can't parse filename: %s\n",
                      dis);
                 FIFZ(&fn)
-            }
+                        }
             else
             {
                 mlog(LL_ALWAYS, "Renaming file name to: %s\n", fn);
@@ -274,7 +269,7 @@ mget_err process_http_request(dinfo* info, dp_callback cb, bool* stop_flag,
         }
     }
 
-    PDEBUG("total_size: %llu, fileName: %s\n", total_size, fn);
+    PDEBUG("total: %"PRIu64", fileName: %s\n", total, fn);
 
     /*
       If it goes here, means metadata is not ready, get nc (number of
@@ -291,7 +286,7 @@ mget_err process_http_request(dinfo* info, dp_callback cb, bool* stop_flag,
         info->md->hd.nr_user = 1;
     }
 
-    if (!dinfo_update_metadata(info, total_size, fn)) {
+    if (!dinfo_update_metadata(info, total, fn)) {
         fprintf(stderr, "Failed to create metadata from url: %s\n", ui->furl);
         return ME_ABORT;
     }
@@ -346,12 +341,12 @@ restart:
         param->dp        = dp;
         param->ui        = ui;
         param->md        = md;
-        param->bq        = bq_init(SIZE);
+        param->bq        = bq_init(PAGE);
         param->cb        = cb;
         param->user_data = user_data;
 
-        conn->rf = http_read_sock;
-        conn->wf = http_write_sock;
+        conn->recv_data = http_read_sock;
+        conn->write_data = http_write_sock;
         conn->priv = param;
 
         connection_add_to_group(sg, conn);
@@ -410,15 +405,15 @@ ret:
 static inline char *generate_request_header(const char* method, url_info* uri,
                                             uint64 start_pos, uint64 end_pos)
 {
-    static char buffer[BUF_SIZE];
-    memset(buffer, 0, BUF_SIZE);
+    static char buffer[PAGE];
+    memset(buffer, 0, PAGE);
 
     sprintf(buffer,
             "%s %s HTTP/1.1\r\nHost: %s\r\n"
             "Accept: *\r\n"
             "Connection: Keep-Alive\r\n"
             "Keep-Alive: timeout=600\r\n"
-            "Range: bytes=%llu-%llu\r\n\r\n",
+            "Range: bytes=%" PRIu64 "-%" PRIu64"\r\n\r\n",
             method, uri->uri, uri->host, start_pos, end_pos);
 
     return strdup(buffer);
@@ -515,14 +510,14 @@ static inline uint64 get_remote_file_size_http(url_info* ui, byte_queue* bq,
 
     char *hd = generate_request_header("GET", ui, 0, 0);
 
-    (*conn)->ci.writer((*conn), hd, strlen(hd), NULL);
+    (*conn)->co.write((*conn), hd, strlen(hd), NULL);
     free(hd);
 
     char* eptr = NULL;
     int i = 1;
     do {
-        bq         = bq_enlarge(bq, SIZE);
-        size_t rd  = (*conn)->ci.reader((*conn), bq->w, bq->x - bq->w, NULL);
+        bq         = bq_enlarge(bq, PAGE);
+        size_t rd  = (*conn)->co.read((*conn), bq->w, bq->x - bq->w, NULL);
         if (!rd) {
             PDEBUG ("Failed to read from connection(%p),"
                     " connection closed.\n", *conn);
@@ -554,7 +549,7 @@ static inline uint64 get_remote_file_size_http(url_info* ui, byte_queue* bq,
             PDEBUG("Range:: %s\n", ptr);
             hash_table_insert(*ht, CAN_SPLIT, strdup("true"), 4);
             uint64 s, e;
-            num = sscanf(ptr, "bytes %llu-%llu/%llu",
+            num = sscanf(ptr, "bytes %"PRIu64"-%"PRIu64"/%"PRIu64,
                          &s, &e, &t);
             break;
         }
@@ -589,9 +584,11 @@ static inline uint64 get_remote_file_size_http(url_info* ui, byte_queue* bq,
                 goto show_rsp;
             }
 
+            mlog(LL_NONVERBOSE, "Not sure if server supports Content-Range,"
+                 " Will not use multi-connections..\n");
             PDEBUG("Content-Length: %s\n", ptr);
 
-            num = sscanf(ptr, "%llu", &t);
+            num = sscanf(ptr, "%"PRIu64, &t);
             //@todo: this kind of server don't support multi connection.
             // handle this!
             break;

@@ -185,7 +185,7 @@ Error in server response, closing control ftp_connection.\n"));
     }
 
 
-    err = ftp_size (conn, info->ui->uri, psize);
+    err = ftp_size (conn, info->ui->uri, (wgint*)psize);
     /* FTPRERR */
     switch (err)
     {
@@ -333,7 +333,7 @@ Error in server response, closing control ftp_connection.\n"));
     }
 
     uint64 size = 0;
-    err = ftp_size (conn, info->ui->uri, &size);
+    err = ftp_size (conn, info->ui->uri, (wgint*)&size);
     /* FTPRERR */
     switch (err)
     {
@@ -483,9 +483,9 @@ Error in server response, closing control ftp_connection.\n"));
 
     while (dp->cur_pos < dp->end_pos) {
         void *addr = param->addr + dp->cur_pos;
-        int rd = conn->data_conn->ci.reader(conn->data_conn,
-                                            param->addr + dp->cur_pos,
-                                            dp->end_pos - dp->cur_pos, NULL);
+        int rd = conn->data_conn->co.read(conn->data_conn,
+                                          param->addr + dp->cur_pos,
+                                          dp->end_pos - dp->cur_pos, NULL);
         if (rd > 0) {
             dp->cur_pos += rd;
             write(param->fds[1], "R", 1);

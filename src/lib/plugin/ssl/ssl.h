@@ -34,8 +34,8 @@ bool  ssl_init();
 void* make_socket_secure(int);
 void  ssl_destroy(void*);
 
-uint32  secure_socket_read(int, char*, uint32, void*);
-uint32  secure_socket_write(int, char*, uint32, void*);
+int secure_socket_read(int, char*, uint32, void*);
+int secure_socket_write(int, char*, uint32, void*);
 
 #ifdef __cplusplus
 }

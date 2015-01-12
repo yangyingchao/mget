@@ -26,6 +26,7 @@
 #include "download_info.h"
 #include "data_utlis.h"
 #include "protocols.h"
+#include "connection.h"
 #include <stdio.h>
 #include <strings.h>
 
@@ -66,6 +67,8 @@ mget_err start_request(const char *url, const file_name* fn, mget_option* opt,
 
     g_log_level = opt->ll;
     g_hct       = opt->hct;
+    if (opt->limit > 0)
+        set_global_bandwidth(opt->limit);
 
     ret = handler(info, cb, stop_flag, user_data);
 

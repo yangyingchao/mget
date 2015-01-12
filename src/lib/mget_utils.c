@@ -27,7 +27,7 @@
 #include <sys/time.h>
 #include <stdlib.h>
 
-uint32 get_time_ms()
+int get_time_ms()
 {
     struct timeval tv;
 
@@ -35,12 +35,12 @@ uint32 get_time_ms()
         return 0;
     }
 
-    return (uint32) tv.tv_sec * 1000 + tv.tv_usec / 1000;
+    return (int) tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 
-uint32 get_time_s()
+int get_time_s()
 {
-    return (uint32) time(NULL);
+    return (int) time(NULL);
 }
 
 #define MINUTE     (60)
@@ -53,7 +53,7 @@ char *stringify_time(uint64 ts)
     memset(str_time, 0, 64);
 
     if (ts < MINUTE) {
-        sprintf(str_time, "%llu seconds", ts);
+        sprintf(str_time, "%" PRIu64 " seconds", ts);
     } else if (ts < HOUR) {
         sprintf(str_time, "%.01f minutes", (double) ts / MINUTE);
     } else if (ts < DAY) {
@@ -80,6 +80,12 @@ char *datetime_str(time_t t)
 char *current_time_str()
 {
     return datetime_str(time(NULL));
+}
+
+
+int integer_size(const char* size)
+{
+    return 1024*512;
 }
 
 /*
