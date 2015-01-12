@@ -805,7 +805,6 @@ static inline int do_perform_select(connection_group* group)
                 int           ret   = 0;
 
                 if (!pconn->active) {
-                    p = p->next;
                     continue;
                 }
 
