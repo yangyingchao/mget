@@ -318,7 +318,6 @@ connection* connection_get(const url_info* ui)
                     conn->connected = true;
                     break;
                 }
-                close(conn->sock);
                 conn->sock = -1;
                 PDEBUG ("rp: %p\n", rp->ai_next);
             }
