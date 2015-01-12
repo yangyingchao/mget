@@ -2,7 +2,9 @@ ADD_DEFINITIONS("-std=gnu99")
 ADD_DEFINITIONS("-g")
 add_subdirectory(lib)
 include_directories(lib)
-add_executable(mget-bin main.c)
+
+file(GLOB  SRC "*.c")
+add_executable(mget-bin ${SRC})
 
 set_target_properties(mget-bin
   PROPERTIES OUTPUT_NAME mget)

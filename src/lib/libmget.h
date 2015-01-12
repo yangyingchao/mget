@@ -45,7 +45,8 @@ typedef enum
     ME_HOST_ERR,
     ME_CONN_ERR,
     ME_GENERIC,
-    ME_RES_ERR, // should not retry for following errors.
+    ME_DO_NOT_RETRY, // should not retry for following errors.
+    ME_RES_ERR,
     ME_ABORT,
     ME_NOT_SUPPORT,
 } mget_err;
