@@ -44,6 +44,7 @@ typedef struct _connection_operation_param {
     hash_table *ht;
     void (*cb) (metadata*, void*);
     metadata *md;
+    dinfo* info;
     void* user_data;
 } co_param;
 
@@ -85,26 +86,29 @@ int http_read_sock(connection* conn, void *priv)
             }
 
             int r  = dissect_header(param->bq, &param->ht);
-            switch (r)
-            {
+            switch (r) {
                 case 206:
-                case 200:
-                {
+                case 200: {
                     break;
                 }
                 case 301:
                 case 302:			// Resource moved to other place.
-                case 307:
-                {
-                    char *loc = (char *) hash_table_entry_get(*ht, "location");
-                    printf("TODO: Server returns 302, will restart downloading from"
-                           " new locations: %s...\n", loc);
-                    exit(1);
+                case 307: {
+                    char *loc = (char*) hash_table_entry_get(param->ht, "location");
+                    if (dinfo_update_url(param->info, loc)) {
+                        mlog(LL_ALWAYS, "url updated to :%s\n", loc);
+                        return COF_CLOSED;
+                    }
+                    else {
+                        printf("Server returns 302, but failed to"
+                               " update metadata, please delete all files "
+                               " and try again...\n"
+                               "New locations: %s...\n", loc);
+                        exit(1);
                     }
                     break;
                 }
-                default:
-                {
+                default: {
                     fprintf(stderr, "Error occurred, status code is %d!\n", r);
                     exit(1);
                 }
@@ -361,6 +365,7 @@ restart:
         param->dp        = dp;
         param->ui        = ui;
         param->md        = md;
+        param->info     = info;
         param->bq        = bq_init(PAGE);
         param->cb        = cb;
         param->user_data = user_data;

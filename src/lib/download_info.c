@@ -249,6 +249,47 @@ bool dinfo_ready(dinfo* info)
 extern bool chunk_split(uint64 start, uint64 size, int *num,
                         uint64* cs, data_chunk ** dc);
 
+bool dinfo_update_url(dinfo* info, const char* url)
+{
+    PDEBUG ("enter, info: %p, url: %s\n",
+            info, url);
+
+    if (!info || !info->md || !url)
+        return false;
+
+    PDEBUG ("enter 2\n");
+
+    metadata*   md = info->md;
+    mh*         hd = &md->hd;
+    md->ptrs->url = strdup(url);
+    hash_table* ht = md->ptrs->ht;
+    assert(ht != NULL);
+
+#define DINFO_UPDATE_HASH(K, V)                     \
+    PDEBUG("showing: %s - %s: \n", (K), ((V)));     \
+    if (V)                                          \
+        hash_table_update(ht, (K), (V), strlen(V))
+
+    DINFO_UPDATE_HASH(K_URL, md->ptrs->url);
+    DINFO_UPDATE_HASH(K_USR, md->ptrs->user);
+    DINFO_UPDATE_HASH(K_PASSWD, md->ptrs->passwd);
+
+#undef DINFO_UPDATE_HASH
+
+    // reset ht_buffer...
+    char* ptr = (char*)(md->raw_data) +
+                sizeof(data_chunk) * hd->nr_effective;
+    uint32 n_ebl = md->ptrs->ht_buffer + hd->ebl - ptr;
+
+    md->ptrs->ht_buffer = ptr;
+    hd->ebl = dump_hash_table(ht, md->ptrs->ht_buffer, n_ebl);
+    fm_remap(&info->fm_md, CALC_MD_SIZE(hd->nr_effective, hd->ebl));
+    PDEBUG ("chunk: %p -- %p, ht_buffer: %p\n",
+            md->raw_data, md->ptrs->body, md->ptrs->ht_buffer);
+
+    return true;
+}
+
 bool dinfo_update_metadata(dinfo* info, uint64 size, const char* fn)
 {
     PDEBUG ("enter, info: %p, size: %llu, fn: %s\n",
