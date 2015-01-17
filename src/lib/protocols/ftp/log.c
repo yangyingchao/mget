@@ -39,7 +39,7 @@
 
 #include "log.h"
 
-extern log_level       g_log_level;
+extern log_level g_log_level;
 
 #define FPUTS( s, f) fputs( (s), (f))
 
@@ -110,14 +110,14 @@ static bool needs_flushing;
 #define STATIC_LENGTH 128
 
 static struct log_ln {
-    char static_line[STATIC_LENGTH + 1];	/* statically allocated
-                                               line. */
-    char *malloced_line;	/* malloc'ed line, for lines of output
-                               larger than 80 characters. */
-    char *content;		/* this points either to malloced_line
-                           or to the appropriate static_line.
-                           If this is NULL, it means the line
-                           has not yet been used. */
+    char static_line[STATIC_LENGTH + 1];        /* statically allocated
+                                                   line. */
+    char *malloced_line;        /* malloc'ed line, for lines of output
+                                   larger than 80 characters. */
+    char *content;              /* this points either to malloced_line
+                                   or to the appropriate static_line.
+                                   If this is NULL, it means the line
+                                   has not yet been used. */
 } log_lines[SAVED_LOG_LINES];
 
 /* The current position in the ring. */
@@ -197,7 +197,7 @@ static void saved_append_1(const char *start, const char *end)
             int old_len = strlen(ln->malloced_line);
 
             ln->malloced_line =
-                    xrealloc(ln->malloced_line, old_len + len + 1);
+                xrealloc(ln->malloced_line, old_len + len + 1);
             memcpy(ln->malloced_line + old_len, start, len);
             ln->malloced_line[old_len + len] = '\0';
             /* might have changed due to realloc */
@@ -225,7 +225,7 @@ static void saved_append_1(const char *start, const char *end)
     trailing_line = !(end[-1] == '\n');
     if (!trailing_line)
         ROT_ADVANCE(log_line_current);
-#endif				// End of #if 0
+#endif                          // End of #if 0
 
 }
 
@@ -365,7 +365,7 @@ log_vprintf_internal(struct logvprintf_state *state, const char *fmt,
 // TODO: Remove this ifdef!
 #if 0
 
-char smallmsg[128];
+    char smallmsg[128];
     char *write_ptr = smallmsg;
     int available_size = sizeof(smallmsg);
     int numwritten;
@@ -427,12 +427,12 @@ char smallmsg[128];
     if (state->bigmsg)
         xfree(state->bigmsg);
 
-flush:
+  flush:
     if (flush_log_p)
         logflush();
     else
         needs_flushing = true;
-#endif // End of #if 0
+#endif                          // End of #if 0
     return true;
 }
 
@@ -445,14 +445,14 @@ void logflush(void)
     if (fp) {
         /* 2005-10-25 SMS.
            On VMS, flush only for a terminal.  See note at FPUTS macro, above.
-        */
+         */
 #ifdef __VMS
         if (isatty(fileno(fp))) {
             fflush(fp);
         }
-#else				/* def __VMS */
+#else                           /* def __VMS */
         fflush(fp);
-#endif				/* def __VMS [else] */
+#endif                          /* def __VMS [else] */
     }
 
     if (warcfp != NULL)
@@ -480,8 +480,7 @@ bool log_set_save_context(bool savep)
 
 void logprintf(enum log_options o, const char *fmt, ...)
 {
-    if (o >= (enum log_options)g_log_level)
-    {
+    if (o >= (enum log_options) g_log_level) {
         va_list args;
         struct logvprintf_state lpstate;
         bool done;
@@ -524,8 +523,8 @@ void debug_logprintf(const char *fmt, ...)
     }
     while (!done);
 }
-
 
+
 /* Open FILE and set up a logging stream.  If FILE cannot be opened,
    exit with status of 1.  */
 void log_init(const char *file, bool appendp)
@@ -625,7 +624,7 @@ static int count_nonprint(const char *source)
         if (!c_isprint(*p))
             ++cnt;
     return cnt;
-#endif				// End of #if 0
+#endif                          // End of #if 0
     return 0;
 }
 
@@ -664,32 +663,32 @@ copy_and_escape(const char *source, char *dest, char escape, int base)
 
     /* Copy chars from SOURCE to DEST, escaping non-printable ones. */
     switch (base) {
-        case 8:
-            while ((c = *from++) != '\0')
-                if (c_isprint(c))
-                    *to++ = c;
-                else {
-                    *to++ = escape;
-                    *to++ = '0' + (c >> 6);
-                    *to++ = '0' + ((c >> 3) & 7);
-                    *to++ = '0' + (c & 7);
-                }
-            break;
-        case 16:
-            while ((c = *from++) != '\0')
-                if (c_isprint(c))
-                    *to++ = c;
-                else {
-                    *to++ = escape;
-                    *to++ = XNUM_TO_DIGIT(c >> 4);
-                    *to++ = XNUM_TO_DIGIT(c & 0xf);
-                }
-            break;
-        default:
-            abort();
+    case 8:
+        while ((c = *from++) != '\0')
+            if (c_isprint(c))
+                *to++ = c;
+            else {
+                *to++ = escape;
+                *to++ = '0' + (c >> 6);
+                *to++ = '0' + ((c >> 3) & 7);
+                *to++ = '0' + (c & 7);
+            }
+        break;
+    case 16:
+        while ((c = *from++) != '\0')
+            if (c_isprint(c))
+                *to++ = c;
+            else {
+                *to++ = escape;
+                *to++ = XNUM_TO_DIGIT(c >> 4);
+                *to++ = XNUM_TO_DIGIT(c & 0xf);
+            }
+        break;
+    default:
+        abort();
     }
     *to = '\0';
-#endif				// End of #if 0
+#endif                          // End of #if 0
 
 }
 
@@ -698,7 +697,7 @@ struct ringel {
     char *buffer;
     int size;
 };
-static struct ringel ring[RING_SIZE];	/* ring data */
+static struct ringel ring[RING_SIZE];   /* ring data */
 
 static const char *escnonprint_internal(const char *str, char escape,
                                         int base)
@@ -706,7 +705,7 @@ static const char *escnonprint_internal(const char *str, char escape,
     // TODO: Remove this ifdef!
 #if 0
 
-    static int ringpos;		/* current ring position */
+    static int ringpos;         /* current ring position */
     int nprcnt;
 
     assert(base == 8 || base == 16);
@@ -727,7 +726,7 @@ static const char *escnonprint_internal(const char *str, char escape,
            must also include the length of the original string and one
            additional char for the terminating \0. */
         int needed_size =
-                strlen(str) + 1 + (base == 8 ? 3 * nprcnt : 2 * nprcnt);
+            strlen(str) + 1 + (base == 8 ? 3 * nprcnt : 2 * nprcnt);
 
         /* If the current buffer is uninitialized or too small,
            (re)allocate it.  */
@@ -740,7 +739,7 @@ static const char *escnonprint_internal(const char *str, char escape,
         ringpos = (ringpos + 1) % RING_SIZE;
         return r->buffer;
     }
-#endif				// End of #if 0
+#endif                          // End of #if 0
 
     return NULL;
 }
@@ -794,7 +793,7 @@ void log_cleanup(void)
 
     for (i = 0; i < countof(ring); i++)
         xfree_null(ring[i].buffer);
-#endif				// End of #if 0
+#endif                          // End of #if 0
 
 }
 
@@ -829,7 +828,7 @@ static void redirect_output(void)
         inhibit_logging = true;
     }
     save_context_p = false;
-#endif				// End of #if 0
+#endif                          // End of #if 0
 
 }
 

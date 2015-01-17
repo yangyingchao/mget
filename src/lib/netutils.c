@@ -45,7 +45,7 @@ void url_info_destroy(url_info ** ui)
     }
 }
 
-extern char* get_unique_name(const char* source);
+extern char *get_unique_name(const char *source);
 
 bool parse_url(const char *url, url_info ** ui)
 {
@@ -84,8 +84,8 @@ bool parse_url(const char *url, url_info ** ui)
 
     up->uri = strdup(url);
     up->bname = get_basename(url);
-    if (strlen(up->bname) > 255)  {
-        char* tmp = strdup(get_unique_name(up->bname));
+    if (strlen(up->bname) > 255) {
+        char *tmp = strdup(get_unique_name(up->bname));
         FIF(up->bname);
         up->bname = tmp;
     }
@@ -117,11 +117,11 @@ bool parse_url(const char *url, url_info ** ui)
     bret = true;
     goto ret;
 
-free:
+  free:
     if (up) {
         url_info_destroy(&up);
     }
-ret:
+  ret:
     return bret;
 }
 
@@ -133,9 +133,10 @@ void url_info_display(url_info * ui)
         printf("empty url_info...\n");
         return;
     }
-    printf ("Protocol: %02X (%s), port: %u, host: %s, uri: %s,\nurl: %s,filename: %s\n",
-            ui->eprotocol, ui->protocol, ui->port, ui->host, ui->uri,
-            ui->furl, ui->bname);
+    printf
+        ("Protocol: %02X (%s), port: %u, host: %s, uri: %s,\nurl: %s,filename: %s\n",
+         ui->eprotocol, ui->protocol, ui->port, ui->host, ui->uri,
+         ui->furl, ui->bname);
 }
 
 
@@ -149,11 +150,11 @@ void url_info_copy(url_info * u1, url_info * u2)
         sprintf(u1->protocol, "%s", u2->protocol);
         sprintf(u1->host, "%s", u2->host);
         sprintf(u1->sport, "%s", u2->sport);
-        u1->uri   = strdup(u2->uri);
+        u1->uri = strdup(u2->uri);
         u1->bname = strdup(u2->bname);
-        u1->furl  = strdup(u2->furl);
-        u1->port  = u2->port;
-        u1->eprotocol  = u2->eprotocol;
+        u1->furl = strdup(u2->furl);
+        u1->port = u2->port;
+        u1->eprotocol = u2->eprotocol;
     }
 }
 

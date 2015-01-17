@@ -22,7 +22,7 @@
 
 #define DEBUG
 
-#define _GNU_SOURCE         /* See feature_test_macros(7) */
+#define _GNU_SOURCE             /* See feature_test_macros(7) */
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
@@ -33,14 +33,13 @@
 
 #define TAB_WIDTH_N_CHARS 15
 
-extern const char* default_dir;
+extern const char *default_dir;
 
 // XXX:
 
-GmWindow* gg_window = NULL;
+GmWindow *gg_window = NULL;
 
-typedef enum _COLS
-{
+typedef enum _COLS {
     COL_STATUS = 0,
     COL_NAME,
     COL_SIZE,
@@ -55,37 +54,36 @@ typedef enum _COLS
 #define COL_END       -1
 
 
-typedef struct _GmNewTaskDlg
-{
-    GtkDialog* gtk_dialog;
-    GtkEntry*  entry_url;
-    GtkEntry*  entry_dir;
-    GtkEntry*  entry_fn;
+typedef struct _GmNewTaskDlg {
+    GtkDialog *gtk_dialog;
+    GtkEntry *entry_url;
+    GtkEntry *entry_dir;
+    GtkEntry *entry_fn;
 } GmNewTaskDlg;
 
 struct _GmWindowPriv {
-    GtkWidget*    main_box;
-    GtkBuilder*   builder;
-    GmNewTaskDlg  new_task_dialog;
-    GtkListStore* task_store;
-    GtkTreeView*  task_tree;
-    GList*        request_list;
+    GtkWidget *main_box;
+    GtkBuilder *builder;
+    GmNewTaskDlg new_task_dialog;
+    GtkListStore *task_store;
+    GtkTreeView *task_tree;
+    GList *request_list;
 
-    GtkTextView*  text_view;
-    GtkTextBuffer* text_buffer;
+    GtkTextView *text_view;
+    GtkTextBuffer *text_buffer;
 
-    GtkToolButton* btn_add;
-    GtkToolButton* btn_start;
-    GtkToolButton* btn_pause;
-    GtkToolButton* btn_settings;
+    GtkToolButton *btn_add;
+    GtkToolButton *btn_start;
+    GtkToolButton *btn_pause;
+    GtkToolButton *btn_settings;
 
-    GtkIconTheme* theme;
-    GdkPixbuf*    pix_paused;
-    GdkPixbuf*    pix_started;
-    GdkPixbuf*    pix_finished;
-    GdkPixbuf*    pix_cancelled;
+    GtkIconTheme *theme;
+    GdkPixbuf *pix_paused;
+    GdkPixbuf *pix_started;
+    GdkPixbuf *pix_finished;
+    GdkPixbuf *pix_cancelled;
 
-    GtkTextTag*   ts_tag;
+    GtkTextTag *ts_tag;
 };
 
 enum {
@@ -94,15 +92,15 @@ enum {
     LAST_SIGNAL
 };
 
-static const char* status_string[] = {
+static const char *status_string[] = {
     "Created", "Started", "Paused", "Finished", "Failed"
 };
 
 
 static gboolean
-on_treeview1_popup_menu(GtkWidget *treeview, gpointer userdata)
+on_treeview1_popup_menu(GtkWidget * treeview, gpointer userdata)
 {
-    PDEBUG ("enter with tree: %p, pointer: %p\n", treeview, userdata);
+    PDEBUG("enter with tree: %p, pointer: %p\n", treeview, userdata);
 
     return true;
 
@@ -110,29 +108,25 @@ on_treeview1_popup_menu(GtkWidget *treeview, gpointer userdata)
 
 void pause_request(gpointer data, gpointer user_data)
 {
-    PDEBUG ("data: %p\n", data);
+    PDEBUG("data: %p\n", data);
 
-    gmget_request* req = (gmget_request*)data;
-    if (req)
-    {
+    gmget_request *req = (gmget_request *) data;
+    if (req) {
         req->request.flag = true;
-        (*(gint*)user_data)++;
+        (*(gint *) user_data)++;
     }
 }
 
-void  on_box1_destroy (GtkWidget *widget,
-                           gpointer   user_data)
+void on_box1_destroy(GtkWidget * widget, gpointer user_data)
 {
-    if (!user_data)
-    {
+    if (!user_data) {
         return;
     }
 
-    GmWindow* window = (GmWindow*) user_data;
+    GmWindow *window = (GmWindow *) user_data;
     gint counter = 0;
     g_list_foreach(window->priv->request_list, pause_request, &counter);
-    if (counter)
-    {
+    if (counter) {
         sleep(3);
     }
     sync();
@@ -141,7 +135,7 @@ void  on_box1_destroy (GtkWidget *widget,
 
 static gint signals[LAST_SIGNAL] = { 0 };
 
-G_DEFINE_TYPE (GmWindow, gm_window, GTK_TYPE_APPLICATION_WINDOW);
+G_DEFINE_TYPE(GmWindow, gm_window, GTK_TYPE_APPLICATION_WINDOW);
 
 #define GET_PRIVATE(instance) G_TYPE_INSTANCE_GET_PRIVATE   \
     (instance, GM_TYPE_WINDOW, GmWindowPriv);
@@ -158,259 +152,222 @@ G_DEFINE_TYPE (GmWindow, gm_window, GTK_TYPE_APPLICATION_WINDOW);
 #define G_ENABLE_WIDGET(X, Y) gtk_widget_set_sensitive((GtkWidget*)(X), (Y))
 
 
-void on_btn_settings_clicked(GtkButton *button,
-                             gpointer   user_data)
+void on_btn_settings_clicked(GtkButton * button, gpointer user_data)
 {
-    if (!user_data)
-    {
+    if (!user_data) {
         return;
     }
 
-    GmWindow* window = (GmWindow*)user_data;
-    GtkWidget* dlg = G_GET_WIDGET(window->priv->builder, GtkWidget,
+    GmWindow *window = (GmWindow *) user_data;
+    GtkWidget *dlg = G_GET_WIDGET(window->priv->builder, GtkWidget,
                                   "dlg_settings");
-    if (dlg)
-    {
+    if (dlg) {
         G_SHOW(dlg);
     }
 }
 
-void on_btn_setting_ok_clicked(GtkButton *button,
-                               gpointer   user_data)
+void on_btn_setting_ok_clicked(GtkButton * button, gpointer user_data)
 {
-    if (!user_data)
-    {
+    if (!user_data) {
         return;
     }
 
-    GmWindow* window = (GmWindow*)user_data;
-    GtkWidget* dlg = G_GET_WIDGET(window->priv->builder, GtkWidget,
+    GmWindow *window = (GmWindow *) user_data;
+    GtkWidget *dlg = G_GET_WIDGET(window->priv->builder, GtkWidget,
                                   "dlg_settings");
-    if (dlg)
-    {
+    if (dlg) {
         G_HIDE(dlg);
     }
 }
 
-void on_btn_setting_cancel_clicked(GtkButton *button,
-                                   gpointer   user_data)
+void on_btn_setting_cancel_clicked(GtkButton * button, gpointer user_data)
 {
     on_btn_setting_ok_clicked(button, user_data);
 }
 
-void on_btn_add_clicked(GtkButton *button,
-                        gpointer   user_data)
+void on_btn_add_clicked(GtkButton * button, gpointer user_data)
 {
-    if (!user_data)
-    {
+    if (!user_data) {
         return;
     }
 
-    GmWindow* window = (GmWindow*) user_data;
-    G_SHOW (window->priv->new_task_dialog.gtk_dialog);
+    GmWindow *window = (GmWindow *) user_data;
+    G_SHOW(window->priv->new_task_dialog.gtk_dialog);
 }
 
-static inline void
-pause_selected_tasks(gpointer data, gpointer user_data)
+static inline void pause_selected_tasks(gpointer data, gpointer user_data)
 {
-    GtkTreePath*  path  = (GtkTreePath*)data;
-    GtkTreeModel* model = (GtkTreeModel*)user_data;
-    GtkTreeIter   iter;
+    GtkTreePath *path = (GtkTreePath *) data;
+    GtkTreeModel *model = (GtkTreeModel *) user_data;
+    GtkTreeIter iter;
 
-    if (!path || !model ||
-        !gtk_tree_model_get_iter(model, &iter, path))
-    {
-        PDEBUG ("Can't find iter: Path:%p, Model %p\n", path, model);
+    if (!path || !model || !gtk_tree_model_get_iter(model, &iter, path)) {
+        PDEBUG("Can't find iter: Path:%p, Model %p\n", path, model);
         return;
     }
 
-    gmget_request* req = NULL;
+    gmget_request *req = NULL;
     gtk_tree_model_get(model, &iter, COL_USRE_DATA, &req, -1);
-    if (req)
-    {
-        PDEBUG ("set to true!\n");
+    if (req) {
+        PDEBUG("set to true!\n");
 
         req->request.flag = true;
-    }
-    else
-    {
-        PDEBUG ("Null gmget_request pointer!!\n");
+    } else {
+        PDEBUG("Null gmget_request pointer!!\n");
     }
 }
 
-static inline void
-resume_selected_tasks(gpointer data, gpointer user_data)
+static inline void resume_selected_tasks(gpointer data, gpointer user_data)
 {
-    GtkTreePath*  path  = (GtkTreePath*)data;
-    GtkTreeModel* model = (GtkTreeModel*)user_data;
-    GtkTreeIter   iter;
+    GtkTreePath *path = (GtkTreePath *) data;
+    GtkTreeModel *model = (GtkTreeModel *) user_data;
+    GtkTreeIter iter;
 
-    if (!path || !model ||
-        !gtk_tree_model_get_iter(model, &iter, path))
-    {
-        PDEBUG ("Can't find iter: Path:%p, Model %p\n", path, model);
+    if (!path || !model || !gtk_tree_model_get_iter(model, &iter, path)) {
+        PDEBUG("Can't find iter: Path:%p, Model %p\n", path, model);
         return;
     }
 
-    gmget_request* req = NULL;
+    gmget_request *req = NULL;
     gtk_tree_model_get(model, &iter, COL_USRE_DATA, &req, -1);
-    if (req)
-    {
+    if (req) {
         req->request.flag = false;
-        pthread_t* tid = start_request_thread(req);
-    }
-    else
-    {
-        PDEBUG ("Null gmget_request pointer!!\n");
+        pthread_t *tid = start_request_thread(req);
+    } else {
+        PDEBUG("Null gmget_request pointer!!\n");
     }
 }
 
-void on_btn_start_clicked(GtkButton *button,
-                          gpointer   user_data)
+void on_btn_start_clicked(GtkButton * button, gpointer user_data)
 {
-    if (!user_data)
-    {
+    if (!user_data) {
         return;
     }
 
-    PDEBUG ("enter\n");
+    PDEBUG("enter\n");
 
-    GmWindow* window = (GmWindow*) user_data;
+    GmWindow *window = (GmWindow *) user_data;
     GtkTreeSelection *selection =
-            gtk_tree_view_get_selection (GTK_TREE_VIEW
-                                         (window->priv->task_tree));
+        gtk_tree_view_get_selection(GTK_TREE_VIEW
+                                    (window->priv->task_tree));
 
-    GtkTreeModel* model  = NULL;
-    GList* selected_rows =
-            gtk_tree_selection_get_selected_rows(selection,
-                                                 &model);
+    GtkTreeModel *model = NULL;
+    GList *selected_rows = gtk_tree_selection_get_selected_rows(selection,
+                                                                &model);
 
-    PDEBUG ("selection: %p, Count: %u\n",
-            selection, g_list_length(selected_rows));
+    PDEBUG("selection: %p, Count: %u\n",
+           selection, g_list_length(selected_rows));
 
     g_list_foreach(selected_rows, resume_selected_tasks, model);
 
     G_ENABLE_WIDGET(window->priv->btn_start, FALSE);
     G_ENABLE_WIDGET(window->priv->btn_pause, TRUE);
 
-    g_list_free_full (selected_rows, (GDestroyNotify) gtk_tree_path_free);
+    g_list_free_full(selected_rows, (GDestroyNotify) gtk_tree_path_free);
 }
 
-void on_btn_pause_clicked(GtkButton *button,
-                          gpointer   user_data)
+void on_btn_pause_clicked(GtkButton * button, gpointer user_data)
 {
-    if (!user_data)
-    {
+    if (!user_data) {
         return;
     }
 
-    PDEBUG ("enter\n");
+    PDEBUG("enter\n");
 
-    GmWindow* window = (GmWindow*) user_data;
+    GmWindow *window = (GmWindow *) user_data;
     GtkTreeSelection *selection =
-            gtk_tree_view_get_selection (GTK_TREE_VIEW
-                                         (window->priv->task_tree));
+        gtk_tree_view_get_selection(GTK_TREE_VIEW
+                                    (window->priv->task_tree));
 
-    GtkTreeModel* model  = NULL;
-    GList* selected_rows =
-            gtk_tree_selection_get_selected_rows(selection,
-                                                 &model);
+    GtkTreeModel *model = NULL;
+    GList *selected_rows = gtk_tree_selection_get_selected_rows(selection,
+                                                                &model);
 
-    PDEBUG ("selection: %p, Count: %u\n",
-            selection, g_list_length(selected_rows));
+    PDEBUG("selection: %p, Count: %u\n",
+           selection, g_list_length(selected_rows));
 
     g_list_foreach(selected_rows, pause_selected_tasks, model);
 
     G_ENABLE_WIDGET(window->priv->btn_start, FALSE);
     G_ENABLE_WIDGET(window->priv->btn_pause, TRUE);
 
-    g_list_free_full (selected_rows, (GDestroyNotify) gtk_tree_path_free);
+    g_list_free_full(selected_rows, (GDestroyNotify) gtk_tree_path_free);
 }
 
-void on_btn_download_cancel_clicked(GtkButton *button,
-                                    gpointer   user_data)
+void on_btn_download_cancel_clicked(GtkButton * button, gpointer user_data)
 {
-    GtkWidget* dlg = (GtkWidget*)user_data;
-    gtk_widget_hide (dlg);
+    GtkWidget *dlg = (GtkWidget *) user_data;
+    gtk_widget_hide(dlg);
 }
 
-void on_btn_download_confirm_clicked(GtkButton *button,
-                                     gpointer   user_data)
+void on_btn_download_confirm_clicked(GtkButton * button,
+                                     gpointer user_data)
 {
-    if (!user_data)
-    {
+    if (!user_data) {
         return;
     }
 
-    GmWindow* window = (GmWindow*)user_data;
-    GmNewTaskDlg* dlg = &(window->priv->new_task_dialog);
-    const gchar* url = gtk_entry_get_text(dlg->entry_url);
-    if (!url || !strlen(url))
-    {
+    GmWindow *window = (GmWindow *) user_data;
+    GmNewTaskDlg *dlg = &(window->priv->new_task_dialog);
+    const gchar *url = gtk_entry_get_text(dlg->entry_url);
+    if (!url || !strlen(url)) {
         goto out;
     }
-    gmget_request* g_request = ZALLOC1(gmget_request);
+    gmget_request *g_request = ZALLOC1(gmget_request);
 
     g_request->request.url = g_strdup(url);
-    gtk_entry_set_text (dlg->entry_url, "");
+    gtk_entry_set_text(dlg->entry_url, "");
     g_request->sts.last_status = -1;
 
     g_request->window = window;
-    const gchar* dir = gtk_entry_get_text(dlg->entry_dir);
-    if (dir && strlen(dir))
-    {
+    const gchar *dir = gtk_entry_get_text(dlg->entry_dir);
+    if (dir && strlen(dir)) {
         g_request->request.fn.dirn = g_strdup(dir);
-    }
-    else if (!access(default_dir, F_OK))
-    {
+    } else if (!access(default_dir, F_OK)) {
         g_request->request.fn.dirn = g_strdup(default_dir);
     }
-    gtk_entry_set_text (dlg->entry_dir, "");
+    gtk_entry_set_text(dlg->entry_dir, "");
 
-    const gchar* fn = gtk_entry_get_text(dlg->entry_fn);
-    if (fn && strlen(fn))
-    {
+    const gchar *fn = gtk_entry_get_text(dlg->entry_fn);
+    if (fn && strlen(fn)) {
         g_request->request.fn.basen = g_strdup(fn);
     }
-    gtk_entry_set_text (dlg->entry_fn, "");
+    gtk_entry_set_text(dlg->entry_fn, "");
     g_request->request.opts.max_connections = 10;
     bool v = false;
-    GtkListStore* task_store =  window->priv->task_store;
+    GtkListStore *task_store = window->priv->task_store;
 
-    GtkTreeIter* iter = &(g_request->iter);
+    GtkTreeIter *iter = &(g_request->iter);
     gtk_list_store_append(task_store, iter);
     gtk_list_store_set(task_store, iter,
                        COL_STATUS, window->priv->pix_started,
                        COL_NAME, "Unamed",
                        COL_SIZE, "Unkown Size",
-                       COL_PERCENTAGE, (double)0,
+                       COL_PERCENTAGE, (double) 0,
                        COL_SPEED, "---",
                        COL_ETA, "---",
                        COL_STATUS_INT, TS_STARTED,
-                       COL_USRE_DATA, g_request,
-                       COL_END);
+                       COL_USRE_DATA, g_request, COL_END);
     /* int r = start_request(url, &g_request->request.fn, nc, update_progress, &v); */
     /* printf ("r = %d\n", r); */
     window->priv->request_list = g_list_append(window->priv->request_list,
                                                g_request);
-    pthread_t* tid = start_request_thread(g_request);
+    pthread_t *tid = start_request_thread(g_request);
     //@todo:
     // 1. Make hash table to store request.
     // 2. Start threads to handle g_request.
 
-out:
+  out:
     G_HIDE(window->priv->new_task_dialog.gtk_dialog);
 }
 
 static void
-window_status_changed_cb(void* window,
-                         const char* name,
+window_status_changed_cb(void *window,
+                         const char *name,
                          task_status stat,
-                         const char* msg,
-                         gpointer   user_data)
+                         const char *msg, gpointer user_data)
 {
-    if (!window || !user_data)
-    {
+    if (!window || !user_data) {
         return;
     }
 
@@ -420,55 +377,53 @@ window_status_changed_cb(void* window,
 
     assert(stat < TS_INVALID);
     // update status icon
-    GdkPixbuf* pix = NULL;
-    switch (stat)
-    {
-        case TS_CREATED:
+    GdkPixbuf *pix = NULL;
+    switch (stat) {
+    case TS_CREATED:
         {
             pix = gw->priv->pix_paused;
             break;
         }
-        case TS_PAUSED:
+    case TS_PAUSED:
         {
             pix = gw->priv->pix_paused;
             G_ENABLE_WIDGET(gw->priv->btn_start, TRUE);
             G_ENABLE_WIDGET(gw->priv->btn_pause, FALSE);
             break;
         }
-        case TS_STARTED:
+    case TS_STARTED:
         {
             pix = gw->priv->pix_started;
             G_ENABLE_WIDGET(gw->priv->btn_start, FALSE);
             G_ENABLE_WIDGET(gw->priv->btn_pause, TRUE);
             break;
         }
-        case TS_FINISHED:
+    case TS_FINISHED:
         {
             pix = gw->priv->pix_finished;
             G_ENABLE_WIDGET(gw->priv->btn_start, FALSE);
             G_ENABLE_WIDGET(gw->priv->btn_pause, FALSE);
             gw->priv->request_list =
-                    g_list_remove(gw->priv->request_list, req);
+                g_list_remove(gw->priv->request_list, req);
             break;
         }
-        case TS_FAILED:
+    case TS_FAILED:
         {
             pix = gw->priv->pix_cancelled;
             G_ENABLE_WIDGET(gw->priv->btn_start, TRUE);
             G_ENABLE_WIDGET(gw->priv->btn_pause, FALSE);
             break;
         }
-        default:
+    default:
         {
             abort();
             break;
         }
     }
 
-    gtk_list_store_set(gw->priv->task_store, iter,
-                       COL_STATUS, pix, -1);
+    gtk_list_store_set(gw->priv->task_store, iter, COL_STATUS, pix, -1);
 
-    GtkTextBuffer* buffer = gw->priv->text_buffer;
+    GtkTextBuffer *buffer = gw->priv->text_buffer;
 
     GtkTextIter iter1;
     gtk_text_buffer_get_end_iter(buffer, &iter1);
@@ -476,19 +431,16 @@ window_status_changed_cb(void* window,
     GTimeVal tv;
     g_get_current_time(&tv);
 
-    char* fmsg = NULL;
+    char *fmsg = NULL;
     asprintf(&fmsg, "%s: ", g_time_val_to_iso8601(&tv));
 
     gtk_text_buffer_insert_with_tags(buffer, &iter1, fmsg, -1,
                                      gw->priv->ts_tag, NULL);
 
     free(fmsg);
-    if (msg)
-    {
+    if (msg) {
         asprintf(&fmsg, "%s\n", msg);
-    }
-    else
-    {
+    } else {
         asprintf(&fmsg, "Status changed to: %s", status_string[stat]);
     }
     gtk_text_buffer_get_end_iter(buffer, &iter1);
@@ -496,81 +448,74 @@ window_status_changed_cb(void* window,
     free(fmsg);
 
     gtk_text_buffer_get_end_iter(buffer, &iter1);
-    gtk_text_view_scroll_to_iter (gw->priv->text_view,
-                                  &iter1, 0.0, false, 0, 0);
+    gtk_text_view_scroll_to_iter(gw->priv->text_view,
+                                 &iter1, 0.0, false, 0, 0);
 }
 
 static void
-window_update_progress_cb (void       *window,
-                           const char  *name,
-                           const char  *size,
-                           double      percentage,
-                           const char* speed,
-                           const char* eta,
-                           gpointer    user_data)
+window_update_progress_cb(void *window,
+                          const char *name,
+                          const char *size,
+                          double percentage,
+                          const char *speed,
+                          const char *eta, gpointer user_data)
 {
-    GmWindow* g_window = (GmWindow*)window;
+    GmWindow *g_window = (GmWindow *) window;
     GD_PTR(gmget_request, req, user_data);
     GD_PTR(GtkTreeIter, iter, &req->iter);
-    char* Bps = NULL;
+    char *Bps = NULL;
     asprintf(&Bps, "%s/s", speed);
     gtk_list_store_set(g_window->priv->task_store,
                        iter,
-                       COL_NAME,       name,
-                       COL_SIZE,       size,
+                       COL_NAME, name,
+                       COL_SIZE, size,
                        COL_PERCENTAGE, percentage,
-                       COL_SPEED,      Bps,
-                       COL_ETA,        eta,
-                       COL_END);
+                       COL_SPEED, Bps, COL_ETA, eta, COL_END);
     free(Bps);
 
     //TODO: Remove request from request_list.
 }
 
-typedef enum _toolbar_button_status
-{
-    TBS_CAN_ADD   = 1,
+typedef enum _toolbar_button_status {
+    TBS_CAN_ADD = 1,
     TBS_CAN_START = 1 << 1,
-    TBS_CAN_PAUSE = 1 <<2,
+    TBS_CAN_PAUSE = 1 << 2,
 } toolbar_button_status;
 
 // check selected row function paramter
-typedef struct _csrf_param
-{
-    GtkTreeModel* model;
-    gint          status;
+typedef struct _csrf_param {
+    GtkTreeModel *model;
+    gint status;
 } csrf_param;
 
 static void check_selected_row(gpointer data, gpointer user_data)
 {
-    csrf_param* param = (csrf_param*)user_data;
-    GtkTreePath* path = (GtkTreePath*)data;
-    GtkTreeIter  iter;
+    csrf_param *param = (csrf_param *) user_data;
+    GtkTreePath *path = (GtkTreePath *) data;
+    GtkTreeIter iter;
 
-    PDEBUG ("model: %p, path: %p\n",param->model, path);
+    PDEBUG("model: %p, path: %p\n", param->model, path);
 
     if (!path || !param || !param->model ||
-        !gtk_tree_model_get_iter(param->model, &iter, path))
-    {
+        !gtk_tree_model_get_iter(param->model, &iter, path)) {
         return;
     }
 
     int status = TS_PAUSED;
     gtk_tree_model_get(param->model, &iter, 6, &status, -1);
-    switch (status)
-    {
-        case TS_PAUSED:
-        case TS_FAILED:
+    switch (status) {
+    case TS_PAUSED:
+    case TS_FAILED:
         {
             param->status |= TBS_CAN_START;
             break;
         }
-        case TS_STARTED:
+    case TS_STARTED:
         {
             param->status |= TBS_CAN_PAUSE;
             break;
         }
-        default:
+    default:
         {
             break;
         }
@@ -579,22 +524,21 @@ static void check_selected_row(gpointer data, gpointer user_data)
 
 /* Prototype for selection handler callback */
 static void
-tree_selection_changed_cb (GtkTreeSelection *selection, gpointer data)
+tree_selection_changed_cb(GtkTreeSelection * selection, gpointer data)
 {
-    GmWindow*     window = (GmWindow*)data;
-    GtkTreeModel *model  = NULL;
-    GList* selected_rows =
-            gtk_tree_selection_get_selected_rows(selection,
-                                                 &model);
-    csrf_param* param = ZALLOC1(csrf_param);
+    GmWindow *window = (GmWindow *) data;
+    GtkTreeModel *model = NULL;
+    GList *selected_rows = gtk_tree_selection_get_selected_rows(selection,
+                                                                &model);
+    csrf_param *param = ZALLOC1(csrf_param);
     param->model = model;
 
-    PDEBUG ("selection: %p, Count: %u\n",
-            selection, g_list_length(selected_rows));
+    PDEBUG("selection: %p, Count: %u\n",
+           selection, g_list_length(selected_rows));
 
     g_list_foreach(selected_rows, check_selected_row, param);
 
-    PDEBUG ("status: %d\n", param->status);
+    PDEBUG("status: %d\n", param->status);
 
     G_ENABLE_WIDGET(window->priv->btn_start,
                     (param->status & TBS_CAN_START) ? TRUE : FALSE);
@@ -602,15 +546,15 @@ tree_selection_changed_cb (GtkTreeSelection *selection, gpointer data)
     G_ENABLE_WIDGET(window->priv->btn_pause,
                     (param->status & TBS_CAN_PAUSE) ? TRUE : FALSE);
 
-    g_list_free_full (selected_rows, (GDestroyNotify) gtk_tree_path_free);
+    g_list_free_full(selected_rows, (GDestroyNotify) gtk_tree_path_free);
 
 }
 
-static inline GdkPixbuf*
-pixbuf_from_name(GtkIconTheme* theme, const char* name, gint size)
+static inline GdkPixbuf *pixbuf_from_name(GtkIconTheme * theme,
+                                          const char *name, gint size)
 {
     assert((theme != NULL) && (name != NULL));
-    GdkPixbuf* pix = gtk_icon_theme_load_icon(theme,
+    GdkPixbuf *pix = gtk_icon_theme_load_icon(theme,
                                               name,
                                               size,
                                               GTK_ICON_LOOKUP_NO_SVG,
@@ -618,7 +562,7 @@ pixbuf_from_name(GtkIconTheme* theme, const char* name, gint size)
     return pix ? gdk_pixbuf_copy(pix) : NULL;
 }
 
-static void fill_testing_data(GmWindow* window)
+static void fill_testing_data(GmWindow * window)
 {
     GtkTreeIter iter;
     gtk_list_store_append(window->priv->task_store, &iter);
@@ -626,104 +570,94 @@ static void fill_testing_data(GmWindow* window)
                        COL_STATUS, window->priv->pix_started,
                        COL_NAME, "Unamed",
                        COL_SIZE, "Unkown Size",
-                       COL_PERCENTAGE, (double)20,
+                       COL_PERCENTAGE, (double) 20,
                        COL_SPEED, "100M/s",
                        COL_ETA, "1 min",
-                       COL_STATUS_INT, TS_STARTED,
-                       COL_END);
+                       COL_STATUS_INT, TS_STARTED, COL_END);
 
     gtk_list_store_append(window->priv->task_store, &iter);
     gtk_list_store_set(window->priv->task_store, &iter,
                        COL_STATUS, window->priv->pix_paused,
                        COL_NAME, "Unamed2",
                        COL_SIZE, "Unkown Size",
-                       COL_PERCENTAGE, (double)20,
+                       COL_PERCENTAGE, (double) 20,
                        COL_SPEED, "100M/s",
                        COL_ETA, "1 min",
-                       COL_STATUS_INT, TS_PAUSED,
-                       COL_END);
+                       COL_STATUS_INT, TS_PAUSED, COL_END);
     gtk_list_store_append(window->priv->task_store, &iter);
     gtk_list_store_set(window->priv->task_store, &iter,
                        COL_STATUS, window->priv->pix_cancelled,
                        COL_NAME, "Unamed",
                        COL_SIZE, "Unkown Size",
-                       COL_PERCENTAGE, (double)20,
+                       COL_PERCENTAGE, (double) 20,
                        COL_SPEED, "100M/s",
                        COL_ETA, "1 min",
-                       COL_STATUS_INT, TS_FAILED,
-                       COL_END);
+                       COL_STATUS_INT, TS_FAILED, COL_END);
 
     gtk_list_store_append(window->priv->task_store, &iter);
     gtk_list_store_set(window->priv->task_store, &iter,
                        COL_STATUS, window->priv->pix_finished,
                        COL_NAME, "Unamed",
                        COL_SIZE, "Unkown Size",
-                       COL_PERCENTAGE, (double)20,
+                       COL_PERCENTAGE, (double) 20,
                        COL_SPEED, "100M/s",
                        COL_ETA, "1 min",
-                       COL_STATUS_INT, TS_FINISHED,
-                       COL_END);
+                       COL_STATUS_INT, TS_FINISHED, COL_END);
 }
 
-static void
-do_popup_menu (GtkWidget *my_widget, GdkEventButton *event)
+static void do_popup_menu(GtkWidget * my_widget, GdkEventButton * event)
 {
     GtkWidget *menu;
     int button, event_time;
 
-    menu = gtk_menu_new ();
-    g_signal_connect (menu, "deactivate",
-                      G_CALLBACK (gtk_widget_destroy), NULL);
+    menu = gtk_menu_new();
+    g_signal_connect(menu, "deactivate",
+                     G_CALLBACK(gtk_widget_destroy), NULL);
 
     /* ... add menu items ... */
 
-    if (event)
-    {
+    if (event) {
         event_time = event->time;
-    }
-    else
-    {
-        event_time = gtk_get_current_event_time ();
+    } else {
+        event_time = gtk_get_current_event_time();
     }
 
-    gtk_menu_attach_to_widget (GTK_MENU (menu), my_widget, NULL);
-    gtk_menu_popup (GTK_MENU (menu), NULL, NULL, NULL, NULL,
-                    GDK_BUTTON_PRIMARY, event_time);
+    gtk_menu_attach_to_widget(GTK_MENU(menu), my_widget, NULL);
+    gtk_menu_popup(GTK_MENU(menu), NULL, NULL, NULL, NULL,
+                   GDK_BUTTON_PRIMARY, event_time);
 }
+
 // Callback when mouse clicked on task_tree.
 static gboolean
-on_task_tree_button_pressed (GtkWidget *treeview,
-                             GdkEventButton *event,
-                             gpointer userdata)
+on_task_tree_button_pressed(GtkWidget * treeview,
+                            GdkEventButton * event, gpointer userdata)
 {
-    PDEBUG ("enter: tree %p, event: %d, userData: %p\n",
-            treeview, event->button, userdata);
+    PDEBUG("enter: tree %p, event: %d, userData: %p\n",
+           treeview, event->button, userdata);
 
     // Handle only right click here.
-    if (event->button == GDK_BUTTON_SECONDARY)
-    {
-        do_popup_menu (treeview, event);
+    if (event->button == GDK_BUTTON_SECONDARY) {
+        do_popup_menu(treeview, event);
         return TRUE;
     }
 
     return FALSE;
 }
 
-static void
-gm_window_init (GmWindow *window)
+static void gm_window_init(GmWindow * window)
 {
-    GmWindowPriv  *priv;
+    GmWindowPriv *priv;
     GtkAccelGroup *accel_group;
-    GClosure      *closure;
-    gint           i;
-    GError        *error = NULL;
+    GClosure *closure;
+    gint i;
+    GError *error = NULL;
 
-    gtk_window_set_default_size((GtkWindow*)window, 800, 600);
+    gtk_window_set_default_size((GtkWindow *) window, 800, 600);
 
-    priv = GET_PRIVATE (window);
+    priv = GET_PRIVATE(window);
     window->priv = priv;
 
-    gtk_window_set_hide_titlebar_when_maximized (GTK_WINDOW (window), TRUE);
+    gtk_window_set_hide_titlebar_when_maximized(GTK_WINDOW(window), TRUE);
 
     /* priv->selected_search_link = NULL; */
 
@@ -735,63 +669,67 @@ gm_window_init (GmWindow *window)
     /*                                            window); */
 
     /* Setup builder */
-    GtkBuilder* builder = gtk_builder_new ();
+    GtkBuilder *builder = gtk_builder_new();
     /* if (!gtk_builder_add_from_resource (priv->builder,  "/org/gnome/devhelp/devhelp.ui", &error)) */
-    if (!gtk_builder_add_from_file (builder,  "res/gmget.glade", &error))
-    {
-        g_error ("Cannot add resource to builder: %s", error ? error->message : "unknown error");
-        g_clear_error (&error);
+    if (!gtk_builder_add_from_file(builder, "res/gmget.glade", &error)) {
+        g_error("Cannot add resource to builder: %s",
+                error ? error->message : "unknown error");
+        g_clear_error(&error);
     }
 
     priv->builder = builder;
     priv->main_box = G_GET_WIDGET(builder, GtkWidget, "box1");
-    gtk_widget_show (priv->main_box);
-    gtk_container_add (GTK_CONTAINER (window), priv->main_box);
+    gtk_widget_show(priv->main_box);
+    gtk_container_add(GTK_CONTAINER(window), priv->main_box);
 
-    GmNewTaskDlg* dlg = &priv->new_task_dialog;
-    dlg->gtk_dialog = G_GET_WIDGET(priv->builder, GtkDialog, "dlg_new_task");
-    dlg->entry_url  = G_GET_WIDGET(builder, GtkEntry, "entry_url");
-    dlg->entry_dir  = G_GET_WIDGET(builder, GtkEntry, "entry_dir");
-    GString* path = g_string_new(getenv("HOME"));
+    GmNewTaskDlg *dlg = &priv->new_task_dialog;
+    dlg->gtk_dialog =
+        G_GET_WIDGET(priv->builder, GtkDialog, "dlg_new_task");
+    dlg->entry_url = G_GET_WIDGET(builder, GtkEntry, "entry_url");
+    dlg->entry_dir = G_GET_WIDGET(builder, GtkEntry, "entry_dir");
+    GString *path = g_string_new(getenv("HOME"));
     path = g_string_append(path, "/Downloads");
     gtk_entry_set_text(dlg->entry_dir, path->str);
     g_string_free(path, TRUE);
 
-    dlg->entry_fn   = G_GET_WIDGET(builder, GtkEntry, "entry_filename");
+    dlg->entry_fn = G_GET_WIDGET(builder, GtkEntry, "entry_filename");
 
     priv->request_list = g_list_alloc();
     window->priv->task_tree = G_GET_WIDGET(window->priv->builder,
                                            GtkTreeView, "task_tree");
 
-    GtkListStore* task_store = G_GET_WIDGET(window->priv->builder,
-                                            GtkListStore, "liststore_tasks");
+    GtkListStore *task_store = G_GET_WIDGET(window->priv->builder,
+                                            GtkListStore,
+                                            "liststore_tasks");
     window->priv->task_store = task_store;
     /* Setup the selection handler */
     GtkTreeSelection *select =
-            gtk_tree_view_get_selection (GTK_TREE_VIEW
-                                         (window->priv->task_tree));
-    gtk_tree_selection_set_mode (select, GTK_SELECTION_MULTIPLE);
+        gtk_tree_view_get_selection(GTK_TREE_VIEW
+                                    (window->priv->task_tree));
+    gtk_tree_selection_set_mode(select, GTK_SELECTION_MULTIPLE);
 
-    g_signal_connect (G_OBJECT (select), "changed",
-                      G_CALLBACK (tree_selection_changed_cb),
-                      window);
-    g_signal_connect (window, "update-progress", G_CALLBACK
-                      (window_update_progress_cb), window);
-    g_signal_connect (window, "status-changed", G_CALLBACK
-                      (window_status_changed_cb), window);
+    g_signal_connect(G_OBJECT(select), "changed",
+                     G_CALLBACK(tree_selection_changed_cb), window);
+    g_signal_connect(window, "update-progress", G_CALLBACK
+                     (window_update_progress_cb), window);
+    g_signal_connect(window, "status-changed", G_CALLBACK
+                     (window_status_changed_cb), window);
 
 
     priv->btn_add = G_GET_WIDGET(builder, GtkToolButton, "btn_new");
     priv->btn_start = G_GET_WIDGET(builder, GtkToolButton, "btn_start");
     priv->btn_pause = G_GET_WIDGET(builder, GtkToolButton, "btn_pause");
-    priv->btn_settings =G_GET_WIDGET(builder, GtkToolButton, "btn_settings");
+    priv->btn_settings =
+        G_GET_WIDGET(builder, GtkToolButton, "btn_settings");
 
     priv->text_view = G_GET_WIDGET(builder, GtkTextView, "textview1");
-    priv->text_buffer = G_GET_WIDGET(builder, GtkTextBuffer, "textbuffer1");
+    priv->text_buffer =
+        G_GET_WIDGET(builder, GtkTextBuffer, "textbuffer1");
     priv->ts_tag = G_GET_WIDGET(builder, GtkTextTag, "time_stamp");
 
     priv->theme = gtk_icon_theme_get_default();
-    priv->pix_paused = pixbuf_from_name(priv->theme, "gtk-media-pause", 22);
+    priv->pix_paused =
+        pixbuf_from_name(priv->theme, "gtk-media-pause", 22);
     priv->pix_started = pixbuf_from_name(priv->theme, "down", 22);
     priv->pix_cancelled = pixbuf_from_name(priv->theme, "gtk-close", 22);
     priv->pix_finished = pixbuf_from_name(priv->theme, "gtk-ok", 22);
@@ -813,10 +751,9 @@ gm_window_init (GmWindow *window)
     gg_window = window;
 }
 
-static void
-dispose (GObject *object)
+static void dispose(GObject * object)
 {
-	GmWindow *self = GM_WINDOW (object);
+    GmWindow *self = GM_WINDOW(object);
 
     /* if (self->priv->fonts_changed_id) { */
     /*     if (self->priv->settings && g_signal_handler_is_connected (self->priv->settings, self->priv->fonts_changed_id)) */
@@ -827,60 +764,41 @@ dispose (GObject *object)
     /* g_clear_object (&self->priv->settings); */
     /* g_clear_object (&self->priv->builder); */
 
-	/* Chain up to the parent class */
-	G_OBJECT_CLASS (gm_window_parent_class)->dispose (object);
+    /* Chain up to the parent class */
+    G_OBJECT_CLASS(gm_window_parent_class)->dispose(object);
 }
 
-static void
-gm_window_class_init (GmWindowClass *klass)
+static void gm_window_class_init(GmWindowClass * klass)
 {
-    GObjectClass *object_class = G_OBJECT_CLASS (klass);
-    g_type_class_add_private (klass, sizeof (GmWindowPriv));
+    GObjectClass *object_class = G_OBJECT_CLASS(klass);
+    g_type_class_add_private(klass, sizeof(GmWindowPriv));
     object_class->dispose = dispose;
 
-    signals[UPDATE_PROGRESS] =
-            g_signal_new ("update-progress",
-                          G_TYPE_FROM_CLASS (klass),
-                          G_SIGNAL_RUN_LAST,
-                          G_STRUCT_OFFSET (GmWindowClass, update_progress),
-                          NULL, NULL,
-                          g_cclosure_marshal_generic,
-                          G_TYPE_NONE,
-                          6,
-                          G_TYPE_STRING, // Name,
-                          G_TYPE_STRING, // Size
-                          G_TYPE_DOUBLE, // Percentage
-                          G_TYPE_STRING, // Speed
-                          G_TYPE_STRING, // Eta
-                          G_TYPE_POINTER // User_Data
-                          );
+    signals[UPDATE_PROGRESS] = g_signal_new("update-progress", G_TYPE_FROM_CLASS(klass), G_SIGNAL_RUN_LAST, G_STRUCT_OFFSET(GmWindowClass, update_progress), NULL, NULL, g_cclosure_marshal_generic, G_TYPE_NONE, 6, G_TYPE_STRING,     // Name,
+                                            G_TYPE_STRING,      // Size
+                                            G_TYPE_DOUBLE,      // Percentage
+                                            G_TYPE_STRING,      // Speed
+                                            G_TYPE_STRING,      // Eta
+                                            G_TYPE_POINTER      // User_Data
+        );
 
-    signals[UPDATE_PROGRESS] =
-            g_signal_new ("status-changed",
-                          G_TYPE_FROM_CLASS (klass),
-                          G_SIGNAL_RUN_LAST,
-                          G_STRUCT_OFFSET (GmWindowClass, status_changed),
-                          NULL, NULL,
-                          g_cclosure_marshal_generic,
-                          G_TYPE_NONE,
-                          4,
-                          G_TYPE_STRING, // name
-                          G_TYPE_INT,    // state
-                          G_TYPE_STRING, // msg
-                          G_TYPE_POINTER // User_Data
-                          );
+    signals[UPDATE_PROGRESS] = g_signal_new("status-changed", G_TYPE_FROM_CLASS(klass), G_SIGNAL_RUN_LAST, G_STRUCT_OFFSET(GmWindowClass, status_changed), NULL, NULL, g_cclosure_marshal_generic, G_TYPE_NONE, 4, G_TYPE_STRING,       // name
+                                            G_TYPE_INT, // state
+                                            G_TYPE_STRING,      // msg
+                                            G_TYPE_POINTER      // User_Data
+        );
 }
 
-GtkWidget *
-gm_window_new (GmApp *application)
+GtkWidget *gm_window_new(GmApp * application)
 {
-    GmWindow     *window;
+    GmWindow *window;
     GmWindowPriv *priv;
 
-    window = g_object_new (GM_TYPE_WINDOW, NULL);
+    window = g_object_new(GM_TYPE_WINDOW, NULL);
     priv = window->priv;
 
-    gtk_window_set_application (GTK_WINDOW (window), GTK_APPLICATION (application));
+    gtk_window_set_application(GTK_WINDOW(window),
+                               GTK_APPLICATION(application));
 
     /* window_populate (window); */
 
@@ -900,5 +818,5 @@ gm_window_new (GmApp *application)
     /*                  "position", G_OBJECT (priv->hpaned), */
     /*                  "position", G_SETTINGS_BIND_DEFAULT); */
 
-    return GTK_WIDGET (window);
+    return GTK_WIDGET(window);
 }

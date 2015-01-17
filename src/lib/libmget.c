@@ -30,43 +30,43 @@
 #include <stdio.h>
 #include <strings.h>
 
-extern log_level       g_log_level;
+extern log_level g_log_level;
 extern host_cache_type g_hct;
 
-typedef mget_err (*protocol_handler)(dinfo*, dp_callback, bool*, void*);
-static hash_table* g_handlers = NULL;
+typedef mget_err(*protocol_handler) (dinfo *, dp_callback, bool *, void *);
+static hash_table *g_handlers = NULL;
 
-mget_err start_request(const char *url, const file_name* fn, mget_option* opt,
-                       dp_callback cb, bool* stop_flag, void* user_data)
+mget_err start_request(const char *url, const file_name * fn,
+                       mget_option * opt, dp_callback cb, bool * stop_flag,
+                       void *user_data)
 {
-    dinfo* info = NULL;
-    mget_err  ret  = ME_OK;
-    if (!dinfo_create(url, fn, opt, &info))
-    {
+    dinfo *info = NULL;
+    mget_err ret = ME_OK;
+    if (!dinfo_create(url, fn, opt, &info)) {
         fprintf(stderr, "Failed to create download info\n");
         ret = ME_RES_ERR;
         return ret;
     }
 
-    if (!g_handlers && !(g_handlers = collect_handlers()))
-    {
+    if (!g_handlers && !(g_handlers = collect_handlers())) {
         fprintf(stderr, "Failed to scan protocol handlers\n");
         return ME_RES_ERR;
     }
 
     protocol_handler handler =
-            (protocol_handler)hash_table_entry_get(g_handlers, info->ui->protocol);
-    if (!handler)
-    {
+        (protocol_handler) hash_table_entry_get(g_handlers,
+                                                info->ui->protocol);
+    if (!handler) {
         fprintf(stderr, "Protocol: %s is not supported...\n",
-            info->ui->protocol);
+                info->ui->protocol);
         return ME_NOT_SUPPORT;
     }
 
-    fprintf(stderr, "Found handler: %p for %s\n", handler, info->ui->protocol);
+    mlog(LL_ALWAYS, "Using handler: %p for %s\n", handler,
+         info->ui->protocol);
 
     g_log_level = opt->ll;
-    g_hct       = opt->hct;
+    g_hct = opt->hct;
     if (opt->limit > 0)
         set_global_bandwidth(opt->limit);
 

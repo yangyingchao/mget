@@ -35,22 +35,20 @@ extern "C" {
 #define T       (1 << 40)
 
 // user should copy this tring after it returns!
-const char *stringify_size(uint64 sz);
-int integer_size(const char* size);
+    const char *stringify_size(uint64 sz);
+    int integer_size(const char *size);
 
-bool file_existp(const char *fn);
+    bool file_existp(const char *fn);
 
-int get_time_ms();
-int get_time_s();
-char *stringify_time(uint64 ts);
-char *current_time_str();
+    int get_time_ms();
+    int get_time_s();
+    char *stringify_time(uint64 ts);
+    char *current_time_str();
 
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* _MGET_UTILS_H_ */
-
+#endif				/* _MGET_UTILS_H_ */
 /*
  * Editor modelines
  *

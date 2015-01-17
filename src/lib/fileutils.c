@@ -44,7 +44,8 @@ fhandle *fhandle_create(const char *fn, FHM mode)
     }
 
     fh->fn = strdup(fn);
-    fh->fd = open(fn, O_RDWR | ((mode & FHM_CREATE) ? O_CREAT:0), FM_DEFAULT);
+    fh->fd =
+        open(fn, O_RDWR | ((mode & FHM_CREATE) ? O_CREAT : 0), FM_DEFAULT);
     struct stat st;
 
     if (!fstat(fh->fd, &st)) {
@@ -52,7 +53,7 @@ fhandle *fhandle_create(const char *fn, FHM mode)
         return fh;
     }
 
-err:
+  err:
     PDEBUG("err..\n");
 
     if (fh) {
@@ -62,14 +63,14 @@ err:
     return NULL;
 }
 
-void fhandle_destroy(fhandle** fh)
+void fhandle_destroy(fhandle ** fh)
 {
     if (fh && *fh) {
         if ((*fh)->fd != -1) {
             close((*fh)->fd);
         }
 
-        PDEBUG ("fh: %p, fn: %s\n", *fh, (*fh)->fn);
+        PDEBUG("fh: %p, fn: %s\n", *fh, (*fh)->fn);
 
         if ((*fh)->fn) {
             if (0) {
@@ -114,9 +115,8 @@ fh_map *fhandle_mmap(fhandle * fh, off_t offset, size_t length)
     if (fm) {
         PDEBUG("file %s mapped to addr: %p, length: %lX(%s)\n",
                fh->fn, fm->addr, size, stringify_size(size));
-    }
-    else  {
-        PDEBUG ("FM is null!\n");
+    } else {
+        PDEBUG("FM is null!\n");
     }
 
     return fm;
@@ -160,13 +160,13 @@ char *get_basename(const char *fname)
 
 bool file_existp(const char *path)
 {
-    PDEBUG ("path: %s\n", path);
+    PDEBUG("path: %s\n", path);
 
     if (!path)
         return false;
 
     int ret = access(path, F_OK);
-    PDEBUG ("ret: %d\n", ret);
+    PDEBUG("ret: %d\n", ret);
 
     if (ret < 0)
         return false;
@@ -234,13 +234,13 @@ bool get_full_path(const file_name * fn, char **final)
         ret = true;
     }
 
-    PDEBUG ("final: %s\n", *final);
+    PDEBUG("final: %s\n", *final);
 
-ret:
+  ret:
     return ret;
 }
 
-fh_map* fm_create(const char* fn, size_t length)
+fh_map *fm_create(const char *fn, size_t length)
 {
     fhandle *fh = fhandle_create(fn, FHM_CREATE);
     fh_map *fm = fh ? fhandle_mmap(fh, 0, length ? length : 1) : NULL;
@@ -251,23 +251,22 @@ fh_map* fm_create(const char* fn, size_t length)
     return NULL;
 }
 
-bool fm_remap(fh_map** fm, size_t nl)
+bool fm_remap(fh_map ** fm, size_t nl)
 {
     if (!fm)
         return false;
-    fhandle* fh = (*fm)->fh;
+    fhandle *fh = (*fm)->fh;
     fhandle_munmap(fm);
     *fm = fhandle_mmap(fh, 0, nl ? nl : 1);
     return true;
 }
 
-char* fm_get_directory(fh_map* fm)
+char *fm_get_directory(fh_map * fm)
 {
-    char* dirn = NULL;
+    char *dirn = NULL;
 
-    if (fm && fm->fh && fm->fh->fn)
-    {
-        char* tmp = strdup(fm->fh->fn);
+    if (fm && fm->fh && fm->fh->fn) {
+        char *tmp = strdup(fm->fh->fn);
         dirn = strdup(dirname(tmp));
         free(tmp);
     }

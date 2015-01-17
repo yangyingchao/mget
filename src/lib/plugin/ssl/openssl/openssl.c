@@ -29,13 +29,12 @@
 #include <openssl/err.h>
 #include <unistd.h>
 
-typedef struct _ssl_wrapper
-{
-    SSL_CTX*    ctx;
-    SSL*        ssl;
-    BIO*        bio;
-    int         sock;
-    byte_queue* bq;
+typedef struct _ssl_wrapper {
+    SSL_CTX *ctx;
+    SSL *ssl;
+    BIO *bio;
+    int sock;
+    byte_queue *bq;
 } ssl_wrapper;
 
 #define berr_exit(msg)                                  \
@@ -52,13 +51,12 @@ typedef struct _ssl_wrapper
 static bool g_initilized = false;
 bool ssl_init()
 {
-    if (!g_initilized)
-    {
+    if (!g_initilized) {
         SSL_library_init();
         SSL_load_error_strings();
         ERR_load_BIO_strings();
         OpenSSL_add_all_algorithms();
-        SSLeay_add_ssl_algorithms ();
+        SSLeay_add_ssl_algorithms();
 
         /* SSL_CTX_set_cipher_list */
         g_initilized = true;
@@ -69,69 +67,67 @@ bool ssl_init()
 
 int secure_socket_read(int sk, char *buf, uint32 size, void *priv)
 {
-    ssl_wrapper* wrapper = (ssl_wrapper*)priv;
+    ssl_wrapper *wrapper = (ssl_wrapper *) priv;
     int ret = 0;
     bool extended = false;
-retry :
+  retry:
     if (!timed_wait(wrapper->sock, WT_READ, -1)) {
-        mlog (LL_ALWAYS, "%s: socket not ready.\n", __func__);
+        mlog(LL_ALWAYS, "%s: socket not ready.\n", __func__);
         return 0;
     }
 
-read:
+  read:
     if (extended) {
         int tmp = SSL_read(wrapper->ssl, buf, size);
-        mlog (LL_NOTQUIET, "%d bytes will be dropped..\n", tmp);
-    }
-    else
+        mlog(LL_NOTQUIET, "%d bytes will be dropped..\n", tmp);
+    } else
         ret = SSL_read(wrapper->ssl, buf, size);
 
-    int e   = SSL_get_error(wrapper->ssl, ret);
+    int e = SSL_get_error(wrapper->ssl, ret);
     switch (e) {
-        case SSL_ERROR_NONE:
-            break;
-        case SSL_ERROR_ZERO_RETURN:
-            /* End of data */
-            SSL_shutdown(wrapper->ssl);
-            break;
-        case SSL_ERROR_WANT_READ:
-            goto retry;
-        case SSL_ERROR_WANT_WRITE:
-            if (!timed_wait(wrapper->sock, WT_WRITE, -1)) {
-                mlog (LL_ALWAYS, "%s: socket not ready for write..\n", __func__);
-            }
-            goto retry;
-        case SSL_ERROR_SYSCALL: {
+    case SSL_ERROR_NONE:
+        break;
+    case SSL_ERROR_ZERO_RETURN:
+        /* End of data */
+        SSL_shutdown(wrapper->ssl);
+        break;
+    case SSL_ERROR_WANT_READ:
+        goto retry;
+    case SSL_ERROR_WANT_WRITE:
+        if (!timed_wait(wrapper->sock, WT_WRITE, -1)) {
+            mlog(LL_ALWAYS, "%s: socket not ready for write..\n",
+                 __func__);
+        }
+        goto retry;
+    case SSL_ERROR_SYSCALL:{
             fprintf(stderr, "buf: %p, size: %u\n", buf, size);
             if (!ERR_get_error()) {
                 if (!ret) {
-                    mlog (LL_ALWAYS,
-                          "EOF was observed that violates the protocol.\n");
+                    mlog(LL_ALWAYS,
+                         "EOF was observed that violates the protocol.\n");
                     return -1;
-                }
-                else {
-                    mlog (LL_ALWAYS, "BIO reported an I/O error: %s\n",
-                            strerror(errno));
+                } else {
+                    mlog(LL_ALWAYS, "BIO reported an I/O error: %s\n",
+                         strerror(errno));
                 }
             }
             break;
         }
 
-        default:
-            berr_exit("SSL read problem");
+    default:
+        berr_exit("SSL read problem");
     }
 
-    if (SSL_pending(wrapper->ssl))  {
-        PDEBUG ("pending data, size: %d, ret: %d...\n", size, ret);
+    if (SSL_pending(wrapper->ssl)) {
+        PDEBUG("pending data, size: %d, ret: %d...\n", size, ret);
         buf += ret;
         size -= ret;
-        PDEBUG ("pending data, size: %d...\n", (int)size);
-        if ((int)size <= 0)
-        {
+        PDEBUG("pending data, size: %d...\n", (int) size);
+        if ((int) size <= 0) {
             bq_enlarge(wrapper->bq, PAGE);
             buf = wrapper->bq->w;
             size = wrapper->bq->x - wrapper->bq->w;
-            mlog (LL_ALWAYS, "Data save to bq\n");
+            mlog(LL_ALWAYS, "Data save to bq\n");
             extended = true;
         }
         goto read;
@@ -142,30 +138,30 @@ read:
 
 int secure_socket_write(int sk, char *buf, uint32 size, void *priv)
 {
-    ssl_wrapper* wrapper = (ssl_wrapper*)priv;
+    ssl_wrapper *wrapper = (ssl_wrapper *) priv;
 
     /* Try to write */
-retry:
+  retry:
     if (!timed_wait(wrapper->sock, WT_WRITE, -1)) {
-        mlog (LL_ALWAYS, "%s: socket not ready.\n", __func__);
+        mlog(LL_ALWAYS, "%s: socket not ready.\n", __func__);
         return 0;
     }
 
     int r = SSL_write(wrapper->ssl, buf, size);
     int e = SSL_get_error(wrapper->ssl, r);
-    switch(SSL_get_error(wrapper->ssl, r)) {
-        case SSL_ERROR_NONE:
-            break;
-        case SSL_ERROR_WANT_WRITE:
-            goto retry;
-        case SSL_ERROR_WANT_READ:
-            if (!timed_wait(wrapper->sock, WT_READ, -1))  {
-                mlog (LL_ALWAYS, "%s: socket not ready for reading\n",
-                      __func__);
-            }
-            goto retry;
-        default:
-            berr_exit("SSL write problem");
+    switch (SSL_get_error(wrapper->ssl, r)) {
+    case SSL_ERROR_NONE:
+        break;
+    case SSL_ERROR_WANT_WRITE:
+        goto retry;
+    case SSL_ERROR_WANT_READ:
+        if (!timed_wait(wrapper->sock, WT_READ, -1)) {
+            mlog(LL_ALWAYS, "%s: socket not ready for reading\n",
+                 __func__);
+        }
+        goto retry;
+    default:
+        berr_exit("SSL write problem");
     }
 
     return r;
@@ -173,36 +169,36 @@ retry:
 
 void *make_socket_secure(int sock)
 {
-    PDEBUG ("enter with sock: %d\n", sock);
+    PDEBUG("enter with sock: %d\n", sock);
 
-    ssl_wrapper* wrapper = ZALLOC1(ssl_wrapper);
-    wrapper->ctx  = SSL_CTX_new(SSLv23_client_method());
+    ssl_wrapper *wrapper = ZALLOC1(ssl_wrapper);
+    wrapper->ctx = SSL_CTX_new(SSLv23_client_method());
     CHECK_W_PTR(wrapper->ctx);
-    SSL_CTX_set_verify (wrapper->ctx, SSL_VERIFY_NONE, NULL);
-    SSL_CTX_set_mode (wrapper->ctx, SSL_MODE_ENABLE_PARTIAL_WRITE);
+    SSL_CTX_set_verify(wrapper->ctx, SSL_VERIFY_NONE, NULL);
+    SSL_CTX_set_mode(wrapper->ctx, SSL_MODE_ENABLE_PARTIAL_WRITE);
 
 
-    wrapper->ssl  = SSL_new(wrapper->ctx);
+    wrapper->ssl = SSL_new(wrapper->ctx);
     CHECK_W_PTR(wrapper->ssl);
 
-    wrapper->bio  = BIO_new_socket(sock, BIO_NOCLOSE);
+    wrapper->bio = BIO_new_socket(sock, BIO_NOCLOSE);
     CHECK_W_PTR(wrapper->bio);
 
     wrapper->sock = sock;
     wrapper->bq = bq_init(PAGE);
 
-    PDEBUG ("ctx: %p ssl: %p, bio: %p\n", wrapper->ctx, wrapper->ssl,
-            wrapper->bio);
+    PDEBUG("ctx: %p ssl: %p, bio: %p\n", wrapper->ctx, wrapper->ssl,
+           wrapper->bio);
 
     SSL_set_bio(wrapper->ssl, wrapper->bio, wrapper->bio);
     /* SSL_set_session(ssl,sess);          /\*And resume it*\/ */
     int ret = 0;
 
-retry:
+  retry:
     ret = SSL_connect(wrapper->ssl);
-    if(ret <= 0) {
+    if (ret <= 0) {
         unsigned long e = SSL_get_error(wrapper->ssl, ret);
-        if (e != SSL_ERROR_WANT_READ && e!= SSL_ERROR_WANT_WRITE) {
+        if (e != SSL_ERROR_WANT_READ && e != SSL_ERROR_WANT_WRITE) {
             berr_exit("SSL connect error (second connect)");
         }
 
@@ -215,18 +211,18 @@ retry:
         if (timed_wait(sock, type, -1))
             goto retry;
 
-        mlog (LL_ALWAYS, "Failed to select...\n");
+        mlog(LL_ALWAYS, "Failed to select...\n");
         abort();
     }
 
     /* check_cert(ssl, host); */
 
-    PDEBUG ("ret: %p\n", wrapper);
+    PDEBUG("ret: %p\n", wrapper);
 
     return wrapper;
 }
 
-void ssl_destroy(void* priv)
+void ssl_destroy(void *priv)
 {
 }
 

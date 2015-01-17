@@ -26,11 +26,11 @@
 #include <gtk/gtk.h>
 #include "gm-app.h"
 
-static gboolean  option_new_window;
-static gchar    *option_search;
-static gchar    *option_search_assistant;
-static gboolean  option_quit;
-static gboolean  option_version;
+static gboolean option_new_window;
+static gchar *option_search;
+static gchar *option_search_assistant;
+static gboolean option_quit;
+static gboolean option_version;
 
 static GOptionEntry options[] = {
     /* { "new-window", 'n', */
@@ -48,103 +48,99 @@ static GOptionEntry options[] = {
     /*   N_("Search and display any hit in the assistant window"), */
     /*   N_("KEYWORD") */
     /* }, */
-    { "version", 'v',
-      0, G_OPTION_ARG_NONE, &option_version,
-      N_("Display the version and exit"),
-      NULL
-    },
-    { "quit", 'q',
-      0, G_OPTION_ARG_NONE, &option_quit,
-      N_("Quit Gmget"),
-      NULL
-    },
-    { NULL }
+    {"version", 'v',
+     0, G_OPTION_ARG_NONE, &option_version,
+     N_("Display the version and exit"),
+     NULL},
+    {"quit", 'q',
+     0, G_OPTION_ARG_NONE, &option_quit,
+     N_("Quit Gmget"),
+     NULL},
+    {NULL}
 };
 
-static void
-run_action (GmApp *application,
-            gboolean is_remote)
+static void run_action(GmApp * application, gboolean is_remote)
 {
     if (option_new_window) {
         if (is_remote)
-            gm_app_new_window (application);
+            gm_app_new_window(application);
     } else if (option_quit) {
-        gm_app_quit (application);
+        gm_app_quit(application);
     } else if (option_search) {
-        gm_app_search (application, option_search);
+        gm_app_search(application, option_search);
     } else if (option_search_assistant) {
-        gm_app_search_assistant (application, option_search_assistant);
+        gm_app_search_assistant(application, option_search_assistant);
     } else {
         if (is_remote)
-            gm_app_raise (application);
+            gm_app_raise(application);
     }
 }
 
-static void
-activate_cb (GtkApplication *application)
+static void activate_cb(GtkApplication * application)
 {
     /* This is the primary instance */
-    gm_app_new_window (GM_APP (application));
+    gm_app_new_window(GM_APP(application));
 
     /* Run the requested action from the command line */
-    run_action (GM_APP (application), FALSE);
+    run_action(GM_APP(application), FALSE);
 }
 
-int
-main (int argc, char **argv)
+int main(int argc, char **argv)
 {
-    GmApp   *application;
-    GError  *error = NULL;
-    gint     status;
+    GmApp *application;
+    GError *error = NULL;
+    gint status;
 
-    setlocale (LC_ALL, "");
+    setlocale(LC_ALL, "");
     /* bindtextdomain (GETTEXT_PACKAGE, LOCALEDIR); */
     /* bind_textdomain_codeset (GETTEXT_PACKAGE, "UTF-8"); */
     /* textdomain (GETTEXT_PACKAGE); */
-    gtk_init (&argc, &argv);
+    gtk_init(&argc, &argv);
 
     // TODO: Remove this ifdef!
 #if 0
-if (!gtk_init_with_args (&argc, &argv, NULL, options, GETTEXT_PACKAGE, &error)) {
-        g_printerr ("%s\n", error->message);
+    if (!gtk_init_with_args
+        (&argc, &argv, NULL, options, GETTEXT_PACKAGE, &error)) {
+        g_printerr("%s\n", error->message);
         return EXIT_FAILURE;
     }
-#endif // End of #if 0
+#endif                          // End of #if 0
 
 #if 0
-if (option_version) {
-        g_print ("%s\n", PACKAGE_STRING);
+    if (option_version) {
+        g_print("%s\n", PACKAGE_STRING);
         return EXIT_SUCCESS;
     }
-#endif // End of #if 0
+#endif                          // End of #if 0
 
 /* Create new GmApp */
-    application = gm_app_new ();
-    g_signal_connect (application, "activate", G_CALLBACK (activate_cb), NULL);
+    application = gm_app_new();
+    g_signal_connect(application, "activate", G_CALLBACK(activate_cb),
+                     NULL);
 
     /* Set it as the default application */
-    g_application_set_default (G_APPLICATION (application));
+    g_application_set_default(G_APPLICATION(application));
 
     /* Try to register the application... */
-    if (!g_application_register (G_APPLICATION (application), NULL, &error)) {
-        g_printerr ("Couldn't register GMget instance: '%s'\n",
-                    error ? error->message : "");
-        g_object_unref (application);
+    if (!g_application_register(G_APPLICATION(application), NULL, &error)) {
+        g_printerr("Couldn't register GMget instance: '%s'\n",
+                   error ? error->message : "");
+        g_object_unref(application);
         return EXIT_FAILURE;
     }
 
     /* Actions on a remote Devhelp already running? */
-    if (g_application_get_is_remote (G_APPLICATION (application))) {
+    if (g_application_get_is_remote(G_APPLICATION(application))) {
         /* Run the requested action from the command line */
-        run_action (application, TRUE);
-        g_object_unref (application);
+        run_action(application, TRUE);
+        g_object_unref(application);
         return EXIT_SUCCESS;
     }
 
     /* And run the GtkApplication */
-    status = g_application_run (G_APPLICATION (application), argc, argv);
+    status = g_application_run(G_APPLICATION(application), argc, argv);
 
-    g_object_unref (application);
+    g_object_unref(application);
 
     return status;
 }

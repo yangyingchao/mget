@@ -79,7 +79,7 @@ static void gnutls_close(int fd, void *arg)
 
 int secure_socket_read(int sk, char *buf, uint32 size, void *priv)
 {
-    if (priv)			//@todo: need to read all content in tls buffer!!!
+    if (priv)                   //@todo: need to read all content in tls buffer!!!
     {
         gnutls_session_t *session = (gnutls_session_t *) priv;
 
@@ -134,11 +134,11 @@ void *make_socket_secure(int sk)
     } else {
         goto ret;
     }
-err:
+  err:
     gnutls_deinit(*session);
-free:
+  free:
     FIFZ(&session);
-ret:
+  ret:
     return session;
 }
 

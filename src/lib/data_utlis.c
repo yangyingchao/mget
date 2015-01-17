@@ -31,10 +31,10 @@
 // Hash table operations.
 
 struct _TableEntry {
-    char   *key;
-    void   *val;
-    time_t  ts;                         /* time stamp of last access time.*/
-    uint32  val_len;                    /* length of value. */
+    char *key;
+    void *val;
+    time_t ts;                  /* time stamp of last access time. */
+    uint32 val_len;             /* length of value. */
 };
 
 static const int HASH_SIZE = 256;
@@ -71,7 +71,7 @@ uint32 StringHashFunction(const char *str)
             (T)->deFunctor(entry->val); \
     } while (0)
 
-void hash_table_destroy(hash_table* table)
+void hash_table_destroy(hash_table * table)
 {
     if (table) {
         if (table->entries) {
@@ -93,9 +93,9 @@ void hash_table_destroy(hash_table* table)
     }
 }
 
-hash_table*hash_table_create(uint32 hashSize, DestroyFunction dFunctor)
+hash_table *hash_table_create(uint32 hashSize, DestroyFunction dFunctor)
 {
-    hash_table*table = malloc(sizeof(hash_table));
+    hash_table *table = malloc(sizeof(hash_table));
 
     if (table) {
         memset(table, 0, sizeof(hash_table));
@@ -105,7 +105,7 @@ hash_table*hash_table_create(uint32 hashSize, DestroyFunction dFunctor)
 
         table->capacity = hashSize;
         table->entries = ZALLOC(TableEntry, hashSize);
-        table->hashFunctor = StringHashFunction;	// use default one.
+        table->hashFunctor = StringHashFunction;        // use default one.
         table->deFunctor = dFunctor;
 
         if (table->entries) {
@@ -116,11 +116,12 @@ hash_table*hash_table_create(uint32 hashSize, DestroyFunction dFunctor)
         }
     }
 
-    PDEBUG ("return with table: %p\n", table);
+    PDEBUG("return with table: %p\n", table);
     return table;
 }
 
-bool hash_table_insert(hash_table* table, const char *key, void *val, uint32 len)
+bool hash_table_insert(hash_table * table, const char *key, void *val,
+                       uint32 len)
 {
     bool ret = false;
     if (table && key && val) {
@@ -130,28 +131,24 @@ bool hash_table_insert(hash_table* table, const char *key, void *val, uint32 len
         // Insert entry into the first open slot starting from index.
         for (i = table->hashFunctor(d_key); i < table->capacity; ++i) {
             TableEntry *entry = &table->entries[i];
-            if (entry->key)
-            {
-                if (!strcmp(key, entry->key))
-                {
+            if (entry->key) {
+                if (!strcmp(key, entry->key)) {
                     return false;
                 }
-            }
-            else {
-                entry->key     = d_key;
-                entry->val     = val;
+            } else {
+                entry->key = d_key;
+                entry->val = val;
                 entry->val_len = len;
-                entry->ts      = time(NULL);
-                ret            = true;
-                table->occupied ++;
+                entry->ts = time(NULL);
+                ret = true;
+                table->occupied++;
                 break;
             }
         }
     }
 
-    if (!ret)
-    {
-        PDEBUG ("Failed to insert: %s -- %s\n", key, (char*)val);
+    if (!ret) {
+        PDEBUG("Failed to insert: %s -- %s\n", key, (char *) val);
     }
 
     return ret;
@@ -160,38 +157,37 @@ bool hash_table_insert(hash_table* table, const char *key, void *val, uint32 len
 #define DTB(X, Y)                                                         \
     PDEBUG (X ", table: %p, capacity: %d, occupied: %d\n",Y,Y->capacity, Y->occupied)
 
-bool hash_table_update(hash_table* table, char *key, void *val, uint32 len)
+bool hash_table_update(hash_table * table, char *key, void *val,
+                       uint32 len)
 {
     DTB("enter", table);
 
     bool ret = false;
     if (table && key && val) {
         uint32 i;
-        char        *d_key  = strdup(key);
-        TableEntry*  oldest = NULL;
-        TableEntry  *entry  = NULL;
+        char *d_key = strdup(key);
+        TableEntry *oldest = NULL;
+        TableEntry *entry = NULL;
         // Insert entry into the first open slot starting from index.
         for (i = table->hashFunctor(d_key); i < table->capacity; ++i) {
             entry = &table->entries[i];
             if (entry->key) {
                 if (!strcmp(key, entry->key)) {
                     goto fill_slot;
-                }
-                else {
+                } else {
                     if (!oldest)
                         oldest = entry;
                     else
                         oldest = oldest->ts < entry->ts ? oldest : entry;
                 }
-            }
-            else {
-                table->occupied ++;
-          fill_slot:
-                entry->key     = d_key;
-                entry->val     = val;
+            } else {
+                table->occupied++;
+              fill_slot:
+                entry->key = d_key;
+                entry->val = val;
                 entry->val_len = len;
-                entry->ts      = time(NULL);
-                ret            = true;
+                entry->ts = time(NULL);
+                ret = true;
                 break;
             }
         }
@@ -205,7 +201,7 @@ bool hash_table_update(hash_table* table, char *key, void *val, uint32 len)
         }
 
         if (!ret) {
-            PDEBUG ("Failed to update hash table for key: %s\n", key);
+            PDEBUG("Failed to update hash table for key: %s\n", key);
             FIF(d_key);
         }
     }
@@ -218,7 +214,7 @@ bool hash_table_update(hash_table* table, char *key, void *val, uint32 len)
 
   @return void*
 */
-void *hash_table_entry_get(hash_table* table, const char *key)
+void *hash_table_entry_get(hash_table * table, const char *key)
 {
     TableEntry *entry = NULL;
     uint32 index = table->hashFunctor(key);
@@ -240,28 +236,27 @@ void *hash_table_entry_get(hash_table* table, const char *key)
     return NULL;
 }
 
-uint32 dump_hash_table(hash_table* ht, void *buffer, uint32 buffer_size)
+uint32 dump_hash_table(hash_table * ht, void *buffer, uint32 buffer_size)
 {
-    if (!buffer || buffer_size <= 3 * sizeof(uint32))
-    {
+    if (!buffer || buffer_size <= 3 * sizeof(uint32)) {
         return -1;
     }
 
-    PDEBUG ("Dumping to %p\n", buffer);
+    PDEBUG("Dumping to %p\n", buffer);
 
-    char* ptr = buffer;
+    char *ptr = buffer;
 
     // Version Number
-    *(uint32*)ptr = GET_VERSION();
+    *(uint32 *) ptr = GET_VERSION();
     DIP(version, ptr);
     ptr += sizeof(uint32);
 
     // Capacity.
-    *(uint32*)ptr = ht->capacity;
+    *(uint32 *) ptr = ht->capacity;
     DIP(capacity, ptr);
     ptr += sizeof(uint32);
 
-    *(uint32*)ptr = ht->occupied;
+    *(uint32 *) ptr = ht->occupied;
     DIP(occupied, ptr);
     ptr += sizeof(uint32);
 
@@ -270,45 +265,42 @@ uint32 dump_hash_table(hash_table* ht, void *buffer, uint32 buffer_size)
         entry = &ht->entries[i];
 
         if (entry->key && entry->val) {
-            uint32 key_len = (uint32)strlen(entry->key);
+            uint32 key_len = (uint32) strlen(entry->key);
             //todo: check buffer size.
 
-            *(uint32*)ptr = key_len;
+            *(uint32 *) ptr = key_len;
             ptr += sizeof(uint32);
             memcpy(ptr, entry->key, key_len);
             ptr += key_len;
 
-            *(uint32*)ptr = entry->val_len;
+            *(uint32 *) ptr = entry->val_len;
             ptr += sizeof(uint32);
             memcpy(ptr, entry->val, entry->val_len);
             ptr += entry->val_len;
         }
     }
 
-    return ptr - (char*)buffer;
+    return ptr - (char *) buffer;
 }
 
-hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size)
+hash_table *hash_table_create_from_buffer(void *buffer, uint32 buffer_size)
 {
-    if (!buffer || buffer_size <= 3 * sizeof(uint32))
-    {
+    if (!buffer || buffer_size <= 3 * sizeof(uint32)) {
         mlog(LL_NOTQUIET, "Invalid arguments: buffer: %p, size: %d\n",
-                buffer, buffer_size);
+             buffer, buffer_size);
         return NULL;
     }
-
     // version checking.
-    char*       ptr = buffer;
-    hash_table* ht  = NULL;
+    char *ptr = buffer;
+    hash_table *ht = NULL;
 
-    uint32 v = *(uint32*)ptr;
+    uint32 v = *(uint32 *) ptr;
     if (!v) {
-        PDEBUG ("nothing in this buffer...\n");
+        PDEBUG("nothing in this buffer...\n");
         return NULL;
     }
 
-    PDEBUG ("buffer info: version: %d.%d.%d\n",
-            DIVIDE_VERSION(v));
+    PDEBUG("buffer info: version: %d.%d.%d\n", DIVIDE_VERSION(v));
 
     log_level lo = LL_INVLID;
     if (VER_TO_MAJOR(v) != VERSION_MAJOR)
@@ -329,32 +321,33 @@ hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size)
     ptr += sizeof(uint32);
 
     DIP(capacity, ptr);
-    if (*((int*)ptr) == 0 || !(ht = hash_table_create(*((uint32*)ptr), NULL))) {
-        PDEBUG ("ptr: (%p): %d, ht: %p\n", ptr, *((uint32*)ptr), ht);
+    if (*((int *) ptr) == 0
+        || !(ht = hash_table_create(*((uint32 *) ptr), NULL))) {
+        PDEBUG("ptr: (%p): %d, ht: %p\n", ptr, *((uint32 *) ptr), ht);
         return NULL;
     }
 
     ptr += sizeof(uint32);
 
     DIP(occupied, ptr);
-    ht->occupied = *((uint32*)ptr);
+    ht->occupied = *((uint32 *) ptr);
     ptr += sizeof(uint32);
 
     uint32 i = 0;
     while (i++ < ht->occupied) {
-        PDEBUG ("i : %u, occupied: %u\n", i, ht->occupied);
+        PDEBUG("i : %u, occupied: %u\n", i, ht->occupied);
 
-        assert(ptr - (char*)buffer <= buffer_size);
+        assert(ptr - (char *) buffer <= buffer_size);
 
-        uint32 key_len = *(uint32*)ptr;
-        char* key = ZALLOC(char, key_len+1);
+        uint32 key_len = *(uint32 *) ptr;
+        char *key = ZALLOC(char, key_len + 1);
         ptr += sizeof(uint32);
 
         memcpy(key, ptr, key_len);
         ptr += key_len;
 
-        uint32 val_len = *(uint32*)ptr;
-        void* val = ZALLOC(char, val_len+1);
+        uint32 val_len = *(uint32 *) ptr;
+        void *val = ZALLOC(char, val_len + 1);
         ptr += sizeof(uint32);
 
         memcpy(val, ptr, val_len);
@@ -362,10 +355,10 @@ hash_table* hash_table_create_from_buffer(void* buffer, uint32 buffer_size)
 
         hash_table_insert(ht, key, val, val_len);
         // ht->occupied get increased in `hash_table_insert`, change it back..
-        -- ht->occupied;
+        --ht->occupied;
     }
 
-ret:
+  ret:
     return ht;
 }
 
@@ -399,15 +392,15 @@ const char *stringify_size(uint64 sz)
     return str_size;
 }
 
-byte_queue* bq_init(size_t size)
+byte_queue *bq_init(size_t size)
 {
-    byte_queue* bq = ZALLOC1(byte_queue);
+    byte_queue *bq = ZALLOC1(byte_queue);
     bq->r = bq->w = bq->p = ZALLOC(byte, size);
     bq->x = bq->p + size;
-    return  bq;
+    return bq;
 }
 
-void bq_reset(byte_queue* bq)
+void bq_reset(byte_queue * bq)
 {
     size_t size = bq->x - bq->p;
     memset(bq->p, 0, size);
@@ -415,16 +408,16 @@ void bq_reset(byte_queue* bq)
 }
 
 //@todo: align to page??
-byte_queue* bq_enlarge(byte_queue* bq, size_t sz)
+byte_queue *bq_enlarge(byte_queue * bq, size_t sz)
 {
     if (sz > bq->x - bq->w) {
         // simply add sz bytes at the end if necessary.
         size_t nsz = bq->x + sz - bq->p;
-        char* ptr = ZALLOC(char, nsz);
+        char *ptr = ZALLOC(char, nsz);
         if (ptr) {
             memcpy(ptr, bq->p, bq->w - bq->p);
-            bq->r = (byte*)ptr + (bq->r - bq->p);
-            bq->w = (byte*)ptr + (bq->w - bq->p);
+            bq->r = (byte *) ptr + (bq->r - bq->p);
+            bq->w = (byte *) ptr + (bq->w - bq->p);
             FIF(bq->p);
             bq->p = ptr;
             bq->x = ptr + nsz;
@@ -434,16 +427,15 @@ byte_queue* bq_enlarge(byte_queue* bq, size_t sz)
     return bq;
 }
 
-void bq_destroy(byte_queue** bq)
+void bq_destroy(byte_queue ** bq)
 {
-    if (bq && *bq)
-    {
+    if (bq && *bq) {
         FIF((*bq)->p);
         FIFZ(bq);
     }
 }
 
-void lowwer_case(char* p, size_t len)
+void lowwer_case(char *p, size_t len)
 {
     for (int i = 0; i < len; i++) {
         p[i] = tolower(p[i]);

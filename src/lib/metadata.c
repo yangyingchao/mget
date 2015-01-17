@@ -36,29 +36,29 @@
 
 extern log_level g_log_level;
 
-bool metadata_create_from_file(const char *fn, metadata** md, fh_map** fm_md)
+bool metadata_create_from_file(const char *fn, metadata ** md,
+                               fh_map ** fm_md)
 {
-    bool     ret = false;
-    fhandle *fh  = NULL;
-    fh_map  *fm  = NULL;
+    bool ret = false;
+    fhandle *fh = NULL;
+    fh_map *fm = NULL;
 
-    PDEBUG ("Aenter with fn: %s\n", fn);
+    PDEBUG("Aenter with fn: %s\n", fn);
 
-    if (!fn || !md ||!fm_md)
+    if (!fn || !md || !fm_md)
         goto ret;
 
-    PDEBUG ("Loading task from metadata...\n");
+    PDEBUG("Loading task from metadata...\n");
 
     if ((fh = fhandle_create(fn, FHM_DEFAULT)) &&
         (fm = fhandle_mmap(fh, 0, fh->size))) {
 
         *fm_md = fm;
-        metadata* pmd = (metadata *) fm->addr;
+        metadata *pmd = (metadata *) fm->addr;
         *md = pmd;
 
         // Version checking for backward compatibility.
-        if (VER_TO_MAJOR(pmd->hd.version) != VERSION_MAJOR)
-        {
+        if (VER_TO_MAJOR(pmd->hd.version) != VERSION_MAJOR) {
             fprintf(stderr, "Backward compatibility checking failed, "
                     "current: %s, metadata created by: %u.%u.%u, "
                     "please delete cached file(s), then try again...\n",
@@ -67,31 +67,31 @@ bool metadata_create_from_file(const char *fn, metadata** md, fh_map** fm_md)
             goto ret;
         }
 
-        mp* ptrs = ZALLOC1(mp);
+        mp *ptrs = ZALLOC1(mp);
         pmd->ptrs = ptrs;
 
         //TODO: version checks....
-        ptrs->body = (data_chunk*) pmd->raw_data;
-        ptrs->ht_buffer = (char*)(pmd->raw_data) +
-                          sizeof(data_chunk) * pmd->hd.nr_effective;
+        ptrs->body = (data_chunk *) pmd->raw_data;
+        ptrs->ht_buffer = (char *) (pmd->raw_data) +
+            sizeof(data_chunk) * pmd->hd.nr_effective;
 
         ptrs->ht = hash_table_create_from_buffer(pmd->ptrs->ht_buffer,
                                                  pmd->hd.ebl);
-        if (!ptrs->ht)
-        {
-            mlog (LL_ALWAYS, "Failed to create hash table from buffer.\n");
+        if (!ptrs->ht) {
+            mlog(LL_ALWAYS, "Failed to create hash table from buffer.\n");
             goto ret;
         }
 
-        ptrs->url = (char*)hash_table_entry_get(pmd->ptrs->ht, K_URL);
-        ptrs->fn = (char*)hash_table_entry_get(pmd->ptrs->ht, K_FN);
-        ptrs->user = (char*)hash_table_entry_get(pmd->ptrs->ht, K_USR);
-        ptrs->passwd = (char*)hash_table_entry_get(pmd->ptrs->ht, K_PASSWD);
+        ptrs->url = (char *) hash_table_entry_get(pmd->ptrs->ht, K_URL);
+        ptrs->fn = (char *) hash_table_entry_get(pmd->ptrs->ht, K_FN);
+        ptrs->user = (char *) hash_table_entry_get(pmd->ptrs->ht, K_USR);
+        ptrs->passwd =
+            (char *) hash_table_entry_get(pmd->ptrs->ht, K_PASSWD);
 
         return true;
     }
 
-ret:
+  ret:
     if (fm) {
         fhandle_munmap(&fm);
     }
@@ -112,16 +112,18 @@ void metadata_display(metadata * md)
         return;
     }
 
-    fprintf(stderr, "size: %08" PRIXFAST64 " (%.2f)M, nc: %d,url: %s, user: %p, passwd: %p\n",
+    fprintf(stderr,
+            "size: %08" PRIXFAST64
+            " (%.2f)M, nc: %d,url: %s, user: %p, passwd: %p\n",
             md->hd.package_size, (float) md->hd.package_size / (1 * M),
-            md->hd.nr_effective, md->ptrs->url,
-            md->ptrs->user, md->ptrs->passwd);
+            md->hd.nr_effective, md->ptrs->url, md->ptrs->user,
+            md->ptrs->passwd);
 
     fprintf(stderr, "ptrs: raw_data: %p, chunk: %p, hash_buffer: %p\n",
             md->raw_data, md->ptrs->body, md->ptrs->ht_buffer);
     uint64 recv = 0;
 
-    data_chunk* cp = (data_chunk*)md->raw_data;
+    data_chunk *cp = (data_chunk *) md->raw_data;
     for (uint8 i = 0; i < md->hd.nr_effective; ++i, ++cp) {
         uint64 chunk_recv = cp->cur_pos - cp->start_pos;
         uint64 chunk_size = cp->end_pos - cp->start_pos;
@@ -131,7 +133,7 @@ void metadata_display(metadata * md)
         recv += chunk_recv;
         fprintf(stderr,
                 "Chunk: %p -- (%s), start: %08" PRIXFAST64 ", cur: %08"
-                PRIXFAST64", end: %08" PRIXFAST64" (%s) -- %.02f%%\n",
+                PRIXFAST64 ", end: %08" PRIXFAST64 " (%s) -- %.02f%%\n",
                 cp, cs, cp->start_pos, cp->cur_pos,
                 cp->end_pos, es, (float) (chunk_recv) / chunk_size * 100);
         free(cs);
@@ -141,7 +143,7 @@ void metadata_display(metadata * md)
 }
 
 bool chunk_split(uint64 start, uint64 size, int *num,
-                 uint64* chunk_size, data_chunk ** dc)
+                 uint64 * chunk_size, data_chunk ** dc)
 {
     if (!size || !dc || !num) {
         return false;
@@ -157,7 +159,7 @@ bool chunk_split(uint64 start, uint64 size, int *num,
         cs = MIN_CHUNK_SIZE;
     } else {
         cs = ((uint64) 1 << ((int) log2(cs / MIN_CHUNK_SIZE) + 1)) *
-             MIN_CHUNK_SIZE;
+            MIN_CHUNK_SIZE;
     }
 
     *chunk_size = cs;
@@ -183,21 +185,20 @@ bool chunk_split(uint64 start, uint64 size, int *num,
     return true;
 }
 
-metadata* metadata_create_empty()
+metadata *metadata_create_empty()
 {
     return NULL;
 }
 
-void metadata_inspect(const char* path, mget_option* opts)
+void metadata_inspect(const char *path, mget_option * opts)
 {
-    metadata* md = NULL;
-    fh_map*   fm = NULL;
+    metadata *md = NULL;
+    fh_map *fm = NULL;
     if (opts)
         g_log_level = opts->ll;
 
-    if (!metadata_create_from_file(path, &md, &fm))
-    {
-        mlog (LL_ALWAYS, "Failed to create metadata from file: %s\n", path);
+    if (!metadata_create_from_file(path, &md, &fm)) {
+        mlog(LL_ALWAYS, "Failed to create metadata from file: %s\n", path);
         return;
     }
 
