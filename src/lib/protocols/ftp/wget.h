@@ -43,45 +43,46 @@ as that of the covered work.  */
 #include <stdbool.h>
 
 /* Document type ("dt") flags */
-enum
-{
-  TEXTHTML             = 0x0001,	/* document is of type text/html
-                                           or application/xhtml+xml */
-  RETROKF              = 0x0002,	/* retrieval was OK */
-  HEAD_ONLY            = 0x0004,	/* only send the HEAD request */
-  SEND_NOCACHE         = 0x0008,	/* send Pragma: no-cache directive */
-  ACCEPTRANGES         = 0x0010,	/* Accept-ranges header was found */
-  ADDED_HTML_EXTENSION = 0x0020,        /* added ".html" extension due to -E */
-  TEXTCSS              = 0x0040	        /* document is of type text/css */
+enum {
+    TEXTHTML = 0x0001,		/* document is of type text/html
+				   or application/xhtml+xml */
+    RETROKF = 0x0002,		/* retrieval was OK */
+    HEAD_ONLY = 0x0004,		/* only send the HEAD request */
+    SEND_NOCACHE = 0x0008,	/* send Pragma: no-cache directive */
+    ACCEPTRANGES = 0x0010,	/* Accept-ranges header was found */
+    ADDED_HTML_EXTENSION = 0x0020,	/* added ".html" extension due to -E */
+    TEXTCSS = 0x0040		/* document is of type text/css */
 };
 
 /* Universal error type -- used almost everywhere.  Error reporting of
    this detail is not generally used or needed and should be
    simplified.  */
-typedef enum
-{
-  /*  0  */
-  NOCONERROR, HOSTERR, CONSOCKERR, CONERROR, CONSSLERR,
-  CONIMPOSSIBLE, NEWLOCATION, NOTENOUGHMEM /* ! */,
-  CONPORTERR /* ! */, CONCLOSED /* ! */,
-  /* 10  */
-  FTPOK, FTPLOGINC, FTPLOGREFUSED, FTPPORTERR, FTPSYSERR,
-  FTPNSFOD, FTPRETROK /* ! */, FTPUNKNOWNTYPE, FTPRERR, FTPREXC /* ! */,
-  /* 20  */
-  FTPSRVERR, FTPRETRINT, FTPRESTFAIL, URLERROR, FOPENERR,
-  FOPEN_EXCL_ERR, FWRITEERR, HOK /* ! */, HLEXC /* ! */, HEOF,
-  /* 30  */
-  HERR, RETROK, RECLEVELEXC, FTPACCDENIED /* ! */, WRONGCODE,
-  FTPINVPASV, FTPNOPASV, CONTNOTSUPPORTED, RETRUNNEEDED, RETRFINISHED,
-  /* 40  */
-  READERR, TRYLIMEXC, URLBADPATTERN /* ! */, FILEBADFILE /* ! */, RANGEERR,
-  RETRBADPATTERN, RETNOTSUP /* ! */, ROBOTSOK /* ! */, NOROBOTS /* ! */,
-  PROXERR,
-  /* 50  */
-  AUTHFAILED, QUOTEXC, WRITEFAILED, SSLINITFAILED, VERIFCERTERR,
-  UNLINKERR, NEWLOCATION_KEEP_POST, CLOSEFAILED,
+typedef enum {
+    /*  0  */
+    NOCONERROR, HOSTERR, CONSOCKERR, CONERROR, CONSSLERR,
+    CONIMPOSSIBLE, NEWLOCATION, NOTENOUGHMEM /* ! */ ,
+    CONPORTERR /* ! */ , CONCLOSED /* ! */ ,
+    /* 10  */
+    FTPOK, FTPLOGINC, FTPLOGREFUSED, FTPPORTERR, FTPSYSERR,
+    FTPNSFOD, FTPRETROK /* ! */ , FTPUNKNOWNTYPE, FTPRERR,
+	FTPREXC /* ! */ ,
+    /* 20  */
+    FTPSRVERR, FTPRETRINT, FTPRESTFAIL, URLERROR, FOPENERR,
+    FOPEN_EXCL_ERR, FWRITEERR, HOK /* ! */ , HLEXC /* ! */ , HEOF,
+    /* 30  */
+    HERR, RETROK, RECLEVELEXC, FTPACCDENIED /* ! */ , WRONGCODE,
+    FTPINVPASV, FTPNOPASV, CONTNOTSUPPORTED, RETRUNNEEDED, RETRFINISHED,
+    /* 40  */
+    READERR, TRYLIMEXC, URLBADPATTERN /* ! */ , FILEBADFILE /* ! */ ,
+	RANGEERR,
+    RETRBADPATTERN, RETNOTSUP /* ! */ , ROBOTSOK /* ! */ ,
+	NOROBOTS /* ! */ ,
+    PROXERR,
+    /* 50  */
+    AUTHFAILED, QUOTEXC, WRITEFAILED, SSLINITFAILED, VERIFCERTERR,
+    UNLINKERR, NEWLOCATION_KEEP_POST, CLOSEFAILED,
 
-  WARC_ERR, WARC_TMP_FOPENERR, WARC_TMP_FWRITEERR
+    WARC_ERR, WARC_TMP_FOPENERR, WARC_TMP_FWRITEERR
 } uerr_t;
 
 
@@ -97,14 +98,14 @@ struct address_list;
 #define IP_INADDR_DATA(x) ((void *) &(x)->data)
 
 enum {
-    LH_SILENT  = 1,
-    LH_BIND    = 2,
+    LH_SILENT = 1,
+    LH_BIND = 2,
     LH_REFRESH = 4
 };
 
 typedef long long wgint;
 
-# define str_to_wgint strtoll
+#define str_to_wgint strtoll
 #define xstrdup       strdup
 /* Zero out a value.  */
 #define xzero(x) memset (&(x), '\0', sizeof (x))
@@ -202,5 +203,4 @@ typedef long long wgint;
    in base 10. 24082 / 10000 = 8*log_{10}(2).  */
 #define MAX_INT_TO_STRING_LEN(x) ((sizeof(x) * 24082 / 10000) + 2)
 
-#endif /* WGET_H */
-
+#endif				/* WGET_H */

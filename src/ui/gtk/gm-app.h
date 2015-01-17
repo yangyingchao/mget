@@ -23,16 +23,14 @@
 #include <gtk/gtk.h>
 
 G_BEGIN_DECLS
-
 #define GM_TYPE_APP         (gm_app_get_type ())
 #define GM_APP(o)           (G_TYPE_CHECK_INSTANCE_CAST ((o), GM_TYPE_APP, GmApp))
 #define GM_APP_CLASS(k)     (G_TYPE_CHECK_CLASS_CAST ((k), GM_TYPE_APP, GmAppClass))
 #define GM_IS_APP(o)        (G_TYPE_CHECK_INSTANCE_TYPE ((o), GM_TYPE_APP))
 #define GM_IS_APP_CLASS(k)  (G_TYPE_CHECK_CLASS_TYPE ((k), GM_TYPE_APP))
 #define GM_APP_GET_CLASS(o) (G_TYPE_INSTANCE_GET_CLASS ((o), GM_TYPE_APP, GmAppClass))
-
-typedef struct _GmApp        GmApp;
-typedef struct _GmAppClass   GmAppClass;
+typedef struct _GmApp GmApp;
+typedef struct _GmAppClass GmAppClass;
 typedef struct _GmAppPrivate GmAppPrivate;
 
 struct _GmApp {
@@ -44,21 +42,18 @@ struct _GmAppClass {
     GtkApplicationClass parent_class;
 };
 
-GType gm_app_get_type (void) G_GNUC_CONST;
+GType gm_app_get_type(void) G_GNUC_CONST;
 
-GmApp         *gm_app_new               (void);
+GmApp *gm_app_new(void);
 
-GtkWindow     *gm_app_peek_first_window (GmApp *self);
-GtkWindow     *gm_app_peek_assistant    (GmApp *self);
+GtkWindow *gm_app_peek_first_window(GmApp * self);
+GtkWindow *gm_app_peek_assistant(GmApp * self);
 
-void           gm_app_new_window        (GmApp *self);
-void           gm_app_quit              (GmApp *self);
-void           gm_app_search            (GmApp *self,
-                                         const gchar *keyword);
-void           gm_app_search_assistant  (GmApp *self,
-                                         const gchar *keyword);
-void           gm_app_raise             (GmApp *self);
+void gm_app_new_window(GmApp * self);
+void gm_app_quit(GmApp * self);
+void gm_app_search(GmApp * self, const gchar * keyword);
+void gm_app_search_assistant(GmApp * self, const gchar * keyword);
+void gm_app_raise(GmApp * self);
 
 G_END_DECLS
-
-#endif /* __GM_APP_H__ */
+#endif				/* __GM_APP_H__ */

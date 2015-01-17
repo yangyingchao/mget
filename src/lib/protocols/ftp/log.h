@@ -32,15 +32,15 @@
 #ifndef LOG_H
 #define LOG_H
 
-#define _GNU_SOURCE         /* See feature_test_macros(7) */
+#define _GNU_SOURCE		/* See feature_test_macros(7) */
 #include <stdio.h>
 #include <stdbool.h>
 #include <assert.h>
 #include "../../logutils.h"
 
 enum log_options { LOG_DEBUG, LOG_VERBOSE, LOG_NOTQUIET, LOG_NONVERBOSE,
-                   LOG_NONE,
-                   LOG_ALWAYS,
+    LOG_NONE,
+    LOG_ALWAYS,
 };
 
 void logprintf(enum log_options, const char *, ...);

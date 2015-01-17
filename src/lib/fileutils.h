@@ -41,8 +41,8 @@ typedef enum _FHM {
     FHM_CREATE = 1
 } FHM;
 
-fhandle *fhandle_create(const char* fn, FHM mode);
-void fhandle_destroy(fhandle** fh);
+fhandle *fhandle_create(const char *fn, FHM mode);
+void fhandle_destroy(fhandle ** fh);
 
 typedef struct _fh_map {
     fhandle *fh;
@@ -52,15 +52,15 @@ typedef struct _fh_map {
 
 fh_map *fhandle_mmap(fhandle * fh, off_t offset, size_t length);
 void fhandle_munmap(fh_map ** fm);
-void fhandle_msync(fh_map* fm);
+void fhandle_msync(fh_map * fm);
 void fhandle_munmap_close(fh_map ** fm);
 char *get_basename(const char *fname);
 void remove_file(const char *fn);
 
-fh_map* fm_create(const char* fn, size_t length);
-bool fm_remap(fh_map** fm, size_t new_length);
+fh_map *fm_create(const char *fn, size_t length);
+bool fm_remap(fh_map ** fm, size_t new_length);
 
-char* fm_get_directory(fh_map* fm);
+char *fm_get_directory(fh_map * fm);
 
 #endif				/* _FILEUTILS_H_ */
 

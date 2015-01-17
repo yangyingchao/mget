@@ -23,8 +23,8 @@
 #ifndef _HTTP_H_
 #define _HTTP_H_
 
-#include "libmget.h"
-#include "download_info.h"
+#include "../../libmget.h"
+#include "../../download_info.h"
 
 /**
  * @name process_http_request - Begin process http request.
@@ -34,10 +34,9 @@
  * @param stop_flag - A flag used by http handler to check if need to stop.
  * @return mget_err
  */
-mget_err process_http_request(dinfo* info,
-                              dp_callback cb,
-                              bool* stop_flag,
-                              void* user_data);
+mget_err process_http_request(dinfo * info,
+			      dp_callback cb,
+			      bool * stop_flag, void *user_data);
 
 #endif				/* _HTTP_H_ */
 

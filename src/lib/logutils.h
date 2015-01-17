@@ -24,13 +24,13 @@
 extern "C" {
 #endif
 
-#define _GNU_SOURCE         /* See feature_test_macros(7) */
+#define _GNU_SOURCE		/* See feature_test_macros(7) */
 #include <stdio.h>
 #include "libmget.h"
 #include <assert.h>
 
-void mlog(log_level, const char *, ...);
-void dump_buffer(const char* tip, const unsigned char* buf, int max);
+    void mlog(log_level, const char *, ...);
+    void dump_buffer(const char *tip, const unsigned char *buf, int max);
 
 #if !defined (PDEBUG)
 #define PDEBUG(fmt, ...)                                \
@@ -41,7 +41,7 @@ void dump_buffer(const char* tip, const unsigned char* buf, int max);
         mlog(LL_DEBUG, msg, ##  __VA_ARGS__);     \
         free(msg);                                      \
     } while(0)
-#endif  /*End of if PDEBUG*/
+#endif				/*End of if PDEBUG */
 
 #if !defined(OUT_BIN)
 #define OUT_BIN(X, Y)                               \
@@ -52,10 +52,9 @@ void dump_buffer(const char* tip, const unsigned char* buf, int max);
         dump_buffer(msg, (unsigned char*)X, Y);     \
         free(msg);                                  \
     } while (0)
-#endif // OUT_BIN
+#endif				// OUT_BIN
 
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* _LOGUTILS_H_ */
+#endif				/* _LOGUTILS_H_ */

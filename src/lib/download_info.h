@@ -31,28 +31,26 @@ extern "C" {
 #include "netutils.h"
 #include "fileutils.h"
 
-typedef struct _dinfo
-{
-    url_info* ui;
-    metadata* md;
-    fh_map*   fm_md;
-    fh_map*   fm_file;
-} dinfo;
+    typedef struct _dinfo {
+	url_info *ui;
+	metadata *md;
+	fh_map *fm_md;
+	fh_map *fm_file;
+    } dinfo;
 
-bool dinfo_create(const char *url, const file_name* fn, mget_option* opt, dinfo** info);
-void dinfo_destroy(dinfo** info);
-bool dinfo_ready(dinfo* info);
+    bool dinfo_create(const char *url, const file_name * fn,
+		      mget_option * opt, dinfo ** info);
+    void dinfo_destroy(dinfo ** info);
+    bool dinfo_ready(dinfo * info);
 
-bool dinfo_update_metadata(dinfo*, uint64, const char*);
-bool dinfo_update_url(dinfo* info, const char* url);
-void dinfo_sync(dinfo* info);
+    bool dinfo_update_metadata(dinfo *, uint64, const char *);
+    bool dinfo_update_url(dinfo * info, const char *url);
+    void dinfo_sync(dinfo * info);
 
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* _DOWNLOAD_INFO_H_ */
-
+#endif				/* _DOWNLOAD_INFO_H_ */
 /*
  * Editor modelines
  *

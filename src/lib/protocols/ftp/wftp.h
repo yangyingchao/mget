@@ -37,115 +37,107 @@ as that of the covered work.  */
 #include "data_utlis.h"
 
 /* System types. */
-enum stype
-{
-  ST_UNIX,
-  ST_VMS,
-  ST_WINNT,
-  ST_MACOS,
-  ST_OS400,
-  ST_OTHER
+enum stype {
+    ST_UNIX,
+    ST_VMS,
+    ST_WINNT,
+    ST_MACOS,
+    ST_OS400,
+    ST_OTHER
 };
 
-typedef struct _ftp_connection
-{
-    connection* conn;
-    byte_queue* bq;
+typedef struct _ftp_connection {
+    connection *conn;
+    byte_queue *bq;
     enum stype rs;
-    char* id;
+    char *id;
 
-    connection* data_conn;
+    connection *data_conn;
 } ftp_connection;
 
 extern char ftp_last_respline[];
 
-uerr_t ftp_response (ftp_connection*, char **);
-uerr_t ftp_login (ftp_connection*, const char *, const char *);
-uerr_t ftp_port (ftp_connection*, int *);
-uerr_t ftp_pasv (ftp_connection*, ip_address *, int *);
+uerr_t ftp_response(ftp_connection *, char **);
+uerr_t ftp_login(ftp_connection *, const char *, const char *);
+uerr_t ftp_port(ftp_connection *, int *);
+uerr_t ftp_pasv(ftp_connection *, ip_address *, int *);
 #ifdef ENABLE_IPV6
-uerr_t ftp_lprt (int, int *);
-uerr_t ftp_lpsv (int, ip_address *, int *);
-uerr_t ftp_eprt (int, int *);
-uerr_t ftp_epsv (int, ip_address *, int *);
+uerr_t ftp_lprt(int, int *);
+uerr_t ftp_lpsv(int, ip_address *, int *);
+uerr_t ftp_eprt(int, int *);
+uerr_t ftp_epsv(int, ip_address *, int *);
 #endif
-uerr_t ftp_type (ftp_connection*, int);
-uerr_t ftp_cwd (ftp_connection*, const char *);
-uerr_t ftp_retr (ftp_connection*, const char *);
-uerr_t ftp_rest (ftp_connection*, wgint);
-uerr_t ftp_list (ftp_connection*, const char *, enum stype);
-uerr_t ftp_syst (ftp_connection*, enum stype *);
-uerr_t ftp_pwd (ftp_connection*, char **);
-uerr_t ftp_size (ftp_connection*, const char *, wgint *);
+uerr_t ftp_type(ftp_connection *, int);
+uerr_t ftp_cwd(ftp_connection *, const char *);
+uerr_t ftp_retr(ftp_connection *, const char *);
+uerr_t ftp_rest(ftp_connection *, wgint);
+uerr_t ftp_list(ftp_connection *, const char *, enum stype);
+uerr_t ftp_syst(ftp_connection *, enum stype *);
+uerr_t ftp_pwd(ftp_connection *, char **);
+uerr_t ftp_size(ftp_connection *, const char *, wgint *);
 
 #ifdef ENABLE_OPIE
-const char *skey_response (int, const char *, const char *);
+const char *skey_response(int, const char *, const char *);
 #endif
 
 struct url;
 
 /* File types.  */
-enum ftype
-{
-  FT_PLAINFILE,
-  FT_DIRECTORY,
-  FT_SYMLINK,
-  FT_UNKNOWN
+enum ftype {
+    FT_PLAINFILE,
+    FT_DIRECTORY,
+    FT_SYMLINK,
+    FT_UNKNOWN
 };
 
 
 /* Globbing (used by ftp_retrieve_glob).  */
-enum
-{
-  GLOB_GLOBALL, GLOB_GETALL, GLOB_GETONE
+enum {
+    GLOB_GLOBALL, GLOB_GETALL, GLOB_GETONE
 };
 
 /* Used by to test if time parsed includes hours and minutes. */
-enum parsetype
-{
-  TT_HOUR_MIN, TT_DAY
+enum parsetype {
+    TT_HOUR_MIN, TT_DAY
 };
 
 
 /* Information about one filename in a linked list.  */
-struct fileinfo
-{
-  enum ftype type;		/* file type */
-  char *name;			/* file name */
-  wgint size;			/* file size */
-  long tstamp;			/* time-stamp */
-  enum parsetype ptype; /* time parsing */
-  int perms;			/* file permissions */
-  char *linkto;			/* link to which file points */
-  struct fileinfo *prev;	/* previous... */
-  struct fileinfo *next;	/* ...and next structure. */
+struct fileinfo {
+    enum ftype type;		/* file type */
+    char *name;			/* file name */
+    wgint size;			/* file size */
+    long tstamp;		/* time-stamp */
+    enum parsetype ptype;	/* time parsing */
+    int perms;			/* file permissions */
+    char *linkto;		/* link to which file points */
+    struct fileinfo *prev;	/* previous... */
+    struct fileinfo *next;	/* ...and next structure. */
 };
 
 /* Commands for FTP functions.  */
-enum wget_ftp_command
-{
-  DO_LOGIN      = 0x0001,	/* Connect and login to the server.  */
-  DO_CWD        = 0x0002,	/* Change current directory.  */
-  DO_RETR       = 0x0004,	/* Retrieve the file.  */
-  DO_LIST       = 0x0008,	/* Retrieve the directory list.  */
-  LEAVE_PENDING = 0x0010	/* Do not close the socket.  */
+enum wget_ftp_command {
+    DO_LOGIN = 0x0001,		/* Connect and login to the server.  */
+    DO_CWD = 0x0002,		/* Change current directory.  */
+    DO_RETR = 0x0004,		/* Retrieve the file.  */
+    DO_LIST = 0x0008,		/* Retrieve the directory list.  */
+    LEAVE_PENDING = 0x0010	/* Do not close the socket.  */
 };
 
-enum wget_ftp_fstatus
-{
-  NOTHING       = 0x0000,	/* Nothing done yet.  */
-  ON_YOUR_OWN   = 0x0001,	/* The ftp_loop_internal sets the
+enum wget_ftp_fstatus {
+    NOTHING = 0x0000,		/* Nothing done yet.  */
+    ON_YOUR_OWN = 0x0001,	/* The ftp_loop_internal sets the
 				   defaults.  */
-  DONE_CWD      = 0x0002	/* The current working directory is
+    DONE_CWD = 0x0002		/* The current working directory is
 				   correct.  */
 };
 
-struct fileinfo *ftp_parse_ls (const char *, const enum stype);
-uerr_t ftp_loop (struct url *, char **, int *, struct url *, bool, bool);
+struct fileinfo *ftp_parse_ls(const char *, const enum stype);
+uerr_t ftp_loop(struct url *, char **, int *, struct url *, bool, bool);
 
-uerr_t ftp_index (const char *, struct url *, struct fileinfo *);
+uerr_t ftp_index(const char *, struct url *, struct fileinfo *);
 
-char ftp_process_type (const char *);
+char ftp_process_type(const char *);
 
 #define xnew(type) (xmalloc (sizeof (type)))
 #define xnew0(type) (xcalloc (1, sizeof (type)))
@@ -161,7 +153,7 @@ char ftp_process_type (const char *);
 #define xfree_null(p) if (!(p)) ; else xfree (p)
 
 
-char *concat_strings (const char *, ...);
-char *number_to_static_string (wgint number);
+char *concat_strings(const char *, ...);
+char *number_to_static_string(wgint number);
 
-#endif /* FTP_H */
+#endif				/* FTP_H */

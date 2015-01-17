@@ -83,9 +83,9 @@ char *current_time_str()
 }
 
 
-int integer_size(const char* size)
+int integer_size(const char *size)
 {
-    return 1024*512;
+    return 1024 * 512;
 }
 
 /*

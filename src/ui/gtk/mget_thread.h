@@ -28,29 +28,26 @@
 #include <pthread.h>
 #include "gm_window.h"
 
-typedef struct _mget_request
-{
-    const char* url;
-    file_name   fn;
+typedef struct _mget_request {
+    const char *url;
+    file_name fn;
     mget_option opts;
-    bool        flag;
+    bool flag;
 } mget_request;
 
-typedef struct _gmget_statistics
-{
-    int            idx;
-    uint32         ts;
-    uint64         last_recv;
+typedef struct _gmget_statistics {
+    int idx;
+    uint32 ts;
+    uint64 last_recv;
     request_status last_status;
 } gmget_statistics;
 
 
-typedef struct _gmget_request
-{
+typedef struct _gmget_request {
     mget_request request;
     gmget_statistics sts;
-    GtkTreeIter  iter;
-    struct _GmWindow* window;
+    GtkTreeIter iter;
+    struct _GmWindow *window;
 } gmget_request;
 
 /**
@@ -58,6 +55,6 @@ typedef struct _gmget_request
  * @param request -  request to be processed.
  * @return pthread id
  */
-pthread_t* start_request_thread(gmget_request* request);
+pthread_t *start_request_thread(gmget_request * request);
 
-#endif /* _MGET_THREAD_H_ */
+#endif				/* _MGET_THREAD_H_ */

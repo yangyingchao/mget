@@ -34,9 +34,8 @@
  * @param stop_flag - A flag used by http handler to check if need to stop.
  * @return mget_err
  */
-mget_err process_ftp_request(dinfo* info,
-                             dp_callback cb,
-                             bool* stop_flag,
-                             void* user_data);
+mget_err process_ftp_request(dinfo * info,
+			     dp_callback cb,
+			     bool * stop_flag, void *user_data);
 
-#endif /* _FTP_H_ */
+#endif				/* _FTP_H_ */

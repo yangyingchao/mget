@@ -31,14 +31,14 @@
 // year/month/day is birthday of my son, just for fun!
 #define MAGIC_NUMBER     0xFC
 
-void dinfo_destroy(dinfo** info)
+void dinfo_destroy(dinfo ** info)
 {
     if (!info || !(*info))
         return;
 
-    bool remove_package  = (*info)->md->hd.package_size == 0;
-    bool remove_metadata = remove_package || \
-                           (*info)->md->hd.status == RS_FINISHED;
+    bool remove_package = (*info)->md->hd.package_size == 0;
+    bool remove_metadata = remove_package ||
+        (*info)->md->hd.status == RS_FINISHED;
 
     if (remove_metadata)
         remove_file((*info)->fm_md->fh->fn);
@@ -53,17 +53,17 @@ void dinfo_destroy(dinfo** info)
 }
 
 bool dinfo_create(const char *url, const file_name * fn,
-                  mget_option* opt, dinfo** info)
+                  mget_option * opt, dinfo ** info)
 {
-    url_info* ui           = NULL;
-    char*     fpath        = NULL;
-    dinfo*    dInfo        = NULL;
-    bool      ret          = false;
-    bool      update_fn    = false;
-    bool      md_from_file = false;
+    url_info *ui = NULL;
+    char *fpath = NULL;
+    dinfo *dInfo = NULL;
+    bool ret = false;
+    bool update_fn = false;
+    bool md_from_file = false;
 
     dInfo = ZALLOC1(dinfo);
-    if (!dInfo)  {
+    if (!dInfo) {
         goto out;
     }
 
@@ -75,13 +75,14 @@ bool dinfo_create(const char *url, const file_name * fn,
 
     if (!get_full_path(fn, &fpath)) {
         if (!ui || !ui->bname) {
-            fprintf(stderr, "Failed parse url(%s) and output directory\n", url);
+            fprintf(stderr, "Failed parse url(%s) and output directory\n",
+                    url);
             goto free;
         }
 
         char *tmp = ZALLOC(char, strlen(fpath) + strlen(ui->bname) + 2);
         sprintf(tmp, "%s/%s", fpath, ui->bname);
-        PDEBUG ("tmp: %s -- %s\n", fpath, ui->bname);
+        PDEBUG("tmp: %s -- %s\n", fpath, ui->bname);
 
         FIF(fpath);
         fpath = tmp;
@@ -93,7 +94,7 @@ bool dinfo_create(const char *url, const file_name * fn,
         goto free;
     }
 
-    char* tfn = ZALLOC(char, strlen(fpath) + 5);
+    char *tfn = ZALLOC(char, strlen(fpath) + 5);
     sprintf(tfn, "%s.tmd", fpath);
 
     if (file_existp(tfn) &&
@@ -103,112 +104,104 @@ bool dinfo_create(const char *url, const file_name * fn,
         // Destroy url info and recreate using url stored in mw.
         url_info_destroy(&ui);
         if (!parse_url(dInfo->md->ptrs->url, &ui)) {
-            fprintf(stderr, "Failed to parse stored url: %s.\n", dInfo->md->ptrs->url);
+            fprintf(stderr, "Failed to parse stored url: %s.\n",
+                    dInfo->md->ptrs->url);
             if (url) {
                 fprintf(stderr, "Removing old metadata and retring...\n");
                 url_info_destroy(&ui);
 
                 if (url && !parse_url(url, &ui)) {
-                    fprintf(stderr, "Failed to parse given url: %s\n", url);
+                    fprintf(stderr, "Failed to parse given url: %s\n",
+                            url);
                     goto free;
                 }
-            }
-            else  {
+            } else {
                 fprintf(stderr, "Abort: no url provided...\n");
                 return false;
             }
         }
-
         // update fpath
-        char* dirn  = fm_get_directory(dInfo->fm_md);
+        char *dirn = fm_get_directory(dInfo->fm_md);
         FIF(fpath);
         if (dirn) {
-            fpath = ZALLOC(char, strlen(dirn) + strlen(dInfo->md->ptrs->fn) + 2);
+            fpath =
+                ZALLOC(char,
+                       strlen(dirn) + strlen(dInfo->md->ptrs->fn) + 2);
             sprintf(fpath, "%s/%s", dirn, dInfo->md->ptrs->fn);
-        }
-        else
-        {
+        } else {
             fpath = strdup(dInfo->md->ptrs->fn);
         }
 
         md_from_file = true;
-    }
-    else {
+    } else {
         if (!url) {
             fprintf(stderr, "Failed to get TMD file and url is empty!\n");
             goto free;
         }
-
         // TODO: remove this magic number...
         //       space reserved by this magic number should be filled by extra
         //       information: auth, proxy, ....
 
-        PDEBUG ("creating empty metadata using: %s -- %s --%s --%s\n",
-                url, fpath, opt->user, opt->passwd);
+        PDEBUG("creating empty metadata using: %s -- %s --%s --%s\n",
+               url, fpath, opt->user, opt->passwd);
 
         uint16 ebl = 1024;
         size_t md_size = CALC_MD_SIZE(opt->max_connections, ebl);
 
         dInfo->fm_md = fm_create(tfn, md_size);
-        dInfo->md    = (metadata*)dInfo->fm_md->addr;
-        if (!dInfo->md)
-        {
+        dInfo->md = (metadata *) dInfo->fm_md->addr;
+        if (!dInfo->md) {
             fprintf(stderr, "Failed to create metadata!\n");
             return false;
         }
-
         // fill this pmd.
-        metadata* pmd = dInfo->md;
+        metadata *pmd = dInfo->md;
         memset(pmd, 0, md_size);
         mh *hd = &pmd->hd;
-        hash_table* ht = hash_table_create(128, free);
-        mp* ptrs = ZALLOC1(mp);
+        hash_table *ht = hash_table_create(128, free);
+        mp *ptrs = ZALLOC1(mp);
 
-        unsigned char* ptr = (unsigned char*)&hd->iden;
+        unsigned char *ptr = (unsigned char *) &hd->iden;
         *ptr = MAGIC_NUMBER;
         ptr++;
         sprintf(ptr, "TMD");
 
-        hd->version      = GET_VERSION();
+        hd->version = GET_VERSION();
         hd->package_size = 0;
-        hd->last_time    = get_time_s();
-        hd->acc_time     = 0;
-        hd->status       = RS_INIT;
-        hd->nr_user      = opt->max_connections;
+        hd->last_time = get_time_s();
+        hd->acc_time = 0;
+        hd->status = RS_INIT;
+        hd->nr_user = opt->max_connections;
         hd->nr_effective = 0;
-        hd->ebl          = ebl;
-        hd->update_name  = update_fn;
-        hd->acon         = opt->max_connections;
+        hd->ebl = ebl;
+        hd->update_name = update_fn;
+        hd->acon = opt->max_connections;
 
-        pmd->ptrs       = ptrs;
-        ptrs->body      = (data_chunk*)pmd->raw_data;
-        ptrs->ht        = ht;
-        ptrs->ht_buffer = (char*)(pmd->raw_data) +
-                          sizeof(data_chunk) * pmd->hd.nr_user;
+        pmd->ptrs = ptrs;
+        ptrs->body = (data_chunk *) pmd->raw_data;
+        ptrs->ht = ht;
+        ptrs->ht_buffer = (char *) (pmd->raw_data) +
+            sizeof(data_chunk) * pmd->hd.nr_user;
 
         if (url) {
             ptrs->url = strdup(url);
-            hash_table_insert(ptrs->ht, K_URL, ptrs->url,
-                              strlen(url));
+            hash_table_insert(ptrs->ht, K_URL, ptrs->url, strlen(url));
         }
 
         if (fpath) {
             char *tmp = get_basename(fpath);
             ptrs->fn = strdup(tmp);
             free(tmp);
-            hash_table_insert(ptrs->ht, K_FN, ptrs->fn,
-                              strlen(ptrs->fn));
-       }
+            hash_table_insert(ptrs->ht, K_FN, ptrs->fn, strlen(ptrs->fn));
+        }
 
-        if (opt->user)
-        {
+        if (opt->user) {
             pmd->ptrs->user = strdup(opt->user);
             hash_table_insert(ptrs->ht, K_USR, ptrs->user,
                               strlen(ptrs->fn));
         }
 
-        if (opt->passwd)
-        {
+        if (opt->passwd) {
             pmd->ptrs->passwd = strdup(opt->passwd);
             hash_table_insert(ptrs->ht, K_PASSWD, ptrs->passwd,
                               strlen(ptrs->fn));
@@ -219,50 +212,49 @@ bool dinfo_create(const char *url, const file_name * fn,
     dInfo->ui = ui;
     if (md_from_file) {
         dInfo->fm_file = fm_create(fpath, dInfo->md->hd.package_size);
-        PDEBUG ("dInfo: %p, md: %p, fm_md: %p, fm_file: %p\n",
-                dInfo, dInfo->md,  dInfo->fm_md, dInfo->fm_file);
+        PDEBUG("dInfo: %p, md: %p, fm_md: %p, fm_file: %p\n",
+               dInfo, dInfo->md, dInfo->fm_md, dInfo->fm_file);
         if (!dInfo->fm_file)
             goto free;
     }
 
-    if (dInfo && dInfo->md && dInfo->fm_md)  {
+    if (dInfo && dInfo->md && dInfo->fm_md) {
         *info = dInfo;
-        ret   = true;
+        ret = true;
         goto out;
     }
 
-free:
+  free:
     FIF(dInfo);
     FIF(fpath);
 
-out:
+  out:
     return ret;
 }
 
 
-bool dinfo_ready(dinfo* info)
+bool dinfo_ready(dinfo * info)
 {
-    return (info && info->ui && info->md && info->fm_md && info->fm_file && \
+    return (info && info->ui && info->md && info->fm_md && info->fm_file &&
             info->md->hd.package_size && info->md->hd.status);
 }
 
 extern bool chunk_split(uint64 start, uint64 size, int *num,
-                        uint64* cs, data_chunk ** dc);
+                        uint64 * cs, data_chunk ** dc);
 
-bool dinfo_update_url(dinfo* info, const char* url)
+bool dinfo_update_url(dinfo * info, const char *url)
 {
-    PDEBUG ("enter, info: %p, url: %s\n",
-            info, url);
+    PDEBUG("enter, info: %p, url: %s\n", info, url);
 
     if (!info || !info->md || !url)
         return false;
 
-    PDEBUG ("enter 2\n");
+    PDEBUG("enter 2\n");
 
-    metadata*   md = info->md;
-    mh*         hd = &md->hd;
+    metadata *md = info->md;
+    mh *hd = &md->hd;
     md->ptrs->url = strdup(url);
-    hash_table* ht = md->ptrs->ht;
+    hash_table *ht = md->ptrs->ht;
     assert(ht != NULL);
 
 #define DINFO_UPDATE_HASH(K, V)                     \
@@ -277,33 +269,32 @@ bool dinfo_update_url(dinfo* info, const char* url)
 #undef DINFO_UPDATE_HASH
 
     // reset ht_buffer...
-    char* ptr = (char*)(md->raw_data) +
-                sizeof(data_chunk) * hd->nr_effective;
+    char *ptr = (char *) (md->raw_data) +
+        sizeof(data_chunk) * hd->nr_effective;
     uint32 n_ebl = md->ptrs->ht_buffer + hd->ebl - ptr;
 
     md->ptrs->ht_buffer = ptr;
     hd->ebl = dump_hash_table(ht, md->ptrs->ht_buffer, n_ebl);
     fm_remap(&info->fm_md, CALC_MD_SIZE(hd->nr_effective, hd->ebl));
-    PDEBUG ("chunk: %p -- %p, ht_buffer: %p\n",
-            md->raw_data, md->ptrs->body, md->ptrs->ht_buffer);
+    PDEBUG("chunk: %p -- %p, ht_buffer: %p\n",
+           md->raw_data, md->ptrs->body, md->ptrs->ht_buffer);
 
     return true;
 }
 
-bool dinfo_update_metadata(dinfo* info, uint64 size, const char* fn)
+bool dinfo_update_metadata(dinfo * info, uint64 size, const char *fn)
 {
-    PDEBUG ("enter, info: %p, size: %llu, fn: %s\n",
-            info, size, fn);
+    PDEBUG("enter, info: %p, size: %llu, fn: %s\n", info, size, fn);
 
     if (!info || !info->md)
         return false;
 
-    PDEBUG ("enter 2\n");
+    PDEBUG("enter 2\n");
 
-    metadata*   md = info->md;
-    mh*         hd = &md->hd;
-    data_chunk* dc = NULL;
-    int nc         = hd->nr_user;
+    metadata *md = info->md;
+    mh *hd = &md->hd;
+    data_chunk *dc = NULL;
+    int nc = hd->nr_user;
     uint64 cs = 0;
     if (!md || !chunk_split(0, size, &nc, &cs, &dc) || !dc) {
         PDEBUG("return err.\n");
@@ -311,17 +302,17 @@ bool dinfo_update_metadata(dinfo* info, uint64 size, const char* fn)
     }
 
     hd->package_size = size;
-    hd->chunk_size    = cs;
+    hd->chunk_size = cs;
     hd->nr_effective = nc;
-    hd->acon         = nc;
+    hd->acon = nc;
 
-    data_chunk* np = md->ptrs->body;
+    data_chunk *np = md->ptrs->body;
     for (int i = 0; i < nc; ++i, ++np) {
         data_chunk *p = dc + i;
         *np = *p;
     }
 
-    hash_table* ht = md->ptrs->ht;
+    hash_table *ht = md->ptrs->ht;
     assert(ht != NULL);
 
 #define DINFO_UPDATE_HASH(K, V)                 \
@@ -333,58 +324,52 @@ bool dinfo_update_metadata(dinfo* info, uint64 size, const char* fn)
     DINFO_UPDATE_HASH(K_USR, md->ptrs->user);
     DINFO_UPDATE_HASH(K_PASSWD, md->ptrs->passwd);
 
-    if (fn && hd->update_name)
-    {
+    if (fn && hd->update_name) {
         md->ptrs->fn = strdup(fn);
         DINFO_UPDATE_HASH(K_FN, md->ptrs->fn);
         hd->update_name = FALSE;
     }
-
 #undef DINFO_UPDATE_HASH
 
     // reset ht_buffer...
-    char* ptr = (char*)(md->raw_data) +
-                sizeof(data_chunk) * hd->nr_effective;
+    char *ptr = (char *) (md->raw_data) +
+        sizeof(data_chunk) * hd->nr_effective;
     uint32 n_ebl = md->ptrs->ht_buffer + hd->ebl - ptr;
 
     md->ptrs->ht_buffer = ptr;
     hd->ebl = dump_hash_table(ht, md->ptrs->ht_buffer, n_ebl);
     fm_remap(&info->fm_md, CALC_MD_SIZE(hd->nr_effective, hd->ebl));
-    PDEBUG ("chunk: %p -- %p, ht_buffer: %p\n",
-            md->raw_data, md->ptrs->body, md->ptrs->ht_buffer);
+    PDEBUG("chunk: %p -- %p, ht_buffer: %p\n",
+           md->raw_data, md->ptrs->body, md->ptrs->ht_buffer);
 
     // now update fm_file.
-    PDEBUG ("info->fm_file: %p\n", info->fm_file);
+    PDEBUG("info->fm_file: %p\n", info->fm_file);
 
     if (!info->fm_file) {
-        char* fpath = NULL;
-        char* dirn  = fm_get_directory(info->fm_md);
+        char *fpath = NULL;
+        char *dirn = fm_get_directory(info->fm_md);
         if (dirn) {
             fpath = ZALLOC(char, strlen(dirn) + strlen(md->ptrs->fn) + 2);
             sprintf(fpath, "%s/%s", dirn, md->ptrs->fn);
-            PDEBUG ("Creating file mapping: %s, dirn: %s, fn: %s\n",
-                    fpath, dirn ? dirn : "NULL", md->ptrs->fn);
-        }
-        else
-        {
+            PDEBUG("Creating file mapping: %s, dirn: %s, fn: %s\n",
+                   fpath, dirn ? dirn : "NULL", md->ptrs->fn);
+        } else {
             fpath = strdup(md->ptrs->fn);
         }
-        PDEBUG ("Creating file mapping: %s\n", fpath);
+        PDEBUG("Creating file mapping: %s\n", fpath);
 
         info->fm_file = fm_create(fpath, info->md->hd.package_size);
         FIF(fpath);
-    }
-    else
+    } else
         fm_remap(&info->fm_file, size);
 
     return true;
 }
 
 
-void dinfo_sync(dinfo* info)
+void dinfo_sync(dinfo * info)
 {
-    if (info)
-    {
+    if (info) {
         fhandle_msync(info->fm_md);
         fhandle_msync(info->fm_file);
     }

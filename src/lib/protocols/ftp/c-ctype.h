@@ -117,23 +117,23 @@ extern "C" {
          if (c_isalpha (*s)) ...
  */
 
-extern bool c_isascii (int c); /* not locale dependent */
+    extern bool c_isascii(int c);	/* not locale dependent */
 
-extern bool c_isalnum (int c);
-extern bool c_isalpha (int c);
-extern bool c_isblank (int c);
-extern bool c_iscntrl (int c);
-extern bool c_isdigit (int c);
-extern bool c_islower (int c);
-extern bool c_isgraph (int c);
-extern bool c_isprint (int c);
-extern bool c_ispunct (int c);
-extern bool c_isspace (int c);
-extern bool c_isupper (int c);
-extern bool c_isxdigit (int c);
+    extern bool c_isalnum(int c);
+    extern bool c_isalpha(int c);
+    extern bool c_isblank(int c);
+    extern bool c_iscntrl(int c);
+    extern bool c_isdigit(int c);
+    extern bool c_islower(int c);
+    extern bool c_isgraph(int c);
+    extern bool c_isprint(int c);
+    extern bool c_ispunct(int c);
+    extern bool c_isspace(int c);
+    extern bool c_isupper(int c);
+    extern bool c_isxdigit(int c);
 
-extern int c_tolower (int c);
-extern int c_toupper (int c);
+    extern int c_tolower(int c);
+    extern int c_toupper(int c);
 
 
 #if defined __GNUC__ && defined __OPTIMIZE__ && !defined __OPTIMIZE_SIZE__ && !defined NO_C_CTYPE_MACROS
@@ -284,11 +284,10 @@ extern int c_toupper (int c);
    })
 #endif
 
-#endif /* optimizing for speed */
+#endif				/* optimizing for speed */
 
 
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* C_CTYPE_H */
+#endif				/* C_CTYPE_H */
