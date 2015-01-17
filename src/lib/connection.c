@@ -361,9 +361,10 @@ post_connected: ;
 
         PDEBUG ("sock(%d) %p connected to %s. \n", conn->sock, conn, conn->host);
 
-        conn->connected = true;
-        conn->port = ui->port;
-        conn->active = true;
+        conn->connected    = true;
+        conn->port         = ui->port;
+        conn->active       = true;
+        conn->last_access = get_time_s();
         switch (ui->eprotocol) {
             case UP_HTTPS:
             {

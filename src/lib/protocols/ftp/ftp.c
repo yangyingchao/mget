@@ -37,19 +37,23 @@
 #include <pthread.h>
 #include <sys/select.h>
 
-#define DEFAULT_FTP_CONNECTIONS   3
+#define DEFAULT_FTP_CONNECTIONS 3
+#define TIME_OUT                5
 
 typedef struct _connection_operation_param_ftp {
-    void *addr;			//base addr;
+    void       *addr;                   //base addr;
     data_chunk *dp;
-    url_info *ui;
+    url_info   *ui;
     hash_table *ht;
     void (*cb) (metadata*, void*);
-    metadata *md;
-    int idx;
-    dinfo* info;
-    int fds[2];
-    void* user_data;
+    metadata   *md;
+    int         idx;
+    dinfo*      info;
+    int         fds[2];
+    bool        active;
+    int         last_access;            // last connected..
+    pthread_t   tid;
+    void*       user_data;
 } co_param_ftp;
 
 /* This function accepts an pointer of connection pointer, on return. When 302
@@ -605,12 +609,11 @@ start: ;
     bool             need_request = false;
     ftp_connection*  conn   = NULL;
     ftp_connection*  conns  = ZALLOC(ftp_connection, md->hd.nr_effective);
-    pthread_t*       tids   = ZALLOC(pthread_t, md->hd.nr_effective);
     uerr_t           uerr   = FTPOK;
-    data_chunk      *dp     = md->ptrs->body;
+    data_chunk*      dp     = md->ptrs->body;
     int              maxfd  = 0;
     co_param_ftp*    params = ZALLOC(co_param_ftp, md->hd.nr_effective);
-    co_param_ftp    *param  = params;
+    co_param_ftp*    param  = params;
     int thread_number = 0;
 
     fd_set rfds;
@@ -626,18 +629,19 @@ start: ;
         }
 
         thread_number ++;
-        need_request = true;
-        conn = conns++;
-        param->addr      = info->fm_file->addr;
-        param->idx       = i;
-        param->dp        = dp;
-        param->ui        = ui;
-        param->md        = md;
-        param->cb        = cb;
-        param->user_data = user_data;
-        param->info = info;
-        if (pipe(param->fds) == -1)
-        {
+        need_request       = true;
+        conn               = conns++;
+        param->addr        = info->fm_file->addr;
+        param->idx         = i;
+        param->dp          = dp;
+        param->ui          = ui;
+        param->md          = md;
+        param->cb          = cb;
+        param->user_data   = user_data;
+        param->info        = info;
+        param->last_access = get_time_s();
+        param->active      = true;
+        if (pipe(param->fds) == -1) {
             fprintf(stderr, "Failed to create pipe: %s\n", strerror(errno));
             return ME_GENERIC;
         }
@@ -647,9 +651,8 @@ start: ;
         PDEBUG ("max: %d, params->fds[0] = %d\n", maxfd, param->fds[0]);
 
         FD_SET(param->fds[0], &rfds);
-        int tr = pthread_create(tids+i, NULL, ftp_download_thread, param);
-        if (tr < 0)
-        {
+        int tr = pthread_create(&param->tid, NULL, ftp_download_thread, param);
+        if (tr < 0) {
             perror("Failed to create threads!");
             exit(1);
         }
@@ -673,56 +676,56 @@ start: ;
             perror("select fail:");
             break;
         }
+        if (!nfds) {
+            for (int i = 0; i < md->hd.nr_effective; i++) {
+                param = params + i;
+                int ts = get_time_s();
+                if (ts - param->last_access > TIME_OUT && param->active) {
+                    mlog (LL_ALWAYS, "timed out..\n");
+                    param->active = false;
+                    pthread_cancel(param->tid);
+                    --active_threads;
+                }
+            }
+            continue;
+        }
+
         for (int i = 0; i < md->hd.nr_effective; i++) {
             param = params + i;
             int fd = param->fds[0];
-            if (!nfds)
-            {
-                if (param->cb)
-                {
-                    (*(param->cb)) (param->md, param->user_data);
-                }
-                FD_SET(fd, &rfds);
+            if (!param->active) {
+                mlog(LL_ALWAYS, "oops, got a dead thread??\n");
             }
 
-            else if (FD_ISSET(fd, &rfds)) {
+            if (FD_ISSET(fd, &rfds)) {
                 static char buff[64];
                 memset(buff, 0, 64);
-                int rd = read(fd, buff, 64);
-                if (rd == -1)
-                {
-                    PDEBUG ("rd : %d, %d: %s\n",
-                            rd, errno, strerror(errno));
-                    ;
+                if (read(fd, buff, 64) <= 0) {
+                    PDEBUG ("Failed to read from pipe, errno- %d: %s\n",
+                             errno, strerror(errno));
+                    param->active = false;
+                    pthread_cancel(param->tid);
+                    --active_threads;
+                    continue;
                 }
-                else if (!rd)
-                {
-                    ;
-                }
-                else
-                {
-                    for (int j = 0; j < fd; j++) {
-                        switch (buff[j])
-                        {
-                            case 'R':
-                            {
+                param->last_access = get_time_s();
+                for (int j = 0; j < fd; j++) {
+                    switch (buff[j]) {
+                        case 'R': {
+                            (*(param->cb)) (param->md, param->user_data);
+                            if (param->cb) {
                                 (*(param->cb)) (param->md, param->user_data);
-                                if (param->cb) {
-                                    (*(param->cb)) (param->md, param->user_data);
-                                }
-                                FD_SET(fd, &rfds);
-                                break;
                             }
-                            case 'E':
-                            {
-                                FD_CLR(fd, &rfds);
-                                active_threads --;
-                                break;
-                            }
-                            default:
-                            {
-                                break;
-                            }
+                            FD_SET(fd, &rfds);
+                            break;
+                        }
+                        case 'E': {
+                            FD_CLR(fd, &rfds);
+                            active_threads --;
+                            break;
+                        }
+                        default: {
+                            break;
                         }
                     }
                 }
@@ -737,14 +740,16 @@ start: ;
     }
 
     for (int i = 0; i < thread_number; i++) {
-        (void)pthread_cancel(tids[i]);
+        if ((params+i)->active)
+            pthread_cancel(param->tid);
     }
 
     for (int i = 0; i < thread_number; i++) {
-        int tr = pthread_join(tids[i], NULL);
-        if (tr < 0)
-        {
-            fprintf(stderr, "failed to join thread\n");
+        if ((params+i)->active) {
+            int tr = pthread_join((params+i)->tid, NULL);
+            if (tr < 0) {
+                fprintf(stderr, "failed to join thread\n");
+            }
         }
     }
 
