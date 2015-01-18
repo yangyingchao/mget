@@ -248,6 +248,8 @@ mget_err process_http_request(dinfo * info, dp_callback cb,
 
     if (!total) {
         fprintf(stderr, "Can't get remote file size: %s\n", ui->furl);
+        fprintf(stderr, "It won't help without knowning remote file size,"
+                " Please use wget instead...\");
         return ME_RES_ERR;
     }
 
@@ -365,18 +367,18 @@ mget_err process_http_request(dinfo * info, dp_callback cb,
 
         co_param *param = ZALLOC1(co_param);
 
-        param->addr = info->fm_file->addr;
-        param->dp = dp;
-        param->ui = ui;
-        param->md = md;
-        param->info = info;
-        param->bq = bq_init(PAGE);
-        param->cb = cb;
+        param->addr      = info->fm_file->addr;
+        param->dp        = dp;
+        param->ui        = ui;
+        param->md        = md;
+        param->info      = info;
+        param->bq        = bq_init(PAGE);
+        param->cb        = cb;
         param->user_data = user_data;
 
-        conn->recv_data = http_read_sock;
+        conn->recv_data  = http_read_sock;
         conn->write_data = http_write_sock;
-        conn->priv = param;
+        conn->priv       = param;
 
         connection_add_to_group(sg, conn);
         conn = NULL;
@@ -567,8 +569,7 @@ static inline uint64 get_remote_file_size_http(url_info * ui,
     uint64 t = 0;
 
     switch (stat) {
-    case 206:                  // Ok, we can start download now.
-        {
+        case 206: { // Ok, we can start download now.
             ptr = (char *) hash_table_entry_get(*ht, "content-range");
             if (!ptr) {
                 fprintf(stderr, "Content Range not returned: %s!\n",
@@ -586,8 +587,7 @@ static inline uint64 get_remote_file_size_http(url_info * ui,
         }
     case 301:
     case 302:                  // Resource moved to other place.
-    case 307:
-        {
+    case 307: {
             char *loc = (char *) hash_table_entry_get(*ht, "location");
 
             printf("Server returns 302, trying new locations: %s...\n",
@@ -607,8 +607,7 @@ static inline uint64 get_remote_file_size_http(url_info * ui,
                     "Failed to get new location for status code: 302\n");
             break;
         }
-    case 200:
-        {
+    case 200: {
             ptr = (char *) hash_table_entry_get(*ht, "content-length");
             if (!ptr) {
                 mlog(LL_ALWAYS, "Content Length not returned!\n");
@@ -626,8 +625,7 @@ static inline uint64 get_remote_file_size_http(url_info * ui,
             // handle this!
             break;
         }
-    default:
-        {
+    default: {
             if (stat >= 400 && stat < 511) {
                 mlog(LL_ALWAYS, "Server returns %d for HTTP request\n",
                      stat);
