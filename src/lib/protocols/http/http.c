@@ -168,6 +168,7 @@ int http_read_sock(connection * conn, void *priv)
                    param->bq->w - param->bq->r);
             if (length) {
                 memcpy(addr, param->bq->r, length);
+                param->md->hd.current_size+=length;
                 dp->cur_pos += length;
             }
             PDEBUG("Showing chunk: "
@@ -208,6 +209,7 @@ int http_read_sock(connection * conn, void *priv)
 
     if (rd > 0) {
         dp->cur_pos += rd;
+        param->md->hd.current_size+=rd;
         if (param->cb) {
             (*(param->cb)) (param->md, param->user_data);
         }
