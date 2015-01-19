@@ -58,7 +58,7 @@ char *get_basename(const char *fname);
 void  remove_file(const char *fn);
 
 fh_map *fm_create(const char *fn, size_t length);
-bool    fm_remap(fh_map ** fm, size_t new_length);
+bool    fm_remap(fh_map* fm, size_t new_length);
 int     fm_get_fd(fh_map* fm);
 
 char *fm_get_directory(fh_map * fm);

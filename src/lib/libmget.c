@@ -72,7 +72,7 @@ mget_err start_request(const char *url, const file_name * fn,
 
     ret = handler(info, cb, stop_flag, user_data);
 
-    dinfo_destroy(&info);
+    dinfo_destroy(info);
 
     return ret;
 }

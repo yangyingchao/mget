@@ -44,12 +44,11 @@ fhandle *fhandle_create(const char *fn, FHM mode)
     }
 
     fh->fn = strdup(fn);
-    fh->fd =
-        open(fn, O_RDWR | ((mode & FHM_CREATE) ? O_CREAT : 0), FM_DEFAULT);
+    fh->fd = open(fn, O_RDWR | ((mode & FHM_CREATE) ? O_CREAT : 0), FM_DEFAULT);
     struct stat st;
-
     if (!fstat(fh->fd, &st)) {
         fh->size = st.st_size;
+        PDEBUG ("fh (%p) created for file (%s), size: %u\n", fh, fn, fh->size);
         return fh;
     }
 
@@ -239,16 +238,18 @@ fh_map *fm_create(const char *fn, size_t length)
             fhandle_destroy(fh);
         }
     } while (0);
+
+    PDEBUG ("FileMapping for %s: %p\n", fn, fm);
     return fm;
 }
 
-bool fm_remap(fh_map **fm, size_t nl)
+bool fm_remap(fh_map* fm, size_t nl)
 {
-    if (!fm || !*fm)
+    if (!fm)
         return false;
-    fhandle *fh = (*fm)->fh;
+    fhandle *fh = fm->fh;
     fhandle_munmap(fm);
-    return fhandle_mmap(*fm, fh, 0, nl);
+    return fhandle_mmap(fm, fh, 0, nl);
 }
 
 char *fm_get_directory(fh_map * fm)
@@ -275,12 +276,12 @@ bool safe_write(int fd, char* buf, size_t total)
     do
     {
         ssize_t w = write(fd, buf, total);
-        if (w != -1) {
+        if (w == -1) {
             return false;
         }
-
         total -= w;
     } while (total > 0);
+
     return true;
 }
 

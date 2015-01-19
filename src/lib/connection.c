@@ -566,11 +566,6 @@ static address *addrentry_to_address(addr_entry * entry)
 
         memcpy(addr->ai_addr, entry->buffer, addr->ai_addrlen);
         entry->addr = addr;
-
-        OUT_ADDR(family);
-        OUT_ADDR(socktype);
-        OUT_ADDR(protocol);
-        OUT_BIN(addr->ai_addr, addr->ai_addrlen);
     }
     return addr;
 }

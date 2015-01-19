@@ -73,6 +73,13 @@ struct http_request_context
     void*       user_data;
 };
 
+#define CALLBACK(X)                             \
+    do                                          \
+    {                                           \
+        if (X->cb)                              \
+            (X->cb)(X->info->md, X->user_data);  \
+    } while (0)
+
 
 static char *generate_request_header(const char *method,
                                      url_info   *uri,
@@ -101,10 +108,11 @@ int http_read_sock(connection * conn, void *priv)
         return 0;
     }
 
+    int rd = 0;
     void *addr = param->addr + dp->cur_pos;
     if (!param->header_finished) {
         bq_enlarge(param->bq, 4096 * 100);
-        int rd = conn->co.read(conn, param->bq->w,
+        rd = conn->co.read(conn, param->bq->w,
                                param->bq->x - param->bq->w, NULL);
 
         if (rd > 0) {
@@ -193,7 +201,6 @@ int http_read_sock(connection * conn, void *priv)
         }
     }
 
-    int rd = 0;
     do {
         rd = conn->co.read(conn, param->addr + dp->cur_pos,
                            dp->end_pos - dp->cur_pos, NULL);
@@ -329,6 +336,9 @@ start:;
 restart:
     dinfo_sync(info);
 
+    PDEBUG ("md: %p, status: %d, nr: %d -- %d\n", md, md->hd.status,
+            md->hd.nr_user, md->hd.nr_effective);
+
     if (md->hd.status == RS_FINISHED) {
         goto ret;
     }
@@ -343,6 +353,9 @@ restart:
         err = process_request_multi_form(&context);
     else
         err = process_request_single_form(&context);
+
+    PDEBUG ("md: %p, status: %d, nr: %d -- %d\n", md, md->hd.status,
+            md->hd.nr_user, md->hd.nr_effective);
 
     if (err != ME_OK && err < ME_DO_NOT_RETRY &&
         stop_flag && !*stop_flag) {  // errors occurred, restart
@@ -361,7 +374,12 @@ restart:
     md->hd.acc_time += get_time_s() - md->hd.last_time;
 
 ret:
-    metadata_display(md);
+    PDEBUG ("md: %p, size: %d - %d, nr: %d -- %d\n", md, md->hd.package_size,
+            md->hd.current_size, md->hd.nr_user, md->hd.nr_effective );
+
+    if (md->hd.package_size)
+        metadata_display(md);
+
     if (cb) {
         (*cb) (md, user_data);
     }
@@ -370,6 +388,7 @@ ret:
     PDEBUG("stopped, ret: %d.\n", ME_OK);
     return ME_OK;
 }
+
 
 
 static char *generate_request_header(const char *method,
@@ -670,28 +689,32 @@ char* get_suggested_name(const char* dis)
     return fn;
 }
 
-static long get_chunk_size(byte_queue* bq)
+static long get_chunk_size(byte_queue* bq, int* consumed)
 {
     char* ptr = strstr((char*)bq->r, "\r\n");
     if (!ptr)
         return -1;
-    long sz = strtol((char*)bq->r, NULL, 16);
-    bq->r = (byte*)ptr + 4;
+    long  sz   = strtol((char*)bq->r, NULL, 16);
+    PDEBUG ("sz: %d\n", sz);
+    *consumed = ptr - (char*)bq->r + 2;
+    bq->r = (byte*)ptr + 2;
     return sz;
 }
 
 static mget_err receive_chunked_data(hcontext* context)
 {
-    int         fd   = fm_get_fd(context->info->fm_md);
+    int         fd   = fm_get_fd(context->info->fm_file);
     byte_queue* bq   = context->bq;
     connection* conn = context->conn;
     long chunk_size;
+    int consumed = 0;
 read_chunk_size:
-    chunk_size = get_chunk_size(context->bq);
-    PDEBUG ("ptr: %s, Chunk size: %ld\n", context->bq->r, chunk_size);
+    chunk_size = get_chunk_size(context->bq, &consumed);
+    PDEBUG ("chunk_size: %d\n", chunk_size);
     if (chunk_size == -1)  { // not enough data...
         bq_enlarge(bq, PAGE);
         int rd = conn->co.read(conn, (char*)bq->w, PAGE, NULL);
+        PDEBUG ("rd: %d\n", rd);
         if (rd > 0) {
             bq->w += rd;
             goto read_chunk_size;
@@ -701,16 +724,22 @@ read_chunk_size:
         }
     }
 
-    if (chunk_size) {
-        long pending = chunk_size;
+    PDEBUG ("ChunkSize: %d\n", chunk_size);
+    if (chunk_size>0) {
+        long pending = chunk_size - consumed;
+        pending -= (bq->w  - bq->r);
         do {
-            int rd = conn->co.read(conn, (char*)bq->w, PAGE, NULL);
+            bq_enlarge(bq, PAGE);
+            int rd = conn->co.read(conn, (char*)bq->w, pending > PAGE ? PAGE:pending, NULL);
+            CALLBACK(context);
             if (rd > 0) {
                 bq->w += rd;
                 pending -= rd;
             }
             else
                 return ME_CONN_ERR;
+
+            PDEBUG ("pending: %d\n", pending);
         } while (pending > 0);
 
         if (!(safe_write(fd, (char*)bq->r, bq->w - bq->r - 2))) { // exclude \r\n
@@ -720,6 +749,7 @@ read_chunk_size:
             return ME_RES_ERR;
         }
         bq_reset(bq);
+        PDEBUG ("read again...\n");
         goto read_chunk_size;
     }
 
@@ -729,7 +759,7 @@ read_chunk_size:
 static mget_err receive_limited_data(hcontext* context)
 {
     uint64      pending = context->info->md->hd.package_size;
-    int         fd      = fm_get_fd(context->info->fm_md);
+    int         fd      = fm_get_fd(context->info->fm_file);
     byte_queue* bq      = context->bq;
     connection* conn    = context->conn;
     size_t      length = bq->w - bq->r;
@@ -742,6 +772,7 @@ retry:
     }
     if (pending > 0) {
         int rd = conn->co.read(conn, (char*)bq->w, PAGE, NULL);
+        CALLBACK(context);
         if (rd > 0) {
             bq->w += rd;
             length = rd;
@@ -757,7 +788,10 @@ retry:
 // receive until connection closed...
 static mget_err receive_unlimited_data(hcontext* context)
 {
-    int         fd      = fm_get_fd(context->info->fm_md);
+    PDEBUG ("enter..\n");
+    PDEBUG ("md: %p, nr: %d--%d\n", context->info->md,
+            context->info->md->hd.nr_user,    context->info->md->hd.nr_effective);
+    int         fd      = fm_get_fd(context->info->fm_file);
     byte_queue* bq      = context->bq;
     connection* conn    = context->conn;
     size_t      length = bq->w - bq->r;
@@ -765,9 +799,13 @@ retry:
     if (length > 0) {
         if (!safe_write(fd, (char*)bq->r, length))
             return ME_RES_ERR;
-        bq_reset(bq);
     }
+    bq_reset(bq);
     int rd = conn->co.read(conn, (char*)bq->w, PAGE, NULL);
+    CALLBACK(context);
+    PDEBUG ("md: %p, nr: %d--%d\n", context->info->md,
+            context->info->md->hd.nr_user,    context->info->md->hd.nr_effective);
+    PDEBUG ("rd: %d\n", rd);
     if (rd > 0) {
         bq->w += rd;
         length = rd;
@@ -833,6 +871,10 @@ mget_err process_request_single_form(hcontext* context)
         }
     }
 
+    metadata* md = context->info->md;
+    PDEBUG ("md: %p, status: %d, nr: %d -- %d\n", md, md->hd.status,
+            md->hd.nr_user, md->hd.nr_effective);
+
     mget_err err = ME_OK;
     bq_enlarge(context->bq, PAGE);
     if (context->type == htt_chunked)
@@ -841,6 +883,7 @@ mget_err process_request_single_form(hcontext* context)
         err = receive_limited_data(context);
     else
         err = receive_unlimited_data(context);
+
     if (err == ME_OK)
         context->info->md->hd.package_size = get_file_size(context->info->fm_md);
     return err;

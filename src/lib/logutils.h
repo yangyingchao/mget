@@ -29,8 +29,8 @@ extern "C" {
 #include "libmget.h"
 #include <assert.h>
 
-    void mlog(log_level, const char *, ...);
-    void dump_buffer(const char *tip, const unsigned char *buf, int max);
+void mlog(log_level, const char *, ...);
+void dump_buffer(const char *tip, const unsigned char *buf, int max);
 
 #if !defined (PDEBUG)
 #define PDEBUG(fmt, ...)                                \

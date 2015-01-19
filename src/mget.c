@@ -53,7 +53,7 @@ void show_progress(metadata * md, void *user_data)
     if (md->hd.status == RS_FINISHED) {
         char *date = current_time_str();
 
-        printf("%s - %s saved in %s [%.02fKB/s] ...\n",
+        printf("\n%s - %s saved in %s [%.02fKB/s] ...\n",
                date, md->ptrs->fn,
                stringify_time(md->hd.acc_time),
                (double) (md->hd.package_size) / K / md->hd.acc_time);
