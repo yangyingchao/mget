@@ -113,7 +113,7 @@ typedef struct _connection_cache {
 #define CONN2CONNP(X) (connection_p*)(X)
 #define LIST2PCONN(X) (connection_p*)((char*)X - offsetof(connection_p, lst))
 
-#define shm_error(msg)                                   \
+#define shm_error(msg)                                                  \
     do { perror("sm_error, " msg); goto alloc_addr_cache; } while (0)
 
 
@@ -129,46 +129,50 @@ static int bw_limit = -1;       // band-width limit.
 
 
 /* Address entry related. */
-static inline address *addrentry_to_address(addr_entry * entry);
-static inline addr_entry *address_to_addrentry(address * addr);
-static inline void addr_entry_destroy(void *entry);
+static address *addrentry_to_address(addr_entry * entry);
+static addr_entry *address_to_addrentry(address * addr);
+static void addr_entry_destroy(void *entry);
+
+/* Generic socket operations */
+
+static int connection_save_to_fd(connection *conn, int out);
 
 /* tcp socket operations */
-static inline int tcp_connection_read(connection * conn, char *buf,
-                                      uint32 size, void *priv);
-static inline int tcp_connection_write(connection * conn, char *buf,
-                                       uint32 size, void *priv);
+static int tcp_connection_read(connection * conn, char *buf,
+                               uint32 size, void *priv);
+static int tcp_connection_write(connection * conn, const char *buf,
+                                uint32 size, void *priv);
 
-static inline void tcp_connection_close(connection * conn, char *buf,
-                                        uint32 size, void *priv);
-static inline bool validate_connection(connection_p * pconn);
+static void tcp_connection_close(connection * conn, char *buf,
+                                 uint32 size, void *priv);
+static bool validate_connection(connection_p * pconn);
 
 #ifdef SSL_SUPPORT
-static inline int secure_connection_read(connection * conn, char *buf,
-                                         uint32 size, void *priv);
-static inline int secure_connection_write(connection * conn, char *buf,
-                                          uint32 size, void *priv);
+static int secure_connection_read(connection * conn, char *buf,
+                                  uint32 size, void *priv);
+static int secure_connection_write(connection * conn, const char *buf,
+                                   uint32 size, void *priv);
 #endif
 
-static inline int mget_connection_read(connection * conn, char *buf,
-                                       uint32 size, void *priv);
-static inline int mget_connection_write(connection * conn, char *buf,
-                                        uint32 size, void *priv);
-static inline void limit_bandwidth(connection_p * conn, int size);
+static int mget_connection_read(connection * conn, char *buf,
+                                uint32 size, void *priv);
+static int mget_connection_write(connection * conn, const char *buf,
+                                 uint32 size, void *priv);
+static void limit_bandwidth(connection_p * conn, int size);
 
-static inline int do_perform_select(connection_group * group);
+static int do_perform_select(connection_group * group);
 
-static inline int connect_to(int ai_family, int ai_socktype,
-                             int ai_protocol,
-                             const struct sockaddr *addr,
-                             socklen_t addrlen, int timeout);
+static int connect_to(int ai_family, int ai_socktype,
+                      int ai_protocol,
+                      const struct sockaddr *addr,
+                      socklen_t addrlen, int timeout);
 
-static inline bool try_connect(int sock, const struct sockaddr *addr,
-                               socklen_t addrlen, int timeout);
+static bool try_connect(int sock, const struct sockaddr *addr,
+                        socklen_t addrlen, int timeout);
 
-static inline char *get_host_key(const char *host, int port);
+static char *get_host_key(const char *host, int port);
 
-static inline int create_nonblocking_socket();
+static int create_nonblocking_socket();
 
 
 connection *connection_get(const url_info * ui)
@@ -230,7 +234,7 @@ connection *connection_get(const url_info * ui)
             goto post_connected;
         }
 
-      alloc:
+  alloc:
         conn = ZALLOC1(connection_p);
         static hash_table *addr_cache = NULL;
         static shm_region *shm_rptr = NULL;
@@ -257,9 +261,9 @@ connection *connection_get(const url_info * ui)
                 shm_error("do mmap");
 
             addr_cache =
-                hash_table_create_from_buffer(shm_rptr->buf, SHM_LENGTH);
+                    hash_table_create_from_buffer(shm_rptr->buf, SHM_LENGTH);
             if (!addr_cache) {
-              alloc_addr_cache:;
+          alloc_addr_cache:;
                 addr_cache = hash_table_create(64, addr_entry_destroy);
                 assert(addr_cache);
             }
@@ -274,7 +278,7 @@ connection *connection_get(const url_info * ui)
         if (entry) {
             mlog(LL_NOTQUIET, "Using cached address...\n");
             conn->addr = addrentry_to_address(entry);
-          connect:
+      connect:
             PDEBUG("Connecting to: %s:%d\n", ui->host, ui->port);
 
             conn->sock = connect_to(conn->addr->ai_family,
@@ -288,7 +292,7 @@ connection *connection_get(const url_info * ui)
             }
         } else {
             mlog(LL_NOTQUIET, "Can't find cached address..\n");
-          hint:;
+      hint:;
             address hints;
 
             memset(&hints, 0, sizeof(hints));
@@ -351,7 +355,7 @@ connection *connection_get(const url_info * ui)
         }
     }
 
-  post_connected:;
+post_connected:;
     if (conn) {
         if (ui->host && !conn->host) {
             conn->host = strdup(ui->host);
@@ -365,7 +369,7 @@ connection *connection_get(const url_info * ui)
         conn->active = true;
         conn->last_access = get_time_s();
         switch (ui->eprotocol) {
-        case UP_HTTPS:
+            case UP_HTTPS:
             {
 #ifdef SSL_SUPPORT
                 ssl_init();
@@ -382,26 +386,27 @@ connection *connection_get(const url_info * ui)
 #endif
                 break;
             }
-        default:
+            default:
             {
                 conn->rco.write = tcp_connection_write;
                 conn->rco.read = tcp_connection_read;
                 break;
             }
         }
+        conn->rco.save_to_fd = connection_save_to_fd;
         conn->conn.co.write = mget_connection_write;
         conn->conn.co.read = mget_connection_read;
         goto ret;
     }
 
-  err:
+err:
     fprintf(stderr, "Failed to get proper host address for: %s\n",
             ui->host);
     FIF(entry);
     FIF(conn->host);
     FIF(conn);
     conn = NULL;
-  ret:
+ret:
     PDEBUG("return connection: %p\n", conn);
     return (connection *) conn;
 }
@@ -445,7 +450,7 @@ void connection_put(connection * conn)
     return;
 
     //@todo: convert this conn_p to connection_p_list and cache it.
-  clean:
+clean:
     PDEBUG("cleaning connetion: %p\n", pconn);
 
     FIF(pconn->host);
@@ -541,9 +546,15 @@ void set_global_bandwidth(int limit)
         bw_limit = limit;
     }
 }
+
+int save_to_fd(connection* conn, int fd)
+{
+    return 0;
+}
+
 
- // local functions
-static inline address *addrentry_to_address(addr_entry * entry)
+// local functions
+static address *addrentry_to_address(addr_entry * entry)
 {
     address *addr = NULL;
     if (entry && (addr = ZALLOC1(address))) {
@@ -564,7 +575,7 @@ static inline address *addrentry_to_address(addr_entry * entry)
     return addr;
 }
 
-static inline addr_entry *address_to_addrentry(address * addr)
+static addr_entry *address_to_addrentry(address * addr)
 {
     addr_entry *entry = NULL;
     if (addr && (entry = ALLOC_ADDR_ENTRY(addr->ai_addrlen))) {
@@ -588,7 +599,7 @@ static inline addr_entry *address_to_addrentry(address * addr)
     return entry;
 }
 
-static inline void addr_entry_destroy(void *entry)
+static void addr_entry_destroy(void *entry)
 {
     addr_entry *e = (addr_entry *) entry;
 
@@ -597,8 +608,22 @@ static inline void addr_entry_destroy(void *entry)
     }
 }
 
-static inline int tcp_connection_read(connection * conn, char *buf,
-                                      uint32 size, void *priv)
+static int connection_save_to_fd(connection *conn, int out)
+{
+    if (!conn)
+        return COF_INVALID;
+
+    char buf[4096];
+    int s = conn->co.read(conn, buf, 4096, NULL);
+    if (s > 0) {
+        s = write(out, buf, s);
+    }
+
+    return s;
+}
+
+static int tcp_connection_read(connection * conn, char *buf,
+                               uint32 size, void *priv)
 {
     connection_p *pconn = (connection_p *) conn;
     if (pconn && pconn->sock && buf) {
@@ -637,8 +662,8 @@ static inline int tcp_connection_read(connection * conn, char *buf,
     return COF_INVALID;
 }
 
-static inline int tcp_connection_write(connection * conn, char *buf,
-                                       uint32 size, void *priv)
+static int tcp_connection_write(connection * conn, const char *buf,
+                                uint32 size, void *priv)
 {
     connection_p *pconn = (connection_p *) conn;
 
@@ -658,14 +683,14 @@ static inline int tcp_connection_write(connection * conn, char *buf,
     return 0;
 }
 
-static inline void tcp_connection_close(connection * conn, char *buf,
-                                        uint32 size, void *priv)
+static void tcp_connection_close(connection * conn, char *buf,
+                                 uint32 size, void *priv)
 {
 }
 
 #ifdef SSL_SUPPORT
-static inline int secure_connection_read(connection * conn, char *buf,
-                                         uint32 size, void *priv)
+static int secure_connection_read(connection * conn, char *buf,
+                                  uint32 size, void *priv)
 {
     connection_p *pconn = (connection_p *) conn;
 
@@ -675,13 +700,13 @@ static inline int secure_connection_read(connection * conn, char *buf,
     return 0;
 }
 
-static inline int secure_connection_write(connection * conn, char *buf,
-                                          uint32 size, void *priv)
+static int secure_connection_write(connection * conn, const char *buf,
+                                   uint32 size, void *priv)
 {
     connection_p *pconn = (connection_p *) conn;
 
     if (pconn && pconn->sock && buf) {
-        return secure_socket_write(pconn->sock, buf, size, pconn->priv);
+        return secure_socket_write(pconn->sock, (char*)buf, size, pconn->priv);
     }
     return 0;
 }
@@ -698,7 +723,7 @@ static inline int secure_connection_write(connection * conn, char *buf,
    this function, where such pending data can only be unwanted
    leftover from a previous request.  */
 
-static inline bool validate_connection(connection_p * pconn)
+static bool validate_connection(connection_p * pconn)
 {
     if (!pconn->connected || pconn->sock == -1)
         return false;
@@ -734,7 +759,7 @@ static inline bool validate_connection(connection_p * pconn)
         x->connected = false;                   \
     } while (0)
 
-static inline int do_perform_select(connection_group * group)
+static int do_perform_select(connection_group * group)
 {
     if (!(group->type & cg_all)) {
         mlog(LL_ALWAYS, "Connection timed out...\n");
@@ -806,8 +831,8 @@ static inline int do_perform_select(connection_group * group)
 
                 if (FD_ISSET(pconn->sock, &wfds)) {
                     ret =
-                        pconn->conn.write_data((connection *) pconn,
-                                               pconn->conn.priv);
+                            pconn->conn.write_data((connection *) pconn,
+                                                   pconn->conn.priv);
                     PDEBUG("%d byte written\n", ret);
 
                     if (ret == COF_FINISHED) {
@@ -826,18 +851,18 @@ static inline int do_perform_select(connection_group * group)
                     pconn->last_access = get_time_s();
                 } else if (FD_ISSET(pconn->sock, &rfds)) {
                     ret =
-                        pconn->conn.recv_data((connection *) pconn,
-                                              pconn->conn.priv);
+                            pconn->conn.recv_data((connection *) pconn,
+                                                  pconn->conn.priv);
                     pconn->last_access = get_time_s();
                     switch (ret) {
-                    case COF_CLOSED:{
+                        case COF_CLOSED:{
                             close_connection(pconn);
                         }
-                    case COF_FAILED:
-                    case COF_FINISHED:{
+                        case COF_FAILED:
+                        case COF_FINISHED:{
                             PDEBUG
-                                ("remove conn: %p socket: %d, ret: %d...\n",
-                                 pconn, pconn->sock, ret);
+                                    ("remove conn: %p socket: %d, ret: %d...\n",
+                                     pconn, pconn->sock, ret);
                             FD_CLR(pconn->sock, &rfds);
                             /* close(pconn->sock); */
                             cnt--;
@@ -846,13 +871,13 @@ static inline int do_perform_select(connection_group * group)
                             pconn->connected = false;
                             break;
                         }
-                    case COF_ABORT:
+                        case COF_ABORT:
                         {
                             exit(1);
                             break;
                         }
-                    case COF_AGAIN:
-                    default:
+                        case COF_AGAIN:
+                        default:
                         {
                             FD_SET(pconn->sock, &rfds);
                             break;
@@ -886,9 +911,9 @@ static inline int do_perform_select(connection_group * group)
     return cnt;
 }
 
-static inline int connect_to(int ai_family, int ai_socktype,
-                             int ai_protocol, const struct sockaddr *addr,
-                             socklen_t addrlen, int timeout)
+static int connect_to(int ai_family, int ai_socktype,
+                      int ai_protocol, const struct sockaddr *addr,
+                      socklen_t addrlen, int timeout)
 {
     int sock = create_nonblocking_socket();
     if (sock == -1) {
@@ -902,12 +927,12 @@ static inline int connect_to(int ai_family, int ai_socktype,
         sock = -1;
     }
 
-  ret:
+ret:
     return sock;
 }
 
-static inline bool try_connect(int sockfd, const struct sockaddr *addr,
-                               socklen_t addrlen, int timeout)
+static bool try_connect(int sockfd, const struct sockaddr *addr,
+                        socklen_t addrlen, int timeout)
 {
     if (connect(sockfd, addr, addrlen) == -1) {
         // failed to connect if sock is non-blocking or error is not EINTR.
@@ -922,7 +947,7 @@ static inline bool try_connect(int sockfd, const struct sockaddr *addr,
     return timed_wait(sockfd, WT_WRITE, timeout);
 }
 
-static inline char *get_host_key(const char *host, int port)
+static char *get_host_key(const char *host, int port)
 {
     char *key = NULL;
     asprintf(&key, "%s:%d", host, port);
@@ -935,7 +960,7 @@ static inline char *get_host_key(const char *host, int port)
     return key;
 }
 
-static inline int create_nonblocking_socket()
+static int create_nonblocking_socket()
 {
 #if defined(USE_FCNTL)
     int sock = socket(PF_INET, SOCK_STREAM, 0);
@@ -952,8 +977,8 @@ static inline int create_nonblocking_socket()
 }
 
 /** Wrapper of tcp_connection_read/secure_connection_read. */
-static inline int mget_connection_read(connection * conn, char *buf,
-                                       uint32 size, void *priv)
+static int mget_connection_read(connection * conn, char *buf,
+                                uint32 size, void *priv)
 {
     connection_p *pconn = (connection_p *) conn;
     int ret = 0;
@@ -968,8 +993,8 @@ static inline int mget_connection_read(connection * conn, char *buf,
 }
 
 /** wrapper of tcp_connection_write/secure_connection_write. */
-static inline int mget_connection_write(connection * conn, char *buf,
-                                        uint32 size, void *priv)
+static int mget_connection_write(connection * conn, const char *buf,
+                                 uint32 size, void *priv)
 {
     // do nothing but invoke real writer..
     connection_p *pconn = (connection_p *) conn;
@@ -979,7 +1004,7 @@ static inline int mget_connection_write(connection * conn, char *buf,
     return 0;
 }
 
-static inline void limit_bandwidth(connection_p * conn, int size)
+static void limit_bandwidth(connection_p* conn, int size)
 {
     // TODO: Remove this ifdef!
 #if 0

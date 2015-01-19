@@ -427,7 +427,7 @@ byte_queue *bq_enlarge(byte_queue * bq, size_t sz)
     return bq;
 }
 
-void bq_destroy(byte_queue ** bq)
+void bq_destroy(byte_queue **bq)
 {
     if (bq && *bq) {
         FIF((*bq)->p);

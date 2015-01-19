@@ -41,6 +41,7 @@
 #define xfree(X) FIF(X)
 #define xrealloc(X, Y)       XREALLOC(X, Y)
 #define XALLOC(N)       ZALLOC(char, (N))
+#define STREMPTY(X)     (!(X) || (X[0] != 0))
 
 
 #endif				/* _MACROS_H_ */

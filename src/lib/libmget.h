@@ -32,14 +32,14 @@
 extern "C" {
 #endif
 
-    typedef struct _file_name {
+typedef struct _file_name {
 	char *dirn;
 	char *basen;
-    } file_name;
+} file_name;
 
 
 
-    typedef enum {
+typedef enum {
 	ME_OK = 0,
 	ME_HOST_ERR,
 	ME_CONN_ERR,
@@ -48,25 +48,25 @@ extern "C" {
 	ME_RES_ERR,
 	ME_ABORT,
 	ME_NOT_SUPPORT,
-    } mget_err;
+} mget_err;
 
-    typedef enum _log_level {
+typedef enum _log_level {
 	LL_DEBUG = 1,
 	LL_VERBOSE = 3,
 	LL_NOTQUIET = 5,
 	LL_NONVERBOSE = 7,
 	LL_ALWAYS = 9,
 	LL_INVLID = 0xFFFFFFFF
-    } log_level;
+} log_level;
 
-    typedef enum _host_cache_type {
+typedef enum _host_cache_type {
 	HC_DEFAULT = 0,
 	HC_BYPASS,
 	HC_UPDATE
-    } host_cache_type;
+} host_cache_type;
 
 
-    typedef struct _mget_option {
+typedef struct _mget_option {
 	int max_connections;
 	char *user;
 	char *passwd;
@@ -74,15 +74,15 @@ extern "C" {
 	bool recursive;		//@todo:
 	log_level ll;
 	host_cache_type hct;
-    } mget_option;
+} mget_option;
 
 // dp stands for download_progress
-    typedef void (*dp_callback) (metadata * md, void *user_data);
+typedef void (*dp_callback) (metadata * md, void *user_data);
 
-    typedef struct _mget_callbacks {
+typedef struct _mget_callbacks {
 	void (*status_callback) ();
 	void (*progress_callback) ();
-    } mget_callbacks;
+} mget_callbacks;
 
 /**
  * @name start_request - start processing request.
@@ -93,9 +93,9 @@ extern "C" {
  * @param stop_flag - Flag to control when to stop.
  * @return mget_err
  */
-    mget_err start_request(const char *url, const file_name * fn,
-			   mget_option * opt, dp_callback cb,
-			   bool * stop_flag, void *user_data);
+mget_err start_request(const char *url, const file_name * fn,
+                       mget_option * opt, dp_callback cb,
+                       bool * stop_flag, void *user_data);
 
 
 /**
@@ -103,7 +103,7 @@ extern "C" {
  * @param  - path of metadata.
  * @return void
  */
-    void metadata_inspect(const char *path, mget_option * opts);
+void metadata_inspect(const char *path, mget_option * opts);
 
 #ifdef __cplusplus
 }

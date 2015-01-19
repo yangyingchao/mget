@@ -66,14 +66,8 @@ void show_progress(metadata * md, void *user_data)
         if (!ts) {
             ts = get_time_ms();
             if (!last_recv) {
-                // If last_recv is zero, try to load it from metadata.
-                data_chunk *dp = md->ptrs->body;
-                for (int i = 0; i < md->hd.nr_effective; ++i) {
-                    last_recv += dp->cur_pos - dp->start_pos;
-                    dp++;
-                }
+                last_recv = md->hd.current_size;
             }
-
             fprintf(stderr, ".");
         } else if ((get_time_ms() - ts) > 1000 / threshhold * idx) {
             fprintf(stderr, ".");
@@ -82,27 +76,26 @@ void show_progress(metadata * md, void *user_data)
     } else {
         data_chunk *dp = md->ptrs->body;
         uint64 total = md->hd.package_size;
-        uint64 recv = 0;
-
-        for (int i = 0; i < md->hd.nr_effective; ++i) {
-            recv += dp->cur_pos - dp->start_pos;
-            dp++;
-        }
-
-        uint64 diff_size = recv - last_recv;
-        uint64 remain = total - recv;
+        uint64 recv = md->hd.current_size;
+        uint64 diff_size = md->hd.current_size - last_recv;
         uint32 c_time = get_time_ms();
         uint64 bps =
             (uint64) ((double) (diff_size) * 1000 / (c_time - ts)) + 1;
 
-        fprintf(stderr,
-                "] %.02f, SPD: %s/s, ETA: %s\r",
-                (double) recv / total * 100,
-                stringify_size(bps), stringify_time((total - recv) / bps));
-        fprintf(stderr, "\n");
+        if (total > 0)
+            fprintf(stderr,
+                    "] %.02f, SPD: %s/s, ETA: %s\r",
+                    (double) recv / total * 100,
+                    stringify_size(bps), stringify_time((total - recv) / bps));
+        else
+            fprintf(stderr,
+                    "] %s, SPD: %s/s, ETA: ---\r",
+                    stringify_size(recv),
+                    stringify_size(bps));
 
+        fprintf(stderr, "\n");
         idx = 0;
-        last_recv = recv;
+        last_recv = md->hd.current_size;
         ts = c_time;
     }
 }

@@ -53,7 +53,7 @@ void dinfo_destroy(dinfo ** info)
 }
 
 bool dinfo_create(const char *url, const file_name * fn,
-                  mget_option * opt, dinfo ** info)
+                  mget_option * opt, dinfo **info)
 {
     url_info *ui = NULL;
     char *fpath = NULL;
@@ -235,8 +235,8 @@ bool dinfo_create(const char *url, const file_name * fn,
 
 bool dinfo_ready(dinfo * info)
 {
-    return (info && info->ui && info->md && info->fm_md && info->fm_file &&
-            info->md->hd.package_size && info->md->hd.status);
+    return (info && info->ui && info->md && info->fm_md && info->fm_file
+            && info->md->hd.status);
 }
 
 extern bool chunk_split(uint64 start, uint64 size, int *num,
@@ -296,21 +296,23 @@ bool dinfo_update_metadata(dinfo * info, uint64 size, const char *fn)
     data_chunk *dc = NULL;
     int nc = hd->nr_user;
     uint64 cs = 0;
-    if (!md || !chunk_split(0, size, &nc, &cs, &dc) || !dc) {
-        PDEBUG("return err.\n");
-        return false;
+    if (size) {
+        if (!md || !chunk_split(0, size, &nc, &cs, &dc) || !dc) {
+            PDEBUG("return err.\n");
+            return false;
+        }
+
+        data_chunk *np = md->ptrs->body;
+        for (int i = 0; i < nc; ++i, ++np) {
+            data_chunk *p = dc + i;
+            *np = *p;
+        }
     }
 
     hd->package_size = size;
-    hd->chunk_size = cs;
+    hd->chunk_size   = cs;
     hd->nr_effective = nc;
-    hd->acon = nc;
-
-    data_chunk *np = md->ptrs->body;
-    for (int i = 0; i < nc; ++i, ++np) {
-        data_chunk *p = dc + i;
-        *np = *p;
-    }
+    hd->acon         = nc;
 
     hash_table *ht = md->ptrs->ht;
     assert(ht != NULL);
@@ -339,12 +341,9 @@ bool dinfo_update_metadata(dinfo * info, uint64 size, const char *fn)
     md->ptrs->ht_buffer = ptr;
     hd->ebl = dump_hash_table(ht, md->ptrs->ht_buffer, n_ebl);
     fm_remap(&info->fm_md, CALC_MD_SIZE(hd->nr_effective, hd->ebl));
-    PDEBUG("chunk: %p -- %p, ht_buffer: %p\n",
-           md->raw_data, md->ptrs->body, md->ptrs->ht_buffer);
+    md = info->md = (metadata*)info->fm_md->addr;
 
     // now update fm_file.
-    PDEBUG("info->fm_file: %p\n", info->fm_file);
-
     if (!info->fm_file) {
         char *fpath = NULL;
         char *dirn = fm_get_directory(info->fm_md);
@@ -353,12 +352,13 @@ bool dinfo_update_metadata(dinfo * info, uint64 size, const char *fn)
             sprintf(fpath, "%s/%s", dirn, md->ptrs->fn);
             PDEBUG("Creating file mapping: %s, dirn: %s, fn: %s\n",
                    fpath, dirn ? dirn : "NULL", md->ptrs->fn);
-        } else {
+        } else
             fpath = strdup(md->ptrs->fn);
-        }
-        PDEBUG("Creating file mapping: %s\n", fpath);
 
-        info->fm_file = fm_create(fpath, info->md->hd.package_size);
+        if (size) {
+            PDEBUG("Creating file mapping: %s\n", fpath);
+            info->fm_file = fm_create(fpath, info->md->hd.package_size); 
+        }
         FIF(fpath);
     } else
         fm_remap(&info->fm_file, size);
@@ -371,7 +371,8 @@ void dinfo_sync(dinfo * info)
 {
     if (info) {
         fhandle_msync(info->fm_md);
-        fhandle_msync(info->fm_file);
+        if (info->fm_file)
+            fhandle_msync(info->fm_file);
     }
 }
 

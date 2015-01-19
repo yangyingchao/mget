@@ -140,21 +140,21 @@ void url_info_display(url_info * ui)
 }
 
 
-void url_info_copy(url_info * u1, url_info * u2)
+void url_info_copy(url_info * dst, url_info * u2)
 {
-    if (u1 && u2) {
-        FIF(u1->uri);
-        FIF(u1->bname);
-        FIF(u1->furl);
+    if (dst && u2) {
+        FIF(dst->uri);
+        FIF(dst->bname);
+        FIF(dst->furl);
 
-        sprintf(u1->protocol, "%s", u2->protocol);
-        sprintf(u1->host, "%s", u2->host);
-        sprintf(u1->sport, "%s", u2->sport);
-        u1->uri = strdup(u2->uri);
-        u1->bname = strdup(u2->bname);
-        u1->furl = strdup(u2->furl);
-        u1->port = u2->port;
-        u1->eprotocol = u2->eprotocol;
+        sprintf(dst->protocol, "%s", u2->protocol);
+        sprintf(dst->host, "%s", u2->host);
+        sprintf(dst->sport, "%s", u2->sport);
+        dst->uri = strdup(u2->uri);
+        dst->bname = strdup(u2->bname);
+        dst->furl = strdup(u2->furl);
+        dst->port = u2->port;
+        dst->eprotocol = u2->eprotocol;
     }
 }
 

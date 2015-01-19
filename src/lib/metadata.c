@@ -39,64 +39,66 @@ extern log_level g_log_level;
 bool metadata_create_from_file(const char *fn, metadata ** md,
                                fh_map ** fm_md)
 {
-    bool ret = false;
-    fhandle *fh = NULL;
-    fh_map *fm = NULL;
-
-    PDEBUG("Aenter with fn: %s\n", fn);
-
     if (!fn || !md || !fm_md)
-        goto ret;
+        return false;
 
     PDEBUG("Loading task from metadata...\n");
+    bool     ret = false;
+    fhandle *fh  = fhandle_create(fn, FHM_DEFAULT);
+    fh_map  *fm  = ZALLOC1(fh_map);
+    if (!fh)
+        goto ret;
 
-    if ((fh = fhandle_create(fn, FHM_DEFAULT)) &&
-        (fm = fhandle_mmap(fh, 0, fh->size))) {
+    if (!fm || !fhandle_mmap(fm, fh, 0, fh->size)) {
+        fhandle_destroy(fh);
+        goto ret;
+    }
 
-        *fm_md = fm;
-        metadata *pmd = (metadata *) fm->addr;
-        *md = pmd;
+    *fm_md = fm;
+    fm->fh = fh;
 
-        // Version checking for backward compatibility.
-        if (VER_TO_MAJOR(pmd->hd.version) != VERSION_MAJOR) {
-            fprintf(stderr, "Backward compatibility checking failed, "
-                    "current: %s, metadata created by: %u.%u.%u, "
-                    "please delete cached file(s), then try again...\n",
-                    VERSION_STRING, DIVIDE_VERSION(pmd->hd.version));
+    metadata *pmd = (metadata *) fm->addr;
+    *md = pmd;
 
-            goto ret;
-        }
+    // Version checking for backward compatibility.
+    if (VER_TO_MAJOR(pmd->hd.version) != VERSION_MAJOR) {
+        fprintf(stderr, "Backward compatibility checking failed, "
+                "current: %s, metadata created by: %u.%u.%u, "
+                "please delete cached file(s), then try again...\n",
+                VERSION_STRING, DIVIDE_VERSION(pmd->hd.version));
 
-        mp *ptrs = ZALLOC1(mp);
-        pmd->ptrs = ptrs;
+        goto ret;
+    }
 
-        //TODO: version checks....
-        ptrs->body = (data_chunk *) pmd->raw_data;
-        ptrs->ht_buffer = (char *) (pmd->raw_data) +
-            sizeof(data_chunk) * pmd->hd.nr_effective;
+    mp *ptrs = ZALLOC1(mp);
+    pmd->ptrs = ptrs;
 
-        ptrs->ht = hash_table_create_from_buffer(pmd->ptrs->ht_buffer,
-                                                 pmd->hd.ebl);
-        if (!ptrs->ht) {
-            mlog(LL_ALWAYS, "Failed to create hash table from buffer.\n");
-            goto ret;
-        }
+    //TODO: version checks....
+    ptrs->body = (data_chunk *) pmd->raw_data;
+    ptrs->ht_buffer = (char *) (pmd->raw_data) +
+                      sizeof(data_chunk) * pmd->hd.nr_effective;
 
-        ptrs->url = (char *) hash_table_entry_get(pmd->ptrs->ht, K_URL);
-        ptrs->fn = (char *) hash_table_entry_get(pmd->ptrs->ht, K_FN);
-        ptrs->user = (char *) hash_table_entry_get(pmd->ptrs->ht, K_USR);
-        ptrs->passwd =
+    ptrs->ht = hash_table_create_from_buffer(pmd->ptrs->ht_buffer,
+                                             pmd->hd.ebl);
+    if (!ptrs->ht) {
+        mlog(LL_ALWAYS, "Failed to create hash table from buffer.\n");
+        goto ret;
+    }
+
+    ptrs->url = (char *) hash_table_entry_get(pmd->ptrs->ht, K_URL);
+    ptrs->fn = (char *) hash_table_entry_get(pmd->ptrs->ht, K_FN);
+    ptrs->user = (char *) hash_table_entry_get(pmd->ptrs->ht, K_USR);
+    ptrs->passwd =
             (char *) hash_table_entry_get(pmd->ptrs->ht, K_PASSWD);
 
-        return true;
-    }
+    return true;
 
   ret:
     if (fm) {
-        fhandle_munmap(&fm);
+        fhandle_munmap(fm);
     }
     if (fh) {
-        fhandle_destroy(&fh);
+        fhandle_destroy(fh);
     }
 
     return ret;
@@ -143,7 +145,7 @@ void metadata_display(metadata * md)
 }
 
 bool chunk_split(uint64 start, uint64 size, int *num,
-                 uint64 * chunk_size, data_chunk ** dc)
+                 uint64 *chunk_size, data_chunk ** dc)
 {
     if (!size || !dc || !num) {
         return false;

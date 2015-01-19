@@ -29,7 +29,7 @@ extern "C" {
 
 #include "netutils.h"
 
-    typedef struct _connection connection;
+typedef struct _connection connection;
 
 /* Predefined return values for read_func/write_func.
  *
@@ -50,15 +50,17 @@ extern "C" {
  * COF_XXX to indicate detailed errors.
  */
 
-    typedef struct _connection_operations {
+typedef struct _connection_operations {
 	int32(*read) (connection *, char *, uint32, void *);
-	int32(*write) (connection *, char *, uint32, void *);
+	int32(*write) (connection *, const char *, uint32, void *);
 	void (*close) (connection *, void *);
-    } connection_operations;
+
+    int32 (*save_to_fd)(connection *, int);
+} connection_operations;
 
 
 // TODO: Hide sock, use transport_implementation above...
-    struct _connection {
+struct _connection {
 	connection_operations co;	// read only, returned by connection
 	// implementation, recv_data & write_data
 	// functions should use co.read()/co.write() to
@@ -67,47 +69,46 @@ extern "C" {
 
 	// it should return COF_FINISHED if no more data is pending to send.
 	int (*write_data) (connection *, void *);
-	 bool(*connection_reschedule_func) (connection *, void *);
+    bool(*connection_reschedule_func) (connection *, void *);
 	void *priv;
-    };
+};
 
-    typedef struct _connection_group connection_group;
+typedef struct _connection_group connection_group;
 
-    typedef enum _connection_group_type {
+typedef enum _connection_group_type {
 	cg_none = 0,
 	cg_read = 1,
 	cg_write = 1 << 1,
 
 	cg_all = cg_read | cg_write
-    } cgtype;
+} cgtype;
 
-    connection_group *connection_group_create(uint32 type, bool * flag);
-    void connection_group_destroy(connection_group *);
-    void connection_add_to_group(connection_group *, connection *);
+connection_group *connection_group_create(uint32 type, bool * flag);
+void connection_group_destroy(connection_group *);
+void connection_add_to_group(connection_group *, connection *);
 
 /*! Processing multiple connectsion.
 
   @param group group of connections.
 
   @return 0 if finished successfully, or -1 if failed for some reason, or
-          return remained connections if no error occur but processing
-          stopped by user.
+  return remained connections if no error occur but processing
+  stopped by user.
 */
-    int connection_perform(connection_group * group);
+int connection_perform(connection_group * group);
 
-    connection *connection_get(const url_info * ui);
-    void connection_put(connection * sock);
+connection *connection_get(const url_info * ui);
+void connection_put(connection * sock);
 
 /** Set global bandwith limit, unit: bps.
  */
-    void set_global_bandwidth(int);
+void set_global_bandwidth(int);
 
-
-    typedef enum _wait_type {
+typedef enum _wait_type {
 	WT_NONE = 0,
 	WT_READ = 1,
 	WT_WRITE = 1 << 1,
-    } wait_type;
+} wait_type;
 
 /**
  * @name timed_wait - Waits a period and see if socket is readable/writable..
@@ -116,7 +117,7 @@ extern "C" {
  * @param delay - Number of delay in seconds, set to -1 means infinite.
  * @return true if ok.
  */
-    bool timed_wait(int sock, int type, int delay);
+bool timed_wait(int sock, int type, int delay);
 
 #ifdef __cplusplus
 }
