@@ -19,14 +19,14 @@
  * the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
  * Boston, MA 02110-1301, USA.
  */
-#include "../../logutils.h"
-#include "http.h"
 #include "../../connection.h"
-#include <unistd.h>
-#include <errno.h>
 #include "../../data_utlis.h"
+#include "../../logutils.h"
 #include "../../metadata.h"
 #include "../../mget_utils.h"
+#include "http.h"
+#include <errno.h>
+#include <unistd.h>
 
 #define DEFAULT_HTTP_CONNECTIONS 5
 #define PAGE                     4096
@@ -91,13 +91,13 @@ int http_read_sock(connection * conn, void *priv)
 
             int r = dissect_header(param->bq, &param->ht);
             switch (r) {
-            case 206:
-            case 200:{
+                case 206:
+                case 200:{
                     break;
                 }
-            case 301:
-            case 302:          // Resource moved to other place.
-            case 307:{
+                case 301:
+                case 302:          // Resource moved to other place.
+                case 307:{
                     char *loc = (char *) hash_table_entry_get(param->ht,
                                                               "location");
                     if (dinfo_update_url(param->info, loc)) {
@@ -112,7 +112,7 @@ int http_read_sock(connection * conn, void *priv)
                     }
                     break;
                 }
-            default:{
+                default:{
                     fprintf(stderr, "Error occurred, status code is %d!\n",
                             r);
                     exit(1);
@@ -201,7 +201,7 @@ int http_read_sock(connection * conn, void *priv)
                dp, dp->cur_pos, dp->end_pos);
     }
 
-  ret:
+ret:
     return rd;
 }
 
@@ -249,7 +249,7 @@ mget_err process_http_request(dinfo * info, dp_callback cb,
     if (!total) {
         fprintf(stderr, "Can't get remote file size: %s\n", ui->furl);
         fprintf(stderr, "It won't help without knowning remote file size,"
-                " Please use wget instead...\");
+                "Please use wget instead...\n");
         return ME_RES_ERR;
     }
 
@@ -294,7 +294,7 @@ mget_err process_http_request(dinfo * info, dp_callback cb,
                 mlog(LL_NOTQUIET, "Sadly, we can't parse filename: %s\n",
                      dis);
                 FIFZ(&fn)
-            } else {
+                        } else {
                 mlog(LL_ALWAYS, "Renaming file name to: %s\n", fn);
             }
         }
@@ -303,9 +303,9 @@ mget_err process_http_request(dinfo * info, dp_callback cb,
     PDEBUG("total: %" PRIu64 ", fileName: %s\n", total, fn);
 
     /*
-       If it goes here, means metadata is not ready, get nc (number of
-       connections) from download_info, and recreate metadata.
-     */
+      If it goes here, means metadata is not ready, get nc (number of
+      connections) from download_info, and recreate metadata.
+    */
 
     if (info->md->hd.nr_user == 0xff) {
         info->md->hd.nr_user = DEFAULT_HTTP_CONNECTIONS;
@@ -323,11 +323,11 @@ mget_err process_http_request(dinfo * info, dp_callback cb,
 
     PDEBUG("metadata created from url: %s\n", ui->furl);
 
-  start:;
+start:;
     metadata *md = info->md;
     metadata_display(md);
 
-  restart:
+restart:
     dinfo_sync(info);
 
     if (md->hd.status == RS_FINISHED) {
@@ -421,7 +421,7 @@ mget_err process_http_request(dinfo * info, dp_callback cb,
 
     md->hd.acc_time += get_time_s() - md->hd.last_time;
 
-  ret:
+ret:
     metadata_display(md);
     if (cb) {
         (*cb) (md, user_data);
@@ -585,9 +585,9 @@ static inline uint64 get_remote_file_size_http(url_info * ui,
                          &s, &e, &t);
             break;
         }
-    case 301:
-    case 302:                  // Resource moved to other place.
-    case 307: {
+        case 301:
+        case 302:                  // Resource moved to other place.
+        case 307: {
             char *loc = (char *) hash_table_entry_get(*ht, "location");
 
             printf("Server returns 302, trying new locations: %s...\n",
@@ -607,7 +607,7 @@ static inline uint64 get_remote_file_size_http(url_info * ui,
                     "Failed to get new location for status code: 302\n");
             break;
         }
-    case 200: {
+        case 200: {
             ptr = (char *) hash_table_entry_get(*ht, "content-length");
             if (!ptr) {
                 mlog(LL_ALWAYS, "Content Length not returned!\n");
@@ -625,7 +625,7 @@ static inline uint64 get_remote_file_size_http(url_info * ui,
             // handle this!
             break;
         }
-    default: {
+        default: {
             if (stat >= 400 && stat < 511) {
                 mlog(LL_ALWAYS, "Server returns %d for HTTP request\n",
                      stat);
@@ -636,7 +636,7 @@ static inline uint64 get_remote_file_size_http(url_info * ui,
                 mlog(LL_ALWAYS, "Not implemented for status code: %d\n",
                      stat);
             }
-          show_rsp:
+      show_rsp:
             mlog(LL_ALWAYS, "Detail Responds: %s\n", bq->p);
             goto ret;
         }
@@ -648,7 +648,7 @@ static inline uint64 get_remote_file_size_http(url_info * ui,
         // Check http headers and update connection_features....
     }
 
-  ret:
+ret:
     return t;
 }
 
