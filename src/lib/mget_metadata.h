@@ -45,6 +45,7 @@ typedef enum _request_status {
     RS_STARTED,
     RS_PAUSED,
     RS_FINISHED,
+    RS_DROP, // Error that can't be recovered, should drop any temporary data.
     RS_FAILED,
 } request_status;
 

@@ -845,9 +845,8 @@ static int do_perform_select(connection_group * group)
 
                     pconn->last_access = get_time_s();
                 } else if (FD_ISSET(pconn->sock, &rfds)) {
-                    ret =
-                            pconn->conn.recv_data((connection *) pconn,
-                                                  pconn->conn.priv);
+                    ret = pconn->conn.recv_data((connection *) pconn,
+                                                pconn->conn.priv);
                     pconn->last_access = get_time_s();
                     switch (ret) {
                         case COF_CLOSED:{

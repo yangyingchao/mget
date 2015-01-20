@@ -36,7 +36,8 @@ void dinfo_destroy(dinfo* info)
     if (!info)
         return;
 
-    bool remove_metadata = info->md->hd.status == RS_FINISHED;
+    bool remove_metadata = info->md->hd.status == RS_FINISHED ||
+                           info->md->hd.status == RS_DROP;
 
     if (remove_metadata)
         remove_file(info->fm_md->fh->fn);

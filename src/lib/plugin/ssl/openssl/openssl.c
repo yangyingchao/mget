@@ -67,7 +67,18 @@ bool ssl_init()
 
 int secure_socket_read(int sk, char *buf, uint32 size, void *priv)
 {
+    if ((int)size < 0)
+        return -1;
+
     ssl_wrapper *wrapper = (ssl_wrapper *) priv;
+    int bq_size = wrapper->bq->w > wrapper->bq->r;
+    if (bq_size > 0) {
+        int s =  MIN(bq_size, size);
+        memcpy(buf, wrapper->bq->r,s);
+        wrapper->bq->r += s;
+        return s;
+    }
+
     int ret = 0;
     bool extended = false;
   retry:
@@ -78,7 +89,9 @@ int secure_socket_read(int sk, char *buf, uint32 size, void *priv)
 
   read:
     if (extended) {
-        int tmp = SSL_read(wrapper->ssl, buf, size);
+        PDEBUG ("buf: %p, size: %d\n", buf, size);
+        int tmp = SSL_read(wrapper->ssl, wrapper->bq->w, size);
+        wrapper->bq->w += tmp;
         mlog(LL_NOTQUIET, "%d bytes will be dropped..\n", tmp);
     } else
         ret = SSL_read(wrapper->ssl, buf, size);
@@ -127,7 +140,7 @@ int secure_socket_read(int sk, char *buf, uint32 size, void *priv)
             bq_enlarge(wrapper->bq, PAGE);
             buf = wrapper->bq->w;
             size = wrapper->bq->x - wrapper->bq->w;
-            mlog(LL_ALWAYS, "Data save to bq\n");
+            mlog(LL_NOTQUIET, "Data save to bq\n");
             extended = true;
         }
         goto read;

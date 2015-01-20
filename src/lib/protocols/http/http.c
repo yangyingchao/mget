@@ -255,7 +255,11 @@ mget_err process_http_request(dinfo *info, dp_callback cb,
         return ME_RES_ERR;
     }
 
-    if (!total) {
+    if (total == (uint64)-1) {
+        info->md->hd.status = RS_DROP;
+        return ME_RES_ERR;
+    }
+    else if (!total) {
         const char* val = (char*) hash_table_entry_get(ht, TRANSFER_ENCODING);
         if (val) {
             PDEBUG ("Transer-Encoding is: %s\n", val);
@@ -511,11 +515,10 @@ int get_response_for_header(connection* conn,
     return stat;
 }
 
-/* This function accepts an pointer of connection pointer, on return. When 302
- * is detected, it will modify both ui and conn to ensure a valid connection
- * can be initialized. */
-uint64 get_remote_file_size(url_info * ui,
-                            hash_table **ht,
+
+// return size of remote file, or -1 if error occurs, or 0 if size not returned...
+uint64 get_remote_file_size(url_info* ui,
+                            hash_table** ht,
                             hcontext* context)
 {
     if (!context || !context->conn) {
@@ -591,6 +594,7 @@ uint64 get_remote_file_size(url_info * ui,
             break;
         }
         default: {
+            t = -1;
             if (stat >= 400 && stat < 511) {
                 mlog(LL_ALWAYS, "Server returns %d for HTTP request\n",
                      stat);
