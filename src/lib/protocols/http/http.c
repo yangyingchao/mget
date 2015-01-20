@@ -93,6 +93,11 @@ static uint64 get_remote_file_size(url_info    *ui,
 static char* get_suggested_name(const char* input);
 static mget_err process_request_single_form(hcontext*);
 static mget_err process_request_multi_form(hcontext*);
+static int get_response_for_header(connection* conn,
+                                   byte_queue* bq,
+                                   const char* hd,
+                                   hash_table** ht);
+
 
 
 int http_read_sock(connection * conn, void *priv)
@@ -111,95 +116,50 @@ int http_read_sock(connection * conn, void *priv)
     int rd = 0;
     void *addr = param->addr + dp->cur_pos;
     if (!param->header_finished) {
-        bq_enlarge(param->bq, 4096 * 100);
-        rd = conn->co.read(conn, param->bq->w,
-                               param->bq->x - param->bq->w, NULL);
-
-        if (rd > 0) {
-            param->bq->w += rd;
-            char *ptr = strstr(param->bq->r, "\r\n\r\n");
-            if (ptr == NULL) {
-                // Header not complete, store and return positive value.
-                return 1;
+        int stat = get_response_for_header(conn, param->bq, NULL, &param->ht);
+        switch (stat) {
+            case 206:
+            case 200:{
+                break;
             }
-
-            int r = dissect_header(param->bq, &param->ht);
-            switch (r) {
-                case 206:
-                case 200:{
-                    break;
-                }
-                case 301:
-                case 302:          // Resource moved to other place.
-                case 307:{
-                    char *loc = (char *) hash_table_entry_get(param->ht,
-                                                              "location");
-                    if (dinfo_update_url(param->info, loc)) {
-                        mlog(LL_ALWAYS, "url updated to :%s\n", loc);
-                        return COF_CLOSED;
-                    } else {
-                        printf("Server returns 302, but failed to"
-                               " update metadata, please delete all files "
-                               " and try again...\n"
-                               "New locations: %s...\n", loc);
-                        exit(1);
-                    }
-                    break;
-                }
-                default:{
-                    fprintf(stderr, "Error occurred, status code is %d!\n",
-                            r);
+            case 301:
+            case 302:          // Resource moved to other place.
+            case 307:{
+                char *loc = (char*) hash_table_entry_get(param->ht, "location");
+                if (dinfo_update_url(param->info, loc)) {
+                    mlog(LL_ALWAYS, "url updated to :%s\n", loc);
+                    return COF_CLOSED;
+                } else {
+                    printf("Server returns 302, but failed to"
+                           " update metadata, please delete all files "
+                           " and try again...\n"
+                           "New locations: %s...\n", loc);
                     exit(1);
                 }
+                break;
             }
-
-            ptr += 4;           // adjust to the tail of "\r\n\r\n"
-
-            if ((byte *) ptr != param->bq->r) {
-                fprintf(stderr,
-                        "Pointer is not at the beginning of http body!!\n");
-                abort();
-            }
-
-            param->header_finished = true;
-
-            size_t length = param->bq->w - param->bq->r;
-            PDEBUG("LEN: %ld, bq->w - bq->r: %ld\n", length,
-                   param->bq->w - param->bq->r);
-            if (length) {
-                memcpy(addr, param->bq->r, length);
-                param->md->hd.current_size+=length;
-                dp->cur_pos += length;
-            }
-            PDEBUG("Showing chunk: "
-                   "dp: %p : %llX -- %llX\n",
-                   dp, dp->cur_pos, dp->end_pos);
-
-            bq_destroy(&param->bq);
-            if (dp->cur_pos == dp->end_pos)
-                goto ret;
-            else if (dp->cur_pos == dp->end_pos)
-                mlog(LL_ALWAYS, "Wrong data: dp: %p : %llX -- %llX\n",
-                     dp, dp->cur_pos, dp->end_pos);
-
-        } else if (rd == 0) {
-            PDEBUG("Read returns 0: showing chunk: "
-                   "retuned zero: dp: %p : %llX -- %llX\n",
-                   dp, dp->cur_pos, dp->end_pos);
-            return rd;
-        } else {
-            mlog(LL_NONVERBOSE, "Read returns -1: showing chunk: "
-                 "retuned zero: dp: %p : %llX -- %llX\n",
-                 dp, dp->cur_pos, dp->end_pos);
-            if (errno != EAGAIN) {
-                mlog(LL_ALWAYS, "read returns %d: %s\n", rd,
-                     strerror(errno));
-                rd = COF_ABORT;
+            default:{
+                fprintf(stderr, "Error occurred, status code is %d!\n",
+                        stat);
                 exit(1);
-                metadata_display(param->md);
-                return rd;
             }
         }
+
+        size_t length = param->bq->w - param->bq->r;
+        PDEBUG("LEN: %ld, bq->w - bq->r: %ld\n", length,
+               param->bq->w - param->bq->r);
+        if (length) {
+            memcpy(addr, param->bq->r, length);
+            param->md->hd.current_size+=length;
+            dp->cur_pos += length;
+        }
+        param->header_finished = true;
+        bq_destroy(&param->bq);
+        if (dp->cur_pos == dp->end_pos)
+            goto ret;
+        else if (dp->cur_pos == dp->end_pos)
+            mlog(LL_ALWAYS, "Wrong data: dp: %p : %llX -- %llX\n",
+                 dp, dp->cur_pos, dp->end_pos);
     }
 
     do {
@@ -515,20 +475,21 @@ static int dissect_header(byte_queue * bq, hash_table ** ht)
 }
 
 // return http status if success, or -1 if failed.
-static int get_response_for_header(hcontext* context,
-                                   const char* hd,
-                                   hash_table** ht)
+int get_response_for_header(connection* conn,
+                            byte_queue* bq,
+                            const char* hd,
+                            hash_table** ht)
 {
-    if (!context || !context->conn) {
-        return -1;
-    }
-
     PDEBUG("enter\n");
 
-    byte_queue  *bq   = context->bq;
-    connection*  conn = context->conn;
+    if (!conn)
+        return -1;
+    if (!bq)
+        bq = bq_init(PAGE);
 
-    conn->co.write(conn, hd, strlen(hd), NULL);
+    if (hd) {
+        conn->co.write(conn, hd, strlen(hd), NULL);
+    }
 
     char *eptr = NULL;
     do {
@@ -564,7 +525,9 @@ uint64 get_remote_file_size(url_info * ui,
     PDEBUG("enter\n");
 
     char *hd   = generate_request_header("GET", ui, true, 0, 1);
-    int   stat = get_response_for_header(context, hd, ht);
+    int   stat = get_response_for_header(context->conn,
+                                         context->bq,
+                                         hd, ht);
     free(hd);
 
     int     num = 0;
@@ -839,7 +802,9 @@ mget_err process_request_single_form(hcontext* context)
         hash_table* ht = NULL;
         char* header = generate_request_header("GET", context->info->ui,
                                                false, 0, 0);
-        int state = get_response_for_header(context, header, &ht);
+        int state = get_response_for_header(context->conn,
+                                            context->bq,
+                                            header, &ht);
         free(header);
         if (state == -1)
             return ME_CONN_ERR;
