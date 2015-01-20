@@ -602,7 +602,7 @@ uint64 get_remote_file_size(url_info * ui,
                      stat);
             }
       show_rsp:
-            mlog(LL_ALWAYS, "Detail Responds: %s\n", context->bq->p);
+            mlog(LL_NOTQUIET, "Detail Responds: %s\n", context->bq->p);
             goto ret;
         }
     }
