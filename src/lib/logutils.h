@@ -24,10 +24,10 @@
 extern "C" {
 #endif
 
-#define _GNU_SOURCE		/* See feature_test_macros(7) */
-#include <stdio.h>
+#include "mget_macros.h"
 #include "libmget.h"
 #include <assert.h>
+#include <stdio.h>
 
 void mlog(log_level, const char *, ...);
 void dump_buffer(const char *tip, const unsigned char *buf, int max);

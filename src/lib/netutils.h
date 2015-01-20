@@ -33,14 +33,14 @@ extern "C" {
 #include <sys/types.h>
 #include <netinet/in.h>
 
-    typedef enum _url_protocol {
+typedef enum _url_protocol {
 	UP_HTTP = 0,
 	UP_HTTPS,
 	UP_FTP,
 	UP_INVALID
-    } url_protocol;
+} url_protocol;
 
-    typedef struct {
+typedef struct {
 	/* Address family, one of AF_INET or AF_INET6. */
 	int family;
 
@@ -58,11 +58,11 @@ extern "C" {
 #if defined ENABLE_IPV6 && defined HAVE_SOCKADDR_IN6_SCOPE_ID
 	int ipv6_scope;
 #endif
-    } ip_address;
+} ip_address;
 
 
 
-    typedef struct _url_info {
+typedef struct _url_info {
 	url_protocol eprotocol;
 	uint32 port;
 	char protocol[8];
@@ -72,12 +72,12 @@ extern "C" {
 	char *bname;
 	char *uri;
 	char *furl;		/* full url. */
-    } url_info;
+} url_info;
 
-    bool parse_url(const char *url, url_info ** ui);
-    void url_info_copy(url_info *, url_info *);
-    void url_info_display(url_info *);
-    void url_info_destroy(url_info ** ui);
+bool parse_url(const char *url, url_info ** ui);
+void url_info_copy(url_info *, url_info *);
+void url_info_display(url_info *);
+void url_info_destroy(url_info ** ui);
 
 #ifdef __cplusplus
 }

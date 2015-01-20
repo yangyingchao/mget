@@ -29,7 +29,7 @@ void mlog(log_level o, const char *fmt, ...)
     if (o >= g_log_level) {
         va_list args;
         va_start(args, fmt);
-        vprintf(fmt, args);
+        vfprintf(stderr, fmt, args);
         va_end(args);
     }
 }

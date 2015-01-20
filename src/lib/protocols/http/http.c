@@ -19,10 +19,10 @@
  * the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
  * Boston, MA 02110-1301, USA.
  */
+#include "../../logutils.h"
 #include "../../connection.h"
 #include "../../data_utlis.h"
 #include "../../fileutils.h"
-#include "../../logutils.h"
 #include "../../metadata.h"
 #include "../../mget_utils.h"
 #include "http.h"
@@ -276,6 +276,7 @@ mget_err process_http_request(dinfo *info, dp_callback cb,
 
     if (dinfo_ready(info)) {
         context.can_split = info->md->hd.package_size != 0;
+        PDEBUG ("Start directly...\n");
         goto start;
     }
 
@@ -288,6 +289,11 @@ mget_err process_http_request(dinfo *info, dp_callback cb,
 
     hash_table *ht    = NULL;
     uint64      total = get_remote_file_size(info->ui, &ht, &context);
+
+    if (!ht) {
+        mlog(LL_ALWAYS, "Failed to parse http response..\n");
+        return ME_RES_ERR;
+    }
 
     if (!total) {
         const char* val = (char*) hash_table_entry_get(ht, TRANSFER_ENCODING);
@@ -306,6 +312,10 @@ mget_err process_http_request(dinfo *info, dp_callback cb,
         char *dis = hash_table_entry_get(ht, "content-disposition");
         PDEBUG("updating name based on disposition: %s\n", dis);
         fn = get_suggested_name(dis);
+
+        if (!fn && (!strcmp(ui->bname, ".") ||!strcmp(ui->bname, "/"))) {
+            fn = strdup("index.html"); 
+        }
     }
 
     PDEBUG("total: %" PRIu64 ", fileName: %s\n", total, fn);
@@ -696,8 +706,7 @@ static long get_chunk_size(byte_queue* bq, int* consumed)
     char* ptr = strstr((char*)bq->r, "\r\n");
     if (!ptr)
         return -1;
-    long  sz   = strtol((char*)bq->r, NULL, 16);
-    PDEBUG ("sz: %d\n", sz);
+    long  sz  = strtol((char*)bq->r, NULL, 16);
     *consumed = ptr - (char*)bq->r + 2;
     bq->r = (byte*)ptr + 2;
     return sz;
