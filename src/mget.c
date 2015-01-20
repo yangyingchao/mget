@@ -40,16 +40,24 @@ static const int MAX_RETRY_TIMES = 3;
 void sigterm_handler2(int sig, siginfo_t * si, void *param)
 {
     control_byte = true;
-    fprintf(stderr, "Saving temporary data...\n");
+    fprintf(stderr, "\nSaving temporary data...\n");
 }
 
 #define PROG_REST() idx = ts = last_recv = 0
 static int idx = 0;
 static uint32 ts = 0;
 static uint64 last_recv = 0;
+static progress* p = NULL;
+static uint32 interval = 0;
+
+#define REPORT_THREADHOLD       60
 
 void show_progress(metadata * md, void *user_data)
 {
+    if (!p) {
+        p = progress_create(REPORT_THREADHOLD, "[", "]");
+    }
+
     if (md->hd.status == RS_FINISHED) {
         char *date = current_time_str();
 
@@ -61,39 +69,32 @@ void show_progress(metadata * md, void *user_data)
         return;
     }
 
-    int threshhold = 78 * md->hd.acon / md->hd.nr_effective;
-    if (idx < threshhold) {
+    if (interval == 0)
+        interval = 1000/REPORT_THREADHOLD;
+
+    if (idx < REPORT_THREADHOLD-1) {
         if (!ts) {
             ts = get_time_ms();
             if (!last_recv) {
                 last_recv = md->hd.current_size;
             }
-            fprintf(stderr, ".");
-        } else if ((get_time_ms() - ts) > 1000 / threshhold * idx) {
-            fprintf(stderr, ".");
-            idx++;
+            progress_report(p, idx, false, 0, 0, 0);
+        } else if ((get_time_ms() - ts) > interval) {
+            progress_report(p, idx++, false, 0, 0, 0);
+            ts = get_time_ms();
         }
     } else {
-        data_chunk *dp = md->ptrs->body;
-        uint64 total = md->hd.package_size;
-        uint64 recv = md->hd.current_size;
-        uint64 diff_size = md->hd.current_size - last_recv;
-        uint32 c_time = get_time_ms();
+        data_chunk *dp        = md->ptrs->body;
+        uint64      total     = md->hd.package_size;
+        uint64      recv      = md->hd.current_size;
+        uint64      diff_size = md->hd.current_size - last_recv;
+        uint32      c_time    = get_time_ms();
         uint64 bps =
             (uint64) ((double) (diff_size) * 1000 / (c_time - ts)) + 1;
 
-        if (total > 0)
-            fprintf(stderr,
-                    "] %.02f, SPD: %s/s, ETA: %s\r",
-                    (double) recv / total * 100,
-                    stringify_size(bps), stringify_time((total - recv) / bps));
-        else
-            fprintf(stderr,
-                    "] %s, SPD: %s/s, ETA: ---\r",
-                    stringify_size(recv),
-                    stringify_size(bps));
-
-        fprintf(stderr, "\n");
+        progress_report(p, idx, true,
+                        (double) recv / total * 100, bps,
+                        total > 0 ? (total - recv) / bps : 0);
         idx = 0;
         last_recv = md->hd.current_size;
         ts = c_time;
