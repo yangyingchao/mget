@@ -29,22 +29,18 @@ Corresponding Source for a non-source form of such a combination
 shall include the source code for the parts of OpenSSL used as well
 as that of the covered work.  */
 
+#include "c-ctype.h"
 #include "log.h"
+#include "wftp.h"
 #include "wget.h"
 
 #include <assert.h>
+#include <errno.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
-
 #include <string.h>
 #include <unistd.h>
-/* #include "connect.h" */
-/* #include "host.h" */
-#include "wftp.h"
-/* #include "retr.h" */
-#include "c-ctype.h"
-#include <stdarg.h>
 
 char ftp_last_respline[128];
 
@@ -1186,6 +1182,6 @@ char *concat_strings(const char *str0, ...)
 char *number_to_static_string(wgint number)
 {
     char *buf = NULL;
-    asprintf(&buf, "%llu", number);
+    masprintf(&buf, "%llu", number);
     return buf;
 }

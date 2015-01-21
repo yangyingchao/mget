@@ -943,7 +943,7 @@ bool try_connect(int sockfd, const struct sockaddr *addr,
 char *get_host_key(const char *host, int port)
 {
     char *key = NULL;
-    asprintf(&key, "%s:%d", host, port);
+    masprintf(&key, "%s:%d", host, port);
     if (!key) {
         mlog(LL_ALWAYS, "Failed to create host key -- %s: %d\n",
              host, port);

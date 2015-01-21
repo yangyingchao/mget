@@ -33,9 +33,6 @@
 #define PAGE                     4096
 
 static const char *HEADER_END        = "\r\n\r\n";
-static const char *CAN_SPLIT         = "can_split";
-static const char *TRANSFER_ENCODING = "transfer-encoding";
-static const char *CHUNKED           = "chunked";
 
 typedef enum _http_transfer_type {
     htt_raw,
@@ -259,10 +256,10 @@ mget_err process_http_request(dinfo *info, dp_callback cb,
         return ME_RES_ERR;
     }
     else if (!total) {
-        const char* val = (char*) hash_table_entry_get(ht, TRANSFER_ENCODING);
+        const char* val = (char*) hash_table_entry_get(ht, "transfer-encoding");
         if (val) {
             PDEBUG ("Transer-Encoding is: %s\n", val);
-            if (!strcmp(val, CHUNKED)) {
+            if (!strcmp(val, "chunked")) {
                 context.can_split = false;
                 context.type      = htt_chunked;
             }
