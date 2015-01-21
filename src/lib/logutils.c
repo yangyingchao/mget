@@ -38,7 +38,7 @@ void masprintf(char** ptr, const char* fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
-    int n = asprintf(ptr, fmt, args);
+    int n = vasprintf(ptr, fmt, args);
     if (!n)
         ;
 }
