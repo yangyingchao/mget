@@ -45,23 +45,21 @@ extern "C" {
 #define TRUE       1
 #define FALSE      0
 
-
-
-    typedef struct _metadata_wrapper {
+typedef struct _metadata_wrapper {
 	metadata *md;
 	fh_map *fm;
 	bool from_file;
-    } metadata_wrapper;
+} metadata_wrapper;
 
-#define CALC_MD_SIZE(nc, ebl)                                        \
+#define CALC_MD_SIZE(nc, ebl)                                           \
     MH_SIZE() + sizeof(void*) + (sizeof(data_chunk)*(nc)) + PA((ebl), 4)
 
-    bool chunk_split(uint64, uint64, int *, uint64 *, data_chunk **);
-    bool metadata_create_from_file(const char *fn, metadata ** md,
-				   fh_map ** fm_md);
-    void metadata_display(metadata * md);
+bool chunk_split( uint64, int *, uint64 *, data_chunk **);
+bool metadata_create_from_file(const char *fn, metadata ** md,
+                               fh_map ** fm_md);
+void metadata_display(metadata * md);
 
-    metadata *metadata_create_empty();
+metadata *metadata_create_empty();
 
 #ifdef __cplusplus
 }

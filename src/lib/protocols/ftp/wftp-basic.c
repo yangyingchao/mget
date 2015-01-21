@@ -57,7 +57,7 @@ char *fd_read_line(ftp_connection * conn)
 
     byte_queue *bq = conn->bq;
     char *ptr = bq->r;
-    byte *p = NULL;
+    char *p = NULL;
     p = memchr(bq->r, '\n', bq->w - bq->r);
     if (!p) {
         conn->bq = bq_enlarge(conn->bq, 256);

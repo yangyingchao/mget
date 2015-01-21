@@ -41,7 +41,10 @@
 #define xfree(X) FIF(X)
 #define xrealloc(X, Y)       XREALLOC(X, Y)
 #define XALLOC(N)       ZALLOC(char, (N))
-
+#define STREMPTY(X)     (!(X) || (X[0] != 0))
+#define MAX(X, Y)       (X) > (Y) ? (X) : (Y)
+#define MIN(X, Y)       (X) < (Y) ? (X) : (Y)
+#define CAST(T, O, I)      T* O = (T*)I;
 
 #endif				/* _MACROS_H_ */
 

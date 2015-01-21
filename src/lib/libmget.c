@@ -36,9 +36,8 @@ extern host_cache_type g_hct;
 typedef mget_err(*protocol_handler) (dinfo *, dp_callback, bool *, void *);
 static hash_table *g_handlers = NULL;
 
-mget_err start_request(const char *url, const file_name * fn,
-                       mget_option * opt, dp_callback cb, bool * stop_flag,
-                       void *user_data)
+mget_err start_request(const char* url, const file_name* fn, mget_option* opt,
+                       dp_callback cb, bool* stop_flag, void *user_data)
 {
     dinfo *info = NULL;
     mget_err ret = ME_OK;
@@ -72,7 +71,7 @@ mget_err start_request(const char *url, const file_name * fn,
 
     ret = handler(info, cb, stop_flag, user_data);
 
-    dinfo_destroy(&info);
+    dinfo_destroy(info);
 
     return ret;
 }

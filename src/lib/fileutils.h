@@ -30,10 +30,10 @@
 bool get_full_path(const file_name *, char **);
 
 typedef struct _fhandle {
-    char *fn;			/*!< File name */
-    int fd;			/*!< File descriptor. */
-    size_t size;		/*!< Size of this file. */
-    bool auto_remove;
+    char   *fn;                         /*!< File name */
+    int     fd;                         /*!< File descriptor. */
+    size_t  size;                       /*!< Size of this file. */
+    bool    auto_remove;
 } fhandle;
 
 typedef enum _FHM {
@@ -42,25 +42,29 @@ typedef enum _FHM {
 } FHM;
 
 fhandle *fhandle_create(const char *fn, FHM mode);
-void fhandle_destroy(fhandle ** fh);
+void fhandle_destroy(fhandle *fh);
 
 typedef struct _fh_map {
     fhandle *fh;
-    void *addr;
-    size_t length;
+    void    *addr;
+    size_t   length;
 } fh_map;
 
-fh_map *fhandle_mmap(fhandle * fh, off_t offset, size_t length);
-void fhandle_munmap(fh_map ** fm);
-void fhandle_msync(fh_map * fm);
-void fhandle_munmap_close(fh_map ** fm);
+bool  fhandle_mmap(fh_map *fm, fhandle *fh, off_t offset, size_t length);
+void  fhandle_munmap(fh_map *fm);
+void  fhandle_msync(fh_map *fm);
+void  fhandle_munmap_close(fh_map ** fm);
 char *get_basename(const char *fname);
-void remove_file(const char *fn);
+void  remove_file(const char *fn);
 
 fh_map *fm_create(const char *fn, size_t length);
-bool fm_remap(fh_map ** fm, size_t new_length);
+bool    fm_remap(fh_map* fm, size_t new_length);
+int     fm_get_fd(fh_map* fm);
 
 char *fm_get_directory(fh_map * fm);
+
+bool safe_write(int fd, char* buf, size_t total);
+size_t get_file_size(fh_map* fm);
 
 #endif				/* _FILEUTILS_H_ */
 

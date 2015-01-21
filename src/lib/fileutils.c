@@ -44,12 +44,11 @@ fhandle *fhandle_create(const char *fn, FHM mode)
     }
 
     fh->fn = strdup(fn);
-    fh->fd =
-        open(fn, O_RDWR | ((mode & FHM_CREATE) ? O_CREAT : 0), FM_DEFAULT);
+    fh->fd = open(fn, O_RDWR | ((mode & FHM_CREATE) ? O_CREAT : 0), FM_DEFAULT);
     struct stat st;
-
     if (!fstat(fh->fd, &st)) {
         fh->size = st.st_size;
+        PDEBUG ("fh (%p) created for file (%s), size: %u\n", fh, fn, fh->size);
         return fh;
     }
 
@@ -57,79 +56,65 @@ fhandle *fhandle_create(const char *fn, FHM mode)
     PDEBUG("err..\n");
 
     if (fh) {
-        fhandle_destroy(&fh);
+        fhandle_destroy(fh);
     }
 
     return NULL;
 }
 
-void fhandle_destroy(fhandle ** fh)
+void fhandle_destroy(fhandle *fh)
 {
-    if (fh && *fh) {
-        if ((*fh)->fd != -1) {
-            close((*fh)->fd);
+    if (fh) {
+        if (fh->fd != -1) {
+            close(fh->fd);
         }
 
-        PDEBUG("fh: %p, fn: %s\n", *fh, (*fh)->fn);
-
-        if ((*fh)->fn) {
+        PDEBUG("fh: %p, fn: %s\n", fh, fh->fn);
+        if (fh->fn) {
             if (0) {
-                remove_file((*fh)->fn);
+                remove_file(fh->fn);
             }
-            free((*fh)->fn);
+            free(fh->fn);
         }
-        free(*fh);
-        *fh = NULL;
+        free(fh);
     }
 }
 
 
-fh_map *fhandle_mmap(fhandle * fh, off_t offset, size_t length)
+bool fhandle_mmap(fh_map* fm, fhandle *fh, off_t offset, size_t length)
 {
-    if (!fh || fh->fd == -1) {
-        return NULL;
+    if (!fm || !fh || fh->fd == -1) {
+        return false;
     }
 
     size_t size = offset + length;
-
     if ((size > fh->size) && ftruncate(fh->fd, size)) {
-        return NULL;
+        return false;
     }
 
-    fh_map *fm = NULL;
     off_t pa_offset = offset & ~(sysconf(_SC_PAGE_SIZE) - 1);
-
     size = length + offset - pa_offset;
     void *addr = mmap(NULL, size, PROT_WRITE,
                       MAP_SHARED, fh->fd, pa_offset);
 
-    if (addr) {
-        fm = (fh_map *) malloc(sizeof(fh_map));
-        if (fm) {
-            fm->fh = fh;
-            fm->addr = addr;
-            fm->length = size;
-        }
+    if (!addr) {
+        return false;
     }
 
-    if (fm) {
-        PDEBUG("file %s mapped to addr: %p, length: %lX(%s)\n",
-               fh->fn, fm->addr, size, stringify_size(size));
-    } else {
-        PDEBUG("FM is null!\n");
-    }
+    fm->addr = addr;
+    fm->length = size;
 
-    return fm;
+    PDEBUG("file %s mapped to addr: %p, length: %lX(%s)\n",
+           fh->fn, fm->addr, size, stringify_size(size));
+    return true;
 }
 
-void fhandle_munmap(fh_map ** fm)
+void fhandle_munmap(fh_map *fm)
 {
-    if (fm && *fm) {
-        if ((*fm)->addr) {
-            munmap((*fm)->addr, (*fm)->length);
+    if (fm) {
+        if (fm->addr) {
+            munmap(fm->addr, fm->length);
         }
-        free(*fm);
-        *fm = NULL;
     }
 }
 
@@ -140,7 +125,7 @@ void fhandle_munmap_close(fh_map ** fm)
             munmap((*fm)->addr, (*fm)->length);
         }
 
-        fhandle_destroy(&(*fm)->fh);
+        fhandle_destroy((*fm)->fh);
         free(*fm);
         *fm = NULL;
     }
@@ -242,23 +227,29 @@ bool get_full_path(const file_name * fn, char **final)
 
 fh_map *fm_create(const char *fn, size_t length)
 {
-    fhandle *fh = fhandle_create(fn, FHM_CREATE);
-    fh_map *fm = fh ? fhandle_mmap(fh, 0, length ? length : 1) : NULL;
-    if (fm)
-        return fm;
+    fh_map *fm = NULL;
+    do {
+        fhandle *fh = fhandle_create(fn, FHM_CREATE);
+        if (!fh)
+            break;
+        fm = ZALLOC1(fh_map);
+        fm->fh = fh;
+        if (length && !fhandle_mmap(fm, fh, 0, length)) {
+            fhandle_destroy(fh);
+        }
+    } while (0);
 
-    fhandle_destroy(&fh);
-    return NULL;
+    PDEBUG ("FileMapping for %s: %p\n", fn, fm);
+    return fm;
 }
 
-bool fm_remap(fh_map ** fm, size_t nl)
+bool fm_remap(fh_map* fm, size_t nl)
 {
     if (!fm)
         return false;
-    fhandle *fh = (*fm)->fh;
+    fhandle *fh = fm->fh;
     fhandle_munmap(fm);
-    *fm = fhandle_mmap(fh, 0, nl ? nl : 1);
-    return true;
+    return fhandle_mmap(fm, fh, 0, nl);
 }
 
 char *fm_get_directory(fh_map * fm)
@@ -272,6 +263,38 @@ char *fm_get_directory(fh_map * fm)
     }
 
     return dirn;
+}
+
+int fm_get_fd(fh_map* fm) {
+    return (fm && fm->fh) ? fm->fh->fd : -1;
+}
+
+
+// internal use, no error checking needed..
+bool safe_write(int fd, char* buf, size_t total)
+{
+    do
+    {
+        ssize_t w = write(fd, buf, total);
+        if (w == -1) {
+            return false;
+        }
+        total -= w;
+    } while (total > 0);
+
+    return true;
+}
+
+size_t get_file_size(fh_map* fm)
+{
+    if (fm && fm->fh && fm->fh->fd)
+    {
+        struct stat st;
+        if (fstat(fm->fh->fd, &st) == -1)
+            return -1;
+        return st.st_size;
+    }
+    return -1;
 }
 
 /*

@@ -524,8 +524,6 @@ Error in server response, closing control ftp_connection.\n"));
     return NULL;
 }
 
-#define MAX(X,Y)       X > Y ? X : Y
-
 mget_err process_ftp_request(dinfo * info,
                              dp_callback cb, bool * cflag, void *user_data)
 {

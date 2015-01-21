@@ -24,19 +24,19 @@
 extern "C" {
 #endif
 
-#define _GNU_SOURCE		/* See feature_test_macros(7) */
-#include <stdio.h>
+#include "mget_macros.h"
 #include "libmget.h"
 #include <assert.h>
+#include <stdio.h>
 
-    void mlog(log_level, const char *, ...);
-    void dump_buffer(const char *tip, const unsigned char *buf, int max);
+void mlog(log_level, const char *, ...);
+void dump_buffer(const char *tip, const unsigned char *buf, int max);
 
 #if !defined (PDEBUG)
 #define PDEBUG(fmt, ...)                                \
     do {                                                \
         char* msg = NULL;                               \
-        asprintf(&msg, "mget: - %s(%d)-%s: %s",         \
+        asprintf(&msg, "mget: - %s(%d)-%s: %s",   \
                  __FILE__, __LINE__,__FUNCTION__, fmt); \
         mlog(LL_DEBUG, msg, ##  __VA_ARGS__);     \
         free(msg);                                      \

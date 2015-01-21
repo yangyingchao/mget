@@ -31,29 +31,26 @@
 // year/month/day is birthday of my son, just for fun!
 #define MAGIC_NUMBER     0xFC
 
-void dinfo_destroy(dinfo ** info)
+void dinfo_destroy(dinfo* info)
 {
-    if (!info || !(*info))
+    if (!info)
         return;
 
-    bool remove_package = (*info)->md->hd.package_size == 0;
-    bool remove_metadata = remove_package ||
-        (*info)->md->hd.status == RS_FINISHED;
+    bool remove_metadata = info->md->hd.status == RS_FINISHED ||
+                           info->md->hd.status == RS_DROP;
 
     if (remove_metadata)
-        remove_file((*info)->fm_md->fh->fn);
+        remove_file(info->fm_md->fh->fn);
 
-    if (remove_package && *info && (*info)->fm_file)
-        remove_file((*info)->fm_file->fh->fn);
+    fhandle_munmap_close(&info->fm_md);
+    fhandle_munmap_close(&info->fm_file);
 
-    url_info_destroy(&(*info)->ui);
-    fhandle_munmap_close(&(*info)->fm_md);
-    fhandle_munmap_close(&(*info)->fm_file);
-    FIFZ(info);
+    url_info_destroy(&info->ui);
+    FIF(info);
 }
 
 bool dinfo_create(const char *url, const file_name * fn,
-                  mget_option * opt, dinfo ** info)
+                  mget_option * opt, dinfo **info)
 {
     url_info *ui = NULL;
     char *fpath = NULL;
@@ -235,11 +232,11 @@ bool dinfo_create(const char *url, const file_name * fn,
 
 bool dinfo_ready(dinfo * info)
 {
-    return (info && info->ui && info->md && info->fm_md && info->fm_file &&
-            info->md->hd.package_size && info->md->hd.status);
+    return (info && info->ui && info->md && info->fm_md && info->fm_file
+            && info->md->hd.status);
 }
 
-extern bool chunk_split(uint64 start, uint64 size, int *num,
+extern bool chunk_split(uint64 size, int *num,
                         uint64 * cs, data_chunk ** dc);
 
 bool dinfo_update_url(dinfo * info, const char *url)
@@ -275,7 +272,7 @@ bool dinfo_update_url(dinfo * info, const char *url)
 
     md->ptrs->ht_buffer = ptr;
     hd->ebl = dump_hash_table(ht, md->ptrs->ht_buffer, n_ebl);
-    fm_remap(&info->fm_md, CALC_MD_SIZE(hd->nr_effective, hd->ebl));
+    fm_remap(info->fm_md, CALC_MD_SIZE(hd->nr_effective, hd->ebl));
     PDEBUG("chunk: %p -- %p, ht_buffer: %p\n",
            md->raw_data, md->ptrs->body, md->ptrs->ht_buffer);
 
@@ -289,28 +286,28 @@ bool dinfo_update_metadata(dinfo * info, uint64 size, const char *fn)
     if (!info || !info->md)
         return false;
 
-    PDEBUG("enter 2\n");
-
-    metadata *md = info->md;
-    mh *hd = &md->hd;
+    metadata   *md = info->md;
+    mh         *hd = &md->hd;
     data_chunk *dc = NULL;
-    int nc = hd->nr_user;
-    uint64 cs = 0;
-    if (!md || !chunk_split(0, size, &nc, &cs, &dc) || !dc) {
-        PDEBUG("return err.\n");
-        return false;
+    int         nc = hd->nr_user;
+    uint64      cs = 0;
+    if (size) {
+        if (!md || !chunk_split(size, &nc, &cs, &dc) || !dc) {
+            PDEBUG("return err.\n");
+            return false;
+        }
+
+        data_chunk *np = md->ptrs->body;
+        for (int i = 0; i < nc; ++i, ++np) {
+            data_chunk *p = dc + i;
+            *np = *p;
+        }
     }
 
     hd->package_size = size;
-    hd->chunk_size = cs;
+    hd->chunk_size   = cs;
     hd->nr_effective = nc;
-    hd->acon = nc;
-
-    data_chunk *np = md->ptrs->body;
-    for (int i = 0; i < nc; ++i, ++np) {
-        data_chunk *p = dc + i;
-        *np = *p;
-    }
+    hd->acon         = nc;
 
     hash_table *ht = md->ptrs->ht;
     assert(ht != NULL);
@@ -338,13 +335,10 @@ bool dinfo_update_metadata(dinfo * info, uint64 size, const char *fn)
 
     md->ptrs->ht_buffer = ptr;
     hd->ebl = dump_hash_table(ht, md->ptrs->ht_buffer, n_ebl);
-    fm_remap(&info->fm_md, CALC_MD_SIZE(hd->nr_effective, hd->ebl));
-    PDEBUG("chunk: %p -- %p, ht_buffer: %p\n",
-           md->raw_data, md->ptrs->body, md->ptrs->ht_buffer);
+    fm_remap(info->fm_md, CALC_MD_SIZE(hd->nr_effective, hd->ebl));
+    md = info->md = (metadata*)info->fm_md->addr;
 
     // now update fm_file.
-    PDEBUG("info->fm_file: %p\n", info->fm_file);
-
     if (!info->fm_file) {
         char *fpath = NULL;
         char *dirn = fm_get_directory(info->fm_md);
@@ -353,15 +347,14 @@ bool dinfo_update_metadata(dinfo * info, uint64 size, const char *fn)
             sprintf(fpath, "%s/%s", dirn, md->ptrs->fn);
             PDEBUG("Creating file mapping: %s, dirn: %s, fn: %s\n",
                    fpath, dirn ? dirn : "NULL", md->ptrs->fn);
-        } else {
+        } else
             fpath = strdup(md->ptrs->fn);
-        }
-        PDEBUG("Creating file mapping: %s\n", fpath);
 
+        PDEBUG("Creating file mapping: %s\n", fpath);
         info->fm_file = fm_create(fpath, info->md->hd.package_size);
         FIF(fpath);
     } else
-        fm_remap(&info->fm_file, size);
+        fm_remap(info->fm_file, size);
 
     return true;
 }
@@ -371,7 +364,8 @@ void dinfo_sync(dinfo * info)
 {
     if (info) {
         fhandle_msync(info->fm_md);
-        fhandle_msync(info->fm_file);
+        if (info->fm_file)
+            fhandle_msync(info->fm_file);
     }
 }
 
