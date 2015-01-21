@@ -236,7 +236,7 @@ bool dinfo_ready(dinfo * info)
             && info->md->hd.status);
 }
 
-extern bool chunk_split(uint64 start, uint64 size, int *num,
+extern bool chunk_split(uint64 size, int *num,
                         uint64 * cs, data_chunk ** dc);
 
 bool dinfo_update_url(dinfo * info, const char *url)
@@ -292,7 +292,7 @@ bool dinfo_update_metadata(dinfo * info, uint64 size, const char *fn)
     int         nc = hd->nr_user;
     uint64      cs = 0;
     if (size) {
-        if (!md || !chunk_split(0, size, &nc, &cs, &dc) || !dc) {
+        if (!md || !chunk_split(size, &nc, &cs, &dc) || !dc) {
             PDEBUG("return err.\n");
             return false;
         }

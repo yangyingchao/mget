@@ -46,6 +46,7 @@ void sigterm_handler2(int sig, siginfo_t * si, void *param)
 #define PROG_REST() idx = ts = last_recv = 0
 static int idx = 0;
 static uint32 ts = 0;
+static uint32 rts = 0; // report ts.
 static uint64 last_recv = 0;
 static progress* p = NULL;
 static uint32 interval = 0;
@@ -54,9 +55,8 @@ static uint32 interval = 0;
 
 void show_progress(metadata * md, void *user_data)
 {
-    if (!p) {
+    if (!p)
         p = progress_create(REPORT_THREADHOLD, "[", "]");
-    }
 
     if (md->hd.status == RS_FINISHED) {
         char *date = current_time_str();
@@ -75,6 +75,7 @@ void show_progress(metadata * md, void *user_data)
     if (idx < REPORT_THREADHOLD-1) {
         if (!ts) {
             ts = get_time_ms();
+            rts = ts;
             if (!last_recv) {
                 last_recv = md->hd.current_size;
             }
@@ -89,15 +90,14 @@ void show_progress(metadata * md, void *user_data)
         uint64      recv      = md->hd.current_size;
         uint64      diff_size = md->hd.current_size - last_recv;
         uint32      c_time    = get_time_ms();
-        uint64 bps =
-            (uint64) ((double) (diff_size) * 1000 / (c_time - ts)) + 1;
+        uint64 bps =(uint64) ((double) (diff_size) * 1000 / (c_time - rts)) + 1;
 
         progress_report(p, idx, true,
                         (double) recv / total * 100, bps,
                         total > 0 ? (total - recv) / bps : 0);
         idx = 0;
         last_recv = md->hd.current_size;
-        ts = c_time;
+        rts = c_time;
     }
 }
 
