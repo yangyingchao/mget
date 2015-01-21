@@ -95,16 +95,19 @@ struct _progress {
     int   offset;
     char  pbuf[256];
     char* buf;
+    char* marker;
 };
+
+static char MARKERS[] = {'-', '\\', '|', '/'};
 
 progress* progress_create(int capacity, char* head, char* tail)
 {
     progress* p     = ZALLOC1(progress);
-    size_t    total = capacity;
+    size_t    total = capacity + 3;  // 1: ' ', 2: MARK, 3: ' '
     p->capacity     = capacity;
 
     if (head) {
-        p->offset = strlen(head) + 1; // including leading '\r'
+        p->offset = strlen(head) + 1; // including trailing '\0'
         total += p->offset;
     }
 
@@ -113,8 +116,10 @@ progress* progress_create(int capacity, char* head, char* tail)
 
     total += 1;  // for trailing '\0'
 
-    p->buf = ZALLOC(char, total);
+    p->buf    = ZALLOC(char, total);
+    p->marker = p->buf + total - 3;
     memset(p->buf, ' ', total);
+    *p->marker = MARKERS[0];
     int i      = 0;
     int offset = capacity+p->offset;
 
@@ -145,6 +150,7 @@ void progress_report(progress* p, int pos, bool details,
         return;
 
     p->buf[p->offset+pos] = '.';
+    *p->marker = MARKERS[pos%4];
     fputs(p->buf, stdout);
 
     if (details) {
