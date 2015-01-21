@@ -407,17 +407,16 @@ void bq_reset(byte_queue * bq)
     bq->r = bq->w = bq->p;
 }
 
-//@todo: align to page??
 byte_queue *bq_enlarge(byte_queue * bq, size_t sz)
 {
-    if (sz > bq->x - bq->w) {
+    if ((long)sz > bq->x - bq->w) {
         // simply add sz bytes at the end if necessary.
         size_t nsz = bq->x + sz - bq->p;
         char *ptr = ZALLOC(char, nsz);
         if (ptr) {
             memcpy(ptr, bq->p, bq->w - bq->p);
-            bq->r = (byte *) ptr + (bq->r - bq->p);
-            bq->w = (byte *) ptr + (bq->w - bq->p);
+            bq->r = ptr + (bq->r - bq->p);
+            bq->w = ptr + (bq->w - bq->p);
             FIF(bq->p);
             bq->p = ptr;
             bq->x = ptr + nsz;

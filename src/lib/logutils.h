@@ -29,17 +29,18 @@ extern "C" {
 #include <assert.h>
 #include <stdio.h>
 
+void masprintf(char**, const char*, ...);
 void mlog(log_level, const char *, ...);
 void dump_buffer(const char *tip, const unsigned char *buf, int max);
 
 #if !defined (PDEBUG)
-#define PDEBUG(fmt, ...)                                \
-    do {                                                \
-        char* msg = NULL;                               \
-        asprintf(&msg, "mget: - %s(%d)-%s: %s",   \
-                 __FILE__, __LINE__,__FUNCTION__, fmt); \
-        mlog(LL_DEBUG, msg, ##  __VA_ARGS__);     \
-        free(msg);                                      \
+#define PDEBUG(fmt, ...)                                    \
+    do {                                                    \
+        char* msg = NULL;                                   \
+        masprintf(&msg, "mget: - %s(%d)-%s: %s",            \
+                  __FILE__, __LINE__,__FUNCTION__, fmt);    \
+        mlog(LL_DEBUG, msg, ##  __VA_ARGS__);               \
+        free(msg);                                          \
     } while(0)
 #endif				/*End of if PDEBUG */
 
@@ -47,8 +48,8 @@ void dump_buffer(const char *tip, const unsigned char *buf, int max);
 #define OUT_BIN(X, Y)                               \
     do {                                            \
         char* msg = NULL;                           \
-        asprintf(&msg,  "mget: - %s(%d)-%s:",       \
-                 __FILE__, __LINE__,__FUNCTION__);  \
+        masprintf(&msg,  "mget: - %s(%d)-%s:",      \
+                  __FILE__, __LINE__,__FUNCTION__); \
         dump_buffer(msg, (unsigned char*)X, Y);     \
         free(msg);                                  \
     } while (0)

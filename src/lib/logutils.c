@@ -34,6 +34,15 @@ void mlog(log_level o, const char *fmt, ...)
     }
 }
 
+void masprintf(char** ptr, const char* fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    int n = asprintf(ptr, fmt, args);
+    if (!n)
+        ;
+}
+
 void dump_line(const unsigned char *buf, int w, int l, char *out)
 {
 #define YYYGET(X)       ( X >= 32 && X <= 126) ? X : '.'
