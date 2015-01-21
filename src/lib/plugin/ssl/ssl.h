@@ -24,18 +24,18 @@
 #ifndef _MGET_SSL_H_
 #define _MGET_SSL_H_
 
-#include "mget_types.h"
+#include "../../mget_types.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-    bool ssl_init();
-    void *make_socket_secure(int);
-    void ssl_destroy(void *);
+bool ssl_init();
+void *make_socket_secure(int);
+void ssl_destroy(void *);
 
-    int secure_socket_read(int, char *, uint32, void *);
-    int secure_socket_write(int, char *, uint32, void *);
+int secure_socket_read(int, char *, uint32, void *);
+int secure_socket_write(int, char *, uint32, void *);
 
 #ifdef __cplusplus
 }

@@ -76,6 +76,9 @@ int secure_socket_read(int sk, char *buf, uint32 size, void *priv)
         int s =  MIN(bq_size, size);
         memcpy(buf, wrapper->bq->r,s);
         wrapper->bq->r += s;
+        if (wrapper->bq->r == wrapper->bq->w) {
+            bq_reset(wrapper->bq);
+        }
         return s;
     }
 
@@ -133,7 +136,7 @@ int secure_socket_read(int sk, char *buf, uint32 size, void *priv)
 
     if (SSL_pending(wrapper->ssl)) {
         PDEBUG("pending data, size: %d, ret: %d...\n", size, ret);
-        buf += ret;
+        buf  += ret;
         size -= ret;
         PDEBUG("pending data, size: %d...\n", (int) size);
         if ((int) size <= 0) {
@@ -237,6 +240,13 @@ void *make_socket_secure(int sock)
 
 void ssl_destroy(void *priv)
 {
+    CAST(ssl_wrapper, wrapper, priv);
+    if (wrapper)
+    {
+        bq_destroy(wrapper->bq);
+        FIF(wrapper);
+    }
+
 }
 
 /*

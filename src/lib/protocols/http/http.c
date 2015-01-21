@@ -52,7 +52,7 @@ typedef struct _connection_operation_param {
     bool           header_finished;
     byte_queue    *bq;
     hash_table    *ht;
-    void (*cb) (metadata *, void *);
+    void (*cb) (metadata*, void*);
     metadata      *md;
     dinfo         *info;
     hcontext      *context;
@@ -77,22 +77,23 @@ struct http_request_context
     do                                          \
     {                                           \
         if (X->cb)                              \
-            (X->cb)(X->info->md, X->user_data);  \
+            (X->cb)(X->info->md, X->user_data); \
     } while (0)
 
 
-static char *generate_request_header(const char *method,
-                                     url_info   *uri,
-                                     bool        request_partial,
-                                     uint64      start_pos,
-                                     uint64    end_pos);
-static int dissect_header(byte_queue * bq, hash_table ** ht);
-static uint64 get_remote_file_size(url_info    *ui,
-                                   hash_table **ht,
-                                   hcontext* context);
+static int dissect_header(byte_queue* bq, hash_table** ht);
+static uint64 get_remote_file_size(url_info*    ui,
+                                   hash_table** ht,
+                                   hcontext*    context);
 static char* get_suggested_name(const char* input);
 static mget_err process_request_single_form(hcontext*);
 static mget_err process_request_multi_form(hcontext*);
+
+static char *generate_request_header(const char* method,
+                                     url_info*   uri,
+                                     bool        request_partial,
+                                     uint64      start_pos,
+                                     uint64      end_pos);
 static int get_response_for_header(connection* conn,
                                    byte_queue* bq,
                                    const char* hd,
@@ -100,18 +101,16 @@ static int get_response_for_header(connection* conn,
 
 
 
-int http_read_sock(connection * conn, void *priv)
+int http_read_sock(connection* conn, void* priv)
 {
-    if (!priv) {
+    if (!priv)
         return -1;
-    }
-    //todo: Ensure we read all data stored in this connection.
-    co_param *param = (co_param *) priv;
-    data_chunk *dp = (data_chunk *) param->dp;
 
-    if (dp->cur_pos >= dp->end_pos) {
+    co_param    *param = (co_param *) priv;
+    data_chunk*  dp    = param->dp;
+
+    if (dp->cur_pos >= dp->end_pos)
         return 0;
-    }
 
     int rd = 0;
     void *addr = param->addr + dp->cur_pos;
@@ -154,7 +153,7 @@ int http_read_sock(connection * conn, void *priv)
             dp->cur_pos += length;
         }
         param->header_finished = true;
-        bq_destroy(&param->bq);
+        bq_destroy(param->bq);
         if (dp->cur_pos == dp->end_pos)
             goto ret;
         else if (dp->cur_pos == dp->end_pos)
@@ -265,7 +264,7 @@ mget_err process_http_request(dinfo *info, dp_callback cb,
             PDEBUG ("Transer-Encoding is: %s\n", val);
             if (!strcmp(val, CHUNKED)) {
                 context.can_split = false;
-                context.type = htt_chunked;
+                context.type      = htt_chunked;
             }
         }
     }
@@ -278,7 +277,7 @@ mget_err process_http_request(dinfo *info, dp_callback cb,
         fn = get_suggested_name(dis);
 
         if (!fn && (!strcmp(ui->bname, ".") ||!strcmp(ui->bname, "/"))) {
-            fn = strdup("index.html"); 
+            fn = strdup("index.html");
         }
     }
 
@@ -289,13 +288,11 @@ mget_err process_http_request(dinfo *info, dp_callback cb,
       connections) from download_info, and recreate metadata.
     */
 
-    if (info->md->hd.nr_user == 0xff) {
+    if (info->md->hd.nr_user == 0xff)
         info->md->hd.nr_user = DEFAULT_HTTP_CONNECTIONS;
-    }
 
-    if (!context.can_split) {
+    if (!context.can_split)
         info->md->hd.nr_user = 1;
-    }
 
     if (!dinfo_update_metadata(info, total, fn)) {
         fprintf(stderr, "Failed to create metadata from url: %s\n",
@@ -315,14 +312,12 @@ restart:
     PDEBUG ("md: %p, status: %d, nr: %d -- %d\n", md, md->hd.status,
             md->hd.nr_user, md->hd.nr_effective);
 
-    if (md->hd.status == RS_FINISHED) {
+    if (md->hd.status == RS_FINISHED)
         goto ret;
-    }
 
     md->hd.status = RS_STARTED;
-    if (cb) {
+    if (cb)
         (*cb) (md, user_data);
-    }
 
     mget_err err = ME_OK;
     if (context.can_split)
@@ -360,7 +355,7 @@ ret:
         (*cb) (md, user_data);
     }
 
-    bq_destroy(&context.bq);
+    bq_destroy(context.bq);
     PDEBUG("stopped, ret: %d.\n", ME_OK);
     return ME_OK;
 }
@@ -415,27 +410,20 @@ static int dissect_header(byte_queue * bq, hash_table ** ht)
                 "Should only dissect header when header is complete\n");
         abort();
     }
-#ifdef DEBUG
-    size_t h_len = fptr - (char *) bq->r + 4;
-    char *bf = ZALLOC(char, h_len);
-    PDEBUG("buffer: %s\n", strncpy(bf, bq->r, h_len - 1));
-    FIF(bf);
-#endif
 
     hash_table *pht = hash_table_create(256, free);
-    if (!pht) {
+    if (!pht)
         abort();
-    }
 
     *ht = pht;
 
     const char *ptr = strstr(bq->r, "HTTP/");
-    int num = 0;
-    int n = 0;
-    int stat = 0;
-    char value[64] = { '\0' };
+    int    num      = 0;
+    int    n        = 0;
+    int    stat     = 0;
+    char value[64]  = { '\0' };
     char version[8] = { '\0' };
-    size_t ldsize = 0;
+    size_t ldsize   = 0;
     if (ptr)
         num = sscanf(ptr, "HTTP/%s %[^\r\n]\r\n%n", version, value, &n);
 

@@ -26,9 +26,10 @@ add_custom_target(distclean
 
 if (DEBUG)
   message(STATUS "Configuring mget for debug version...")
-  add_definitions(-g)
+  set(CMAKE_BUILD_TYPE "Debug")
 else()
     message(STATUS "Configuring mget for release version...")
+  set(CMAKE_BUILD_TYPE "Release")
 endif ()
 add_subdirectory(src)
 

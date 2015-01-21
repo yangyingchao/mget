@@ -178,6 +178,9 @@ static int create_nonblocking_socket();
 connection *connection_get(const url_info * ui)
 {
     PDEBUG("%p -- %p\n", ui, ui->addr);
+    connection_p *conn = NULL;
+    addr_entry *entry = NULL;
+
     if (!ui || (!ui->host && !ui->addr)) {
         PDEBUG("invalid ui.\n");
         goto ret;
@@ -192,8 +195,6 @@ connection *connection_get(const url_info * ui)
         assert(g_conn_cache);
     }
 
-    connection_p *conn = NULL;
-    addr_entry *entry = NULL;
     if (ui->addr) {
         conn = ZALLOC1(connection_p);
         struct sockaddr_in sa;
@@ -373,12 +374,15 @@ post_connected:;
             {
 #ifdef SSL_SUPPORT
                 ssl_init();
+                if (conn->priv) {
+                    ssl_destroy(conn->priv);
+                }
                 if ((conn->priv = make_socket_secure(conn->sock)) == NULL) {
                     fprintf(stderr, "Failed to make socket secure\n");
                     abort();
                 }
                 conn->rco.write = secure_connection_write;
-                conn->rco.read = secure_connection_read;
+                conn->rco.read  = secure_connection_read;
 #else
                 fprintf(stderr,
                         "FATAL: HTTPS requires GnuTLS, which is not installed....\n");
@@ -547,14 +551,9 @@ void set_global_bandwidth(int limit)
     }
 }
 
-int save_to_fd(connection* conn, int fd)
-{
-    return 0;
-}
-
 
 // local functions
-static address *addrentry_to_address(addr_entry * entry)
+address *addrentry_to_address(addr_entry * entry)
 {
     address *addr = NULL;
     if (entry && (addr = ZALLOC1(address))) {
@@ -570,7 +569,7 @@ static address *addrentry_to_address(addr_entry * entry)
     return addr;
 }
 
-static addr_entry *address_to_addrentry(address * addr)
+addr_entry *address_to_addrentry(address * addr)
 {
     addr_entry *entry = NULL;
     if (addr && (entry = ALLOC_ADDR_ENTRY(addr->ai_addrlen))) {
@@ -594,7 +593,7 @@ static addr_entry *address_to_addrentry(address * addr)
     return entry;
 }
 
-static void addr_entry_destroy(void *entry)
+void addr_entry_destroy(void *entry)
 {
     addr_entry *e = (addr_entry *) entry;
 
@@ -603,7 +602,7 @@ static void addr_entry_destroy(void *entry)
     }
 }
 
-static int connection_save_to_fd(connection *conn, int out)
+int connection_save_to_fd(connection *conn, int out)
 {
     if (!conn)
         return COF_INVALID;
@@ -617,10 +616,10 @@ static int connection_save_to_fd(connection *conn, int out)
     return s;
 }
 
-static int tcp_connection_read(connection * conn, char *buf,
-                               uint32 size, void *priv)
+int tcp_connection_read(connection * conn, char *buf,
+                        uint32 size, void *priv)
 {
-    connection_p *pconn = (connection_p *) conn;
+    connection_p* pconn = (connection_p*) conn;
     if (pconn && pconn->sock && buf) {
 
         // double check to ensure there are something to read.
@@ -657,8 +656,8 @@ static int tcp_connection_read(connection * conn, char *buf,
     return COF_INVALID;
 }
 
-static int tcp_connection_write(connection * conn, const char *buf,
-                                uint32 size, void *priv)
+int tcp_connection_write(connection * conn, const char *buf,
+                         uint32 size, void *priv)
 {
     connection_p *pconn = (connection_p *) conn;
 
@@ -678,14 +677,14 @@ static int tcp_connection_write(connection * conn, const char *buf,
     return 0;
 }
 
-static void tcp_connection_close(connection * conn, char *buf,
-                                 uint32 size, void *priv)
+void tcp_connection_close(connection * conn, char *buf,
+                          uint32 size, void *priv)
 {
 }
 
 #ifdef SSL_SUPPORT
-static int secure_connection_read(connection * conn, char *buf,
-                                  uint32 size, void *priv)
+int secure_connection_read(connection * conn, char *buf,
+                           uint32 size, void *priv)
 {
     connection_p *pconn = (connection_p *) conn;
 
@@ -695,8 +694,8 @@ static int secure_connection_read(connection * conn, char *buf,
     return 0;
 }
 
-static int secure_connection_write(connection * conn, const char *buf,
-                                   uint32 size, void *priv)
+int secure_connection_write(connection * conn, const char *buf,
+                            uint32 size, void *priv)
 {
     connection_p *pconn = (connection_p *) conn;
 
@@ -718,7 +717,7 @@ static int secure_connection_write(connection * conn, const char *buf,
    this function, where such pending data can only be unwanted
    leftover from a previous request.  */
 
-static bool validate_connection(connection_p * pconn)
+bool validate_connection(connection_p * pconn)
 {
     if (!pconn->connected || pconn->sock == -1)
         return false;
@@ -754,7 +753,7 @@ static bool validate_connection(connection_p * pconn)
         x->connected = false;                   \
     } while (0)
 
-static int do_perform_select(connection_group * group)
+int do_perform_select(connection_group * group)
 {
     if (!(group->type & cg_all)) {
         mlog(LL_ALWAYS, "Connection timed out...\n");
@@ -905,9 +904,9 @@ static int do_perform_select(connection_group * group)
     return cnt;
 }
 
-static int connect_to(int ai_family, int ai_socktype,
-                      int ai_protocol, const struct sockaddr *addr,
-                      socklen_t addrlen, int timeout)
+int connect_to(int ai_family, int ai_socktype,
+               int ai_protocol, const struct sockaddr *addr,
+               socklen_t addrlen, int timeout)
 {
     int sock = create_nonblocking_socket();
     if (sock == -1) {
@@ -925,8 +924,8 @@ ret:
     return sock;
 }
 
-static bool try_connect(int sockfd, const struct sockaddr *addr,
-                        socklen_t addrlen, int timeout)
+bool try_connect(int sockfd, const struct sockaddr *addr,
+                 socklen_t addrlen, int timeout)
 {
     if (connect(sockfd, addr, addrlen) == -1) {
         // failed to connect if sock is non-blocking or error is not EINTR.
@@ -941,7 +940,7 @@ static bool try_connect(int sockfd, const struct sockaddr *addr,
     return timed_wait(sockfd, WT_WRITE, timeout);
 }
 
-static char *get_host_key(const char *host, int port)
+char *get_host_key(const char *host, int port)
 {
     char *key = NULL;
     asprintf(&key, "%s:%d", host, port);
@@ -954,7 +953,7 @@ static char *get_host_key(const char *host, int port)
     return key;
 }
 
-static int create_nonblocking_socket()
+int create_nonblocking_socket()
 {
 #if defined(USE_FCNTL)
     int sock = socket(PF_INET, SOCK_STREAM, 0);
@@ -971,8 +970,8 @@ static int create_nonblocking_socket()
 }
 
 /** Wrapper of tcp_connection_read/secure_connection_read. */
-static int mget_connection_read(connection * conn, char *buf,
-                                uint32 size, void *priv)
+int mget_connection_read(connection * conn, char *buf,
+                         uint32 size, void *priv)
 {
     connection_p *pconn = (connection_p *) conn;
     int ret = 0;
@@ -987,8 +986,8 @@ static int mget_connection_read(connection * conn, char *buf,
 }
 
 /** wrapper of tcp_connection_write/secure_connection_write. */
-static int mget_connection_write(connection * conn, const char *buf,
-                                 uint32 size, void *priv)
+int mget_connection_write(connection * conn, const char *buf,
+                          uint32 size, void *priv)
 {
     // do nothing but invoke real writer..
     connection_p *pconn = (connection_p *) conn;
@@ -998,7 +997,7 @@ static int mget_connection_write(connection * conn, const char *buf,
     return 0;
 }
 
-static void limit_bandwidth(connection_p* conn, int size)
+void limit_bandwidth(connection_p* conn, int size)
 {
     // TODO: Remove this ifdef!
 #if 0
