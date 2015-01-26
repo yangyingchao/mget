@@ -119,7 +119,8 @@ int http_read_sock(connection* conn, void* priv)
                 break;
             }
             case 301:
-            case 302:          // Resource moved to other place.
+            case 302:
+            case 303:
             case 307:{
                 char *loc = (char*) hash_table_entry_get(param->ht, "location");
                 if (dinfo_update_url(param->info, loc)) {
@@ -540,7 +541,8 @@ uint64 get_remote_file_size(url_info* ui,
             break;
         }
         case 301:
-        case 302:                  // Resource moved to other place.
+        case 302:
+        case 303:
         case 307: {
             char *loc = (char *) hash_table_entry_get(*ht, "location");
 
@@ -803,7 +805,8 @@ mget_err process_request_single_form(hcontext* context)
                 break;
             }
             case 301:
-            case 302:          // Resource moved to other place.
+            case 302:
+            case 303:
             case 307:{
                 char *loc = (char *) hash_table_entry_get(ht, "location");
                 printf("Server returns 302, trying new locations: %s...\n",
