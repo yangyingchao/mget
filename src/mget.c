@@ -28,51 +28,49 @@
 #include "lib/mget_utils.h"
 #include <signal.h>
 
-#define MAX_NC       40
+#define MAX_NC 40
 
-#define handle_error(msg)                               \
-    do { perror(msg); exit(EXIT_FAILURE); } while (0)
+#define handle_error(msg)                       \
+    do {                                        \
+        perror(msg);                            \
+        exit(EXIT_FAILURE);                     \
+    } while (0)
 
 bool control_byte = false;
 
 static const int MAX_RETRY_TIMES = 3;
 
-void sigterm_handler2(int sig, siginfo_t * si, void *param)
-{
+void sigterm_handler2(int sig, siginfo_t *si, void *param) {
     control_byte = true;
     fprintf(stderr, "\nSaving temporary data...\n");
 }
 
 #define PROG_REST() idx = ts = last_recv = 0
-static int idx = 0;
-static uint32 ts = 0;
-static uint32 rts = 0; // report ts.
-static uint64 last_recv = 0;
-static progress* p = NULL;
-static uint32 interval = 0;
+static int       idx       = 0;
+static uint32    ts        = 0;
+static uint32    rts       = 0;         // report ts.
+static uint64    last_recv = 0;
+static progress *p         = NULL;
+static uint32    interval  = 0;
 
-#define REPORT_THREADHOLD       60
+#define REPORT_THREADHOLD 60
 
-void show_progress(metadata * md, void *user_data)
-{
-    if (!p)
-        p = progress_create(REPORT_THREADHOLD, "[", "]");
+void show_progress(metadata *md, void *user_data) {
+    if (!p) p = progress_create(REPORT_THREADHOLD, "[", "]");
 
     if (md->hd.status == RS_FINISHED) {
         char *date = current_time_str();
 
-        printf("\n%s - %s saved in %s [%.02fKB/s] ...\n",
-               date, md->ptrs->fn,
+        printf("\n%s - %s saved in %s [%.02fKB/s] ...\n", date, md->ptrs->fn,
                stringify_time(md->hd.acc_time),
-               (double) (md->hd.package_size) / K / md->hd.acc_time);
+               (double)(md->hd.package_size) / K / md->hd.acc_time);
         free(date);
         return;
     }
 
-    if (interval == 0)
-        interval = 1000/REPORT_THREADHOLD;
+    if (interval == 0) interval = 1000 / REPORT_THREADHOLD;
 
-    if (idx < REPORT_THREADHOLD-1) {
+    if (idx < REPORT_THREADHOLD - 1) {
         if (!ts) {
             ts = get_time_ms();
             rts = ts;
@@ -85,15 +83,14 @@ void show_progress(metadata * md, void *user_data)
             ts = get_time_ms();
         }
     } else {
-        data_chunk *dp        = md->ptrs->body;
-        uint64      total     = md->hd.package_size;
-        uint64      recv      = md->hd.current_size;
-        uint64      diff_size = md->hd.current_size - last_recv;
-        uint32      c_time    = get_time_ms();
-        uint64 bps =(uint64) ((double) (diff_size) * 1000 / (c_time - rts)) + 1;
+        data_chunk *dp = md->ptrs->body;
+        uint64 total = md->hd.package_size;
+        uint64 recv = md->hd.current_size;
+        uint64 diff_size = md->hd.current_size - last_recv;
+        uint32 c_time = get_time_ms();
+        uint64 bps = (uint64)((double)(diff_size) * 1000 / (c_time - rts)) + 1;
 
-        progress_report(p, idx, true,
-                        (double) recv / total * 100, bps,
+        progress_report(p, idx, true, (double)recv / total * 100, bps,
                         total > 0 ? (total - recv) / bps : 0);
         idx = 0;
         last_recv = md->hd.current_size;
@@ -101,35 +98,30 @@ void show_progress(metadata * md, void *user_data)
     }
 }
 
-void print_help()
-{
+void print_help() {
     static const char *help[] = {
-        "\nOptions:\n",
-        "\t-v:  show version of mget.\n",
+        "\nOptions:\n", "\t-v:  show version of mget.\n",
         "\t-j:  max connections (should be smaller than 40).\n",
         "\t-d:  set folder to store downloaded data.\n",
         "\t-o:  set file name to store downloaded data."
-            "If not provided, mget will name it.\n",
+        "If not provided, mget will name it.\n",
         "\t-r:  resume a previous download using stored metadata.\n",
-        "\t-u:  set user name.\n",
-        "\t-p:  set user password.\n",
+        "\t-u:  set user name.\n", "\t-p:  set user password.\n",
         "\t-s:  show metadata of unfinished task.\n",
         "\t-l:  set log level(0-9) of mget."
-            " The smaller value means less verbose.\n",
+        " The smaller value means less verbose.\n",
         "\t-H:  set host cache type, can be one of 'B', 'D' or 'U':\n",
         "\t     'B': Bypass, don't use cached addresses.\n",
         "\t     'D': Default, use host cache to reduce time cost for "
-            "resolving host names.\n",
+        "resolving host names.\n",
         "\t     'U': Update, get address from DNS server instead of "
-            "from cache, but update cache after name resolved.\n",
-        "\t-L:  limit bandwidth.\n",
-        "\t-h:  show this help.\n",
-        "\n",
-        NULL
-    };
+        "from cache, but update cache after name resolved.\n",
+        "\t-L:  limit bandwidth.\n", "\t-h:  show this help.\n", "\n", NULL};
 
-    printf("Mget %s, non-interactive network retriever "
-           "with multiple connections\n", VERSION_STRING);
+    printf(
+        "Mget %s, non-interactive network retriever "
+        "with multiple connections\n",
+        VERSION_STRING);
 
     const char **ptr = help;
     while (*ptr != NULL) {
@@ -138,9 +130,7 @@ void print_help()
     }
 }
 
-int main(int argc, char *argv[])
-{
-
+int main(int argc, char *argv[]) {
     if (argc == 1) {
         print_help();
         return 1;
@@ -163,96 +153,79 @@ int main(int argc, char *argv[])
 
     while ((opt = getopt(argc, argv, "hH:j:d:o:r:svu:p:l:L:")) != -1) {
         switch (opt) {
-        case 'h':
-            {
+            case 'h': {
                 print_help();
                 exit(0);
             }
-        case 'd':
-            {
+            case 'd': {
                 fn.dirn = strdup(optarg);
                 break;
             }
-        case 's':
-            {
+            case 's': {
                 view_only = true;
                 break;
             }
-        case 'j':
-            {
+            case 'j': {
                 opts.max_connections = atoi(optarg);
                 if (opts.max_connections > MAX_NC) {
-                    printf("Max connections: "
-                           "specified: %d, allowed: %d, "
-                           "set it to max...\n", opts.max_connections,
-                           MAX_NC);
+                    printf(
+                        "Max connections: "
+                        "specified: %d, allowed: %d, "
+                        "set it to max...\n",
+                        opts.max_connections, MAX_NC);
                     opts.max_connections = MAX_NC;
                 }
 
                 break;
             }
-        case 'H':
-            {
+            case 'H': {
                 switch (*optarg) {
-                case 'B':
-                    {
+                    case 'B': {
                         opts.hct = HC_BYPASS;
                         break;
                     }
-                case 'U':
-                    {
+                    case 'U': {
                         opts.hct = HC_UPDATE;
                         break;
                     }
-                default:
-                    {
-                        opts.hct = HC_DEFAULT;
-                    }
+                    default: { opts.hct = HC_DEFAULT; }
                 }
                 break;
             }
-        case 'u':
-            {
+            case 'u': {
                 opts.user = strdup(optarg);
                 break;
             }
-        case 'p':
-            {
+            case 'p': {
                 opts.passwd = strdup(optarg);
                 break;
             }
-        case 'l':
-            {
-                int dl = ((int) LL_ALWAYS) - atoi(optarg);      // debug level
-                if (dl < 0)
-                    dl = LL_INVLID;
-                opts.ll = ((log_level) dl);
+            case 'l': {
+                int dl = ((int)LL_ALWAYS) - atoi(optarg);  // debug level
+                if (dl < 0) dl = LL_INVLID;
+                opts.ll = ((log_level)dl);
                 break;
             }
-        case 'L':
-            {
+            case 'L': {
                 opts.limit = integer_size(optarg);
                 break;
             }
-        case 'o':
-            {
+            case 'o': {
                 fn.basen = strdup(optarg);
                 break;
             }
-        case 'r':              // resume downloading
+            case 'r':  // resume downloading
             {
                 fn.basen = strdup(optarg);
                 resume = true;
                 break;
             }
-        case 'v':
-            {
+            case 'v': {
                 printf("mget version: %s\n", VERSION_STRING);
                 return 0;
                 break;
             }
-        default:
-            {
+            default: {
                 fprintf(stderr, "Wrong usage..\n");
                 print_help();
                 exit(-1);
@@ -297,16 +270,17 @@ int main(int argc, char *argv[])
 
             target = argv[i];
             while (retry_time++ < MAX_RETRY_TIMES && !control_byte) {
-                result = start_request(target, &fn, &opts, show_progress,
-                                       &control_byte, NULL);
+                result = start_request(target, &fn, &opts, show_progress, &control_byte,
+                                       NULL);
                 if (result == ME_OK || result > ME_DO_NOT_RETRY) {
                     goto next;
                 }
             }
 
-            printf("Failed to download from: %s, retried time:  %d.\n",
-                   target, retry_time);
-          next:;
+            printf("Failed to download from: %s, retried time:  %d.\n", target,
+                   retry_time);
+      next:
+            ;
         }
     }
 
