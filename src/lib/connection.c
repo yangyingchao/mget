@@ -118,7 +118,7 @@ typedef struct _connection_cache {
 
 
 
-#define TIME_OUT      3
+#define TIME_OUT      5
 
 #define MAX_CONNS_PER_HOST  32
 host_cache_type g_hct = HC_DEFAULT;
@@ -824,11 +824,8 @@ int do_perform_select(connection_group * group)
                 }
 
                 if (FD_ISSET(pconn->sock, &wfds)) {
-                    ret =
-                            pconn->conn.write_data((connection *) pconn,
-                                                   pconn->conn.priv);
-                    PDEBUG("%d byte written\n", ret);
-
+                    ret = pconn->conn.write_data((connection *) pconn,
+                                                 pconn->conn.priv);
                     if (ret == COF_FINISHED) {
                         FD_CLR(pconn->sock, &wfds);
                         FD_SET(pconn->sock, &rfds);

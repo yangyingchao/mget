@@ -119,7 +119,8 @@ int http_read_sock(connection* conn, void* priv)
                 break;
             }
             case 301:
-            case 302:          // Resource moved to other place.
+            case 302:
+            case 303:
             case 307:{
                 char *loc = (char*) hash_table_entry_get(param->ht, "location");
                 if (dinfo_update_url(param->info, loc)) {
@@ -540,7 +541,8 @@ uint64 get_remote_file_size(url_info* ui,
             break;
         }
         case 301:
-        case 302:                  // Resource moved to other place.
+        case 302:
+        case 303:
         case 307: {
             char *loc = (char *) hash_table_entry_get(*ht, "location");
 
@@ -660,7 +662,7 @@ static long get_chunk_size(byte_queue* bq, int* consumed)
         return -1;
     long  sz  = strtol((char*)bq->r, NULL, 16);
     *consumed = ptr - (char*)bq->r + 2;
-    bq->r = (byte*)ptr + 2;
+    bq->r = ptr + 2;
     return sz;
 }
 
@@ -705,12 +707,14 @@ read_chunk_size:
             PDEBUG ("pending: %d\n", pending);
         } while (pending > 0);
 
-        if (!(safe_write(fd, (char*)bq->r, bq->w - bq->r - 2))) { // exclude \r\n
+        size_t total =  bq->w - bq->r - 2;
+        if (!(safe_write(fd, (char*)bq->r, total))) { // exclude \r\n
             mlog(LL_NONVERBOSE,
                  "Failed to write to fd: %d, error: %d -- %s\n",
                  fd, errno, strerror(errno));
             return ME_RES_ERR;
         }
+        context->info->md->hd.current_size += total;
         bq_reset(bq);
         PDEBUG ("read again...\n");
         goto read_chunk_size;
@@ -735,10 +739,11 @@ retry:
     }
     if (pending > 0) {
         int rd = conn->co.read(conn, (char*)bq->w, PAGE, NULL);
+        length = rd;
+        context->info->md->hd.current_size += length;
         CALLBACK(context);
         if (rd > 0) {
             bq->w += rd;
-            length = rd;
             goto retry;
         }
         else
@@ -765,13 +770,14 @@ retry:
     }
     bq_reset(bq);
     int rd = conn->co.read(conn, (char*)bq->w, PAGE, NULL);
+    length = rd;
+    context->info->md->hd.current_size += length;
     CALLBACK(context);
     PDEBUG ("md: %p, nr: %d--%d\n", context->info->md,
             context->info->md->hd.nr_user,    context->info->md->hd.nr_effective);
     PDEBUG ("rd: %d\n", rd);
     if (rd > 0) {
         bq->w += rd;
-        length = rd;
         goto retry;
     }
     else
@@ -803,7 +809,8 @@ mget_err process_request_single_form(hcontext* context)
                 break;
             }
             case 301:
-            case 302:          // Resource moved to other place.
+            case 302:
+            case 303:
             case 307:{
                 char *loc = (char *) hash_table_entry_get(ht, "location");
                 printf("Server returns 302, trying new locations: %s...\n",
