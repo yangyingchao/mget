@@ -61,8 +61,7 @@ mget_err start_request(const char* url, const file_name* fn, mget_option* opt,
         return ME_NOT_SUPPORT;
     }
 
-    mlog(LL_ALWAYS, "Using handler: %p for %s\n", handler,
-         info->ui->protocol);
+    mlog(LL_ALWAYS, "Using internal %s handler...\n", info->ui->protocol);
 
     g_log_level = opt->ll;
     g_hct = opt->hct;
