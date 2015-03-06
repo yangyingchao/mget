@@ -71,9 +71,17 @@ typedef struct _mget_option {
 	char *user;
 	char *passwd;
 	int limit;
-	bool recursive;		//@todo:
 	log_level ll;
 	host_cache_type hct;
+
+    struct mget_proxy {
+        bool  enabled;
+        bool  encrypted;
+        short port;
+        char* server;
+        char* user;
+        char* passwd;
+    } proxy;
 } mget_option;
 
 // dp stands for download_progress

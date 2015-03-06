@@ -261,8 +261,7 @@ connection *connection_get(const url_info * ui)
             if (shm_rptr == MAP_FAILED)
                 shm_error("do mmap");
 
-            addr_cache =
-                    hash_table_create_from_buffer(shm_rptr->buf, SHM_LENGTH);
+            addr_cache = hash_table_create_from_buffer(shm_rptr->buf, SHM_LENGTH);
             if (!addr_cache) {
           alloc_addr_cache:;
                 addr_cache = hash_table_create(64, addr_entry_destroy);

@@ -41,7 +41,7 @@
 #define xfree(X) FIF(X)
 #define xrealloc(X, Y)       XREALLOC(X, Y)
 #define XALLOC(N)       ZALLOC(char, (N))
-#define STREMPTY(X)     (!(X) || (X[0] != 0))
+#define STREMPTY(X)     (!(X) || (X[0] == 0))
 #define MAX(a, b)  (((a) > (b)) ? (a) : (b))
 #define MIN(a, b)  (((a) < (b)) ? (a) : (b))
 #define ABS(a)	   (((a) < 0) ? -(a) : (a))

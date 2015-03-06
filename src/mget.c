@@ -262,6 +262,11 @@ int main(int argc, char *argv[]) {
         act.sa_flags = SA_SIGINFO;
         int ret = sigaction(SIGINT, &act, NULL);
 
+        opts.proxy_server = strdup("dev1");
+        opts.proxy_port = 8000;
+        opts.proxy_encrypted = false;
+
+        fprintf(stderr, "P: %s\n", opts.proxy_server);
         for (int i = optind; i < argc; i++) {
             int retry_time = 0;
             mget_err result = ME_OK;

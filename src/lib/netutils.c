@@ -36,12 +36,12 @@
 #define PROTOCOL_IDENTIFIER_FTP   "ftp"
 
 
-void url_info_destroy(url_info ** ui)
+void url_info_destroy(url_info* ui)
 {
-    if (ui && *ui) {
-        url_info *up = *ui;
-        FIF(up->furl);
-        FIFZ(ui);
+    if (ui) {
+        FIF(ui->furl);
+        FIF(ui->host);
+        FIF(ui);
     }
 }
 
@@ -69,6 +69,7 @@ bool parse_url(const char *url, url_info ** ui)
     up->furl = strdup(url);
 
     int length1 = -1, length2 = -1;
+    up->host = ZALLOC(char, length);
     int num = sscanf(url, "%[^://]://%[^:/]%n:%u%n",
                      up->protocol, up->host, &length1, &up->port,
                      &length2);
@@ -119,7 +120,7 @@ bool parse_url(const char *url, url_info ** ui)
 
   free:
     if (up) {
-        url_info_destroy(&up);
+        url_info_destroy(up);
     }
   ret:
     return bret;

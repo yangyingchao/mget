@@ -46,7 +46,7 @@ if __name__ == '__main__':
         protocol = os.path.basename(fn)
         print("\tAdding %s...\n"%protocol)
 
-        defs.append('extern mget_err process_%s_request(dinfo*, dp_callback, bool*, void*);'%protocol)
+        defs.append('extern mget_err process_%s_request(dinfo*, dp_callback, bool*, mget_option*, void*);'%protocol)
         stats.append('        hash_table_insert(tbl, "%s", process_%s_request, sizeof(void*));'%(protocol, protocol))
 
     fd.write(PREFIX)
