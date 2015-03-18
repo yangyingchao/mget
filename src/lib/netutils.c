@@ -36,18 +36,18 @@
 #define PROTOCOL_IDENTIFIER_FTP   "ftp"
 
 
-void url_info_destroy(url_info ** ui)
+void url_info_destroy(url_info* ui)
 {
-    if (ui && *ui) {
-        url_info *up = *ui;
-        FIF(up->furl);
-        FIFZ(ui);
+    if (ui) {
+        FIF(ui->furl);
+        FIF(ui->host);
+        FIF(ui);
     }
 }
 
 extern char *get_unique_name(const char *source);
 
-bool parse_url(const char *url, url_info ** ui)
+bool parse_url(const char* url, url_info** ui)
 {
     PDEBUG("url: %s, ui: %p\n", url, ui);
 
@@ -69,6 +69,7 @@ bool parse_url(const char *url, url_info ** ui)
     up->furl = strdup(url);
 
     int length1 = -1, length2 = -1;
+    up->host = ZALLOC(char, length);
     int num = sscanf(url, "%[^://]://%[^:/]%n:%u%n",
                      up->protocol, up->host, &length1, &up->port,
                      &length2);
@@ -119,28 +120,35 @@ bool parse_url(const char *url, url_info ** ui)
 
   free:
     if (up) {
-        url_info_destroy(&up);
+        url_info_destroy(up);
     }
   ret:
     return bret;
 }
 
-
-void url_info_display(url_info * ui)
+const char* url_info_stringify(const url_info* ui)
 {
-    printf("ui: %p, url: %s\n", ui, ui ? ui->furl : NULL);
+    static char ret [4096];
+    memset(ret, 0, 4096);
+
+    sprintf(ret, "ui: %p, url: %s\n", ui, ui ? ui->furl : NULL);
     if (!ui) {
-        printf("empty url_info...\n");
-        return;
+        strcat(ret, "empty url_info...\n");
     }
-    printf
-        ("Protocol: %02X (%s), port: %u, host: %s, uri: %s,\nurl: %s,filename: %s\n",
-         ui->eprotocol, ui->protocol, ui->port, ui->host, ui->uri,
-         ui->furl, ui->bname);
+    else {
+        char* tmp = NULL;
+        asprintf(&tmp,
+                 "Protocol: %02X (%s), port: %u, host: %s, uri: %s,\nurl: %s,filename: %s\n",
+                 ui->eprotocol, ui->protocol, ui->port, ui->host, ui->uri,
+                 ui->furl, ui->bname);
+        strcat(ret, tmp);
+        free(tmp);
+    }
+
+    return ret;
 }
 
-
-void url_info_copy(url_info * dst, url_info * u2)
+void url_info_copy(url_info* dst, url_info* u2)
 {
     if (dst && u2) {
         FIF(dst->uri);

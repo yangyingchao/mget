@@ -65,19 +65,22 @@ typedef struct {
 typedef struct _url_info {
 	url_protocol eprotocol;
 	uint32 port;
-	char protocol[8];
-	char host[64];
-	char sport[8];
+	char* host;
 	ip_address *addr;
 	char *bname;
 	char *uri;
 	char *furl;		/* full url. */
+	char protocol[8];
+	char sport[8];
 } url_info;
 
-bool parse_url(const char *url, url_info ** ui);
-void url_info_copy(url_info *, url_info *);
-void url_info_display(url_info *);
-void url_info_destroy(url_info ** ui);
+bool parse_url(const char*, url_info**);
+void url_info_copy(url_info*, url_info *);
+void url_info_destroy(url_info* ui);
+
+// don't need to free the returned value, but you have to copy it if you want
+// to store it for further use.
+const char* url_info_stringify(const url_info*);
 
 #ifdef __cplusplus
 }

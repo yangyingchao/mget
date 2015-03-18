@@ -20,22 +20,24 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#include "log.h"
-#include "ftp.h"
-#include "connection.h"
-#include <unistd.h>
-#include <errno.h>
-#include "data_utlis.h"
-#include "metadata.h"
-#include "mget_utils.h"
-#include "wftp.h"
-#include <fcntl.h>
+#include "../../connection.h"
+#include "../../data_utlis.h"
+#include "../../download_info.h"
+#include "../../libmget.h"
+#include "../../metadata.h"
+#include "../../mget_utils.h"
 
-#include <sys/socket.h>
-#include <netinet/in.h>
+#include "log.h"
+#include "wftp.h"
 #include <arpa/inet.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <netinet/in.h>
 #include <pthread.h>
 #include <sys/select.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
 
 #define DEFAULT_FTP_CONNECTIONS 3
 #define TIME_OUT                5

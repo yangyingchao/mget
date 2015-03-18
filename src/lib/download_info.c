@@ -45,20 +45,21 @@ void dinfo_destroy(dinfo* info)
     fhandle_munmap_close(&info->fm_md);
     fhandle_munmap_close(&info->fm_file);
 
-    url_info_destroy(&info->ui);
+    url_info_destroy(info->ui);
     FIF(info);
 }
 
-bool dinfo_create(const char *url, const file_name * fn,
-                  mget_option * opt, dinfo **info)
+bool dinfo_create(const char* url, const file_name* fn,
+                  mget_option* opt, dinfo** info)
 {
-    url_info *ui = NULL;
-    char *fpath = NULL;
-    dinfo *dInfo = NULL;
-    bool ret = false;
-    bool update_fn = false;
-    bool md_from_file = false;
+    url_info *ui           = NULL;
+    char     *fpath        = NULL;
+    dinfo    *dInfo        = NULL;
+    bool      ret          = false;
+    bool      update_fn    = false;
+    bool      md_from_file = false;
 
+    PDEBUG ("enter, url: %s\n", url);
     dInfo = ZALLOC1(dinfo);
     if (!dInfo) {
         goto out;
@@ -94,18 +95,20 @@ bool dinfo_create(const char *url, const file_name * fn,
     char *tfn = ZALLOC(char, strlen(fpath) + 5);
     sprintf(tfn, "%s.tmd", fpath);
 
+    PDEBUG ("%s exist: %d\n", tfn, file_existp(tfn));
+
     if (file_existp(tfn) &&
         metadata_create_from_file(tfn, &dInfo->md, &dInfo->fm_md)) {
         PDEBUG("DInfo created from file: %s\n", tfn);
 
         // Destroy url info and recreate using url stored in mw.
-        url_info_destroy(&ui);
+        url_info_destroy(ui);
         if (!parse_url(dInfo->md->ptrs->url, &ui)) {
             fprintf(stderr, "Failed to parse stored url: %s.\n",
                     dInfo->md->ptrs->url);
             if (url) {
                 fprintf(stderr, "Removing old metadata and retring...\n");
-                url_info_destroy(&ui);
+                url_info_destroy(ui);
 
                 if (url && !parse_url(url, &ui)) {
                     fprintf(stderr, "Failed to parse given url: %s\n",
@@ -353,8 +356,12 @@ bool dinfo_update_metadata(dinfo * info, uint64 size, const char *fn)
         PDEBUG("Creating file mapping: %s\n", fpath);
         info->fm_file = fm_create(fpath, info->md->hd.package_size);
         FIF(fpath);
-    } else
+    } else {
+        fprintf(stderr, "Remapping file: %s\n", info->fm_file->fh->fn);
+        PDEBUG ("Remapping file: %s\n", info->fm_file->fh->fn);
         fm_remap(info->fm_file, size);
+    }
+
 
     return true;
 }

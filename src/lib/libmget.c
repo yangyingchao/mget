@@ -33,7 +33,7 @@
 extern log_level g_log_level;
 extern host_cache_type g_hct;
 
-typedef mget_err(*protocol_handler) (dinfo *, dp_callback, bool *, void *);
+typedef mget_err(*protocol_handler) (dinfo*, dp_callback, bool*, mget_option*, void*);
 static hash_table *g_handlers = NULL;
 
 mget_err start_request(const char* url, const file_name* fn, mget_option* opt,
@@ -41,8 +41,11 @@ mget_err start_request(const char* url, const file_name* fn, mget_option* opt,
 {
     dinfo *info = NULL;
     mget_err ret = ME_OK;
+
+    g_log_level = opt->ll;
+    g_hct = opt->hct;
+
     if (!dinfo_create(url, fn, opt, &info)) {
-        fprintf(stderr, "Failed to create download info\n");
         ret = ME_RES_ERR;
         return ret;
     }
@@ -61,15 +64,12 @@ mget_err start_request(const char* url, const file_name* fn, mget_option* opt,
         return ME_NOT_SUPPORT;
     }
 
-    mlog(LL_ALWAYS, "Using handler: %p for %s\n", handler,
-         info->ui->protocol);
+    mlog(LL_ALWAYS, "Using internal %s handler...\n", info->ui->protocol);
 
-    g_log_level = opt->ll;
-    g_hct = opt->hct;
     if (opt->limit > 0)
         set_global_bandwidth(opt->limit);
 
-    ret = handler(info, cb, stop_flag, user_data);
+    ret = handler(info, cb, stop_flag, opt, user_data);
 
     dinfo_destroy(info);
 

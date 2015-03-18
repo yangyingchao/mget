@@ -110,6 +110,7 @@ void print_help() {
         "\t-s:  show metadata of unfinished task.\n",
         "\t-l:  set log level(0-9) of mget."
         " The smaller value means less verbose.\n",
+        "\t-P:  set proxy, format is: host:port\n",
         "\t-H:  set host cache type, can be one of 'B', 'D' or 'U':\n",
         "\t     'B': Bypass, don't use cached addresses.\n",
         "\t     'D': Default, use host cache to reduce time cost for "
@@ -151,7 +152,7 @@ int main(int argc, char *argv[]) {
 
     memset(&fn, 0, sizeof(file_name));
 
-    while ((opt = getopt(argc, argv, "hH:j:d:o:r:svu:p:l:L:")) != -1) {
+    while ((opt = getopt(argc, argv, "hH:j:d:o:r:svu:p:l:L:P:")) != -1) {
         switch (opt) {
             case 'h': {
                 print_help();
@@ -223,6 +224,21 @@ int main(int argc, char *argv[]) {
             case 'v': {
                 printf("mget version: %s\n", VERSION_STRING);
                 return 0;
+                break;
+            }
+            case 'P': {
+                char* proxy = strdup(optarg);
+                char* p = strchr(proxy, ':');
+                char* p_port = NULL;
+                if (p) {
+                    *p = 0;
+                    p_port = p+1;
+                }
+
+                opts.proxy.server    = proxy;
+                opts.proxy.port      = (p_port == NULL) ? 80 : atoi(p_port);
+                opts.proxy.encrypted = false;
+                opts.proxy.enabled   = true;
                 break;
             }
             default: {

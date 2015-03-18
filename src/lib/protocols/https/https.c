@@ -24,14 +24,18 @@
 
 extern mget_err process_http_request(dinfo * info,
                                      dp_callback cb,
-                                     bool * stop_flag, void *user_data);
+                                     bool* stop_flag,
+                                     mget_option* opt,
+                                     void*user_data);
 
 // does nothing but forward this to http...
 mget_err process_https_request(dinfo * info,
                                dp_callback cb,
-                               bool * stop_flag, void *user_data)
+                               bool* stop_flag,
+                               mget_option* opt,
+                               void* user_data)
 {
-    return process_http_request(info, cb, stop_flag, user_data);
+    return process_http_request(info, cb, stop_flag, opt, user_data);
 }
 
 /*

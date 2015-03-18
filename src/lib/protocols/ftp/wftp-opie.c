@@ -36,8 +36,6 @@ as that of the covered work.  */
 #include "log.h"
 
 /* #include "md5.h" */
-#include "ftp.h"
-
 /* Dictionary for integer-word translations.  Available in appendix D
    of rfc2289.  */
 static char Wp[2048][4] = {
