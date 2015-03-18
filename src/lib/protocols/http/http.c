@@ -63,12 +63,12 @@ struct http_request_context {
     byte_queue* bq;
     htxtype     type;
     dinfo*      info;
-    url_info*   ui;
 
     int         port;
     const char* host;
     const char* uri_host;
     const char* uri;
+    const mget_option* opts;
 
     connection* conn;
 
@@ -90,25 +90,17 @@ typedef struct _http_url_info
     } while (0)
 
 
-static int dissect_header(byte_queue* bq, hash_table** ht);
-static uint64 get_remote_file_size(url_info*    ui,
-                                   hash_table** ht,
-                                   hcontext*    context);
-static char* get_suggested_name(const char* input);
+static int dissect_header(byte_queue*, hash_table**);
+static uint64 get_remote_file_size(url_info*, hash_table**, hcontext*);
+static char* get_suggested_name(const char*);
 static mget_err process_request_single_form(hcontext*);
 static mget_err process_request_multi_form(hcontext*);
 
-static char *generate_request_header(const char* method,
-                                     const char* uri_host,
-                                     const char* uri,
-                                     bool        request_partial,
-                                     uint64      start_pos,
-                                     uint64      end_pos);
-static int get_response_for_header(connection* conn,
-                                   byte_queue* bq,
-                                   const char* hd,
-                                   hash_table** ht);
-static url_info* add_proxy(url_info* ui, struct mget_proxy* proxy);
+static char *generate_request_header(const char*, const char*, const char*,
+                                     bool, uint64, uint64);
+static int get_response_for_header(connection*, byte_queue*, const char*,
+                                   hash_table**);
+static url_info* add_proxy(url_info*, const struct mget_proxy*);
 
 
 
@@ -248,16 +240,16 @@ mget_err process_http_request(dinfo *info, dp_callback cb,
         .info      = info,
         .cb        = cb,
 
-        .port = info->ui->port,
+        .port     = info->ui->port,
         .uri_host = strdup(info->ui->host),
-        .uri = info->ui->uri,
+        .uri      = info->ui->uri,
+        .opts     = opts,
 
         .user_data = user_data,
     };
 
     PDEBUG ("Proxy enabled: %d, host: %s\n", opts->proxy.enabled, opts->proxy.server);
-    if (opts->proxy.enabled && !STREMPTY(opts->proxy.server))
-    {
+    if (HAS_PROXY(&opts->proxy)) {
         url_info* new = add_proxy(info->ui, &opts->proxy);
         if (new) {
             url_info_destroy(info->ui);
@@ -307,6 +299,7 @@ mget_err process_http_request(dinfo *info, dp_callback cb,
         }
     }
 
+    ui = context.info->ui; // ui maybe changed ...
     // try to get file name from http header..
     char *fn = NULL;
     if (info->md->hd.update_name) {
@@ -593,13 +586,24 @@ uint64 get_remote_file_size(url_info* ui,
             printf("Server returns 302, trying new locations: %s...\n",
                    loc);
             url_info *nui = NULL;
-
             if (loc && parse_url(loc, &nui)) {
                 url_info_copy(ui, nui);
                 url_info_destroy(nui);
-                connection_put(context->conn);
-                context->conn = connection_get(ui);
+                if (HAS_PROXY(&context->opts->proxy)) {
+                    url_info* new = add_proxy(ui, &context->opts->proxy);
+                    if (new) {
+                        url_info_destroy(ui);
+                        ui           = new;
+                        context->uri = new->uri;
+                    }
+                    PDEBUG ("new: %p\n", new);
+                }
+                else {
+                    connection_put(context->conn);
+                    context->conn = connection_get(ui);
+                }
                 bq_reset(context->bq);
+                context->info->ui = ui;
                 return get_remote_file_size(ui, ht, context);
             }
             fprintf(stderr,
@@ -863,10 +867,21 @@ mget_err process_request_single_form(hcontext* context)
                 url_info *nui = NULL;
 
                 if (loc && parse_url(loc, &nui)) {
-                    url_info_copy(context->ui, nui);
+                    url_info_copy(context->info->ui, nui);
                     url_info_destroy(nui);
-                    connection_put(context->conn);
-                    context->conn = connection_get(context->ui);
+                    if (HAS_PROXY(&context->opts->proxy)) {
+                        url_info* new = add_proxy(context->info->ui, &context->opts->proxy);
+                        if (new) {
+                            url_info_destroy(context->info->ui);
+                            context->info->ui  = new;
+                            context->uri = new->uri;
+                        }
+                        PDEBUG ("new: %p\n", new);
+                    }
+                    else {
+                        connection_put(context->conn);
+                        context->conn = connection_get(context->info->ui);
+                    }
                     bq_reset(context->bq);
                     goto retry;
                 }
@@ -982,7 +997,7 @@ ret:
     return err;
 }
 
-static url_info* add_proxy(url_info* ui, struct mget_proxy* proxy)
+static url_info* add_proxy(url_info* ui, const struct mget_proxy* proxy)
 {
     PDEBUG ("Updating uri with proxy, server: %s...\n", proxy->server);
     url_info* new = ZALLOC1(url_info);

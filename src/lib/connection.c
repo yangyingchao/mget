@@ -175,9 +175,9 @@ static char *get_host_key(const char *host, int port);
 static int create_nonblocking_socket();
 
 
-connection *connection_get(const url_info * ui)
+connection *connection_get(const url_info* ui)
 {
-    PDEBUG("%p -- %p\n", ui, ui->addr);
+    PDEBUG ("Getting connection for  %s\n", url_info_stringify(ui));
     connection_p *conn = NULL;
     addr_entry *entry = NULL;
 

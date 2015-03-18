@@ -59,6 +59,7 @@ bool dinfo_create(const char* url, const file_name* fn,
     bool      update_fn    = false;
     bool      md_from_file = false;
 
+    PDEBUG ("enter, url: %s\n", url);
     dInfo = ZALLOC1(dinfo);
     if (!dInfo) {
         goto out;
@@ -93,6 +94,8 @@ bool dinfo_create(const char* url, const file_name* fn,
 
     char *tfn = ZALLOC(char, strlen(fpath) + 5);
     sprintf(tfn, "%s.tmd", fpath);
+
+    PDEBUG ("%s exist: %d\n", tfn, file_existp(tfn));
 
     if (file_existp(tfn) &&
         metadata_create_from_file(tfn, &dInfo->md, &dInfo->fm_md)) {
@@ -353,8 +356,12 @@ bool dinfo_update_metadata(dinfo * info, uint64 size, const char *fn)
         PDEBUG("Creating file mapping: %s\n", fpath);
         info->fm_file = fm_create(fpath, info->md->hd.package_size);
         FIF(fpath);
-    } else
+    } else {
+        fprintf(stderr, "Remapping file: %s\n", info->fm_file->fh->fn);
+        PDEBUG ("Remapping file: %s\n", info->fm_file->fh->fn);
         fm_remap(info->fm_file, size);
+    }
+
 
     return true;
 }

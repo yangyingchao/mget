@@ -42,6 +42,9 @@ mget_err start_request(const char* url, const file_name* fn, mget_option* opt,
     dinfo *info = NULL;
     mget_err ret = ME_OK;
 
+    g_log_level = opt->ll;
+    g_hct = opt->hct;
+
     if (!dinfo_create(url, fn, opt, &info)) {
         ret = ME_RES_ERR;
         return ret;
@@ -63,8 +66,6 @@ mget_err start_request(const char* url, const file_name* fn, mget_option* opt,
 
     mlog(LL_ALWAYS, "Using internal %s handler...\n", info->ui->protocol);
 
-    g_log_level = opt->ll;
-    g_hct = opt->hct;
     if (opt->limit > 0)
         set_global_bandwidth(opt->limit);
 

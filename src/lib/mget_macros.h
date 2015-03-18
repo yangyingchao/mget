@@ -48,6 +48,8 @@
 
 #define CAST(T, O, I)      T* O = (T*)I;
 
+#define HAS_PROXY(X)  (((X)->enabled && !STREMPTY((X)->server)))
+
 #endif				/* _MACROS_H_ */
 
 /*
