@@ -164,7 +164,6 @@ int secure_socket_write(int sk, char *buf, uint32 size, void *priv)
     }
 
     int r = SSL_write(wrapper->ssl, buf, size);
-    int e = SSL_get_error(wrapper->ssl, r);
     switch (SSL_get_error(wrapper->ssl, r)) {
     case SSL_ERROR_NONE:
         break;

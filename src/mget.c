@@ -83,7 +83,6 @@ void show_progress(metadata *md, void *user_data) {
             ts = get_time_ms();
         }
     } else {
-        data_chunk *dp = md->ptrs->body;
         uint64 total = md->hd.package_size;
         uint64 recv = md->hd.current_size;
         uint64 diff_size = md->hd.current_size - last_recv;
@@ -143,8 +142,6 @@ int main(int argc, char *argv[]) {
     file_name fn;
     char *target = NULL;
     bool resume = false;
-    char *user = NULL;
-    char *passwd = NULL;
     mget_option opts;
     memset(&opts, 0, sizeof(mget_option));
     opts.max_connections = -1;
@@ -277,6 +274,9 @@ int main(int argc, char *argv[]) {
         sigemptyset(&act.sa_mask);
         act.sa_flags = SA_SIGINFO;
         int ret = sigaction(SIGINT, &act, NULL);
+        if (ret == -1) {
+            fprintf(stderr, "Failed to install signal handler\n");
+        }
 
         for (int i = optind; i < argc; i++) {
             int retry_time = 0;

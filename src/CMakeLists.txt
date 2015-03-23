@@ -1,7 +1,7 @@
 add_subdirectory(lib)
 include_directories(lib)
 
-add_definitions(-std=gnu99)
+add_definitions(-std=gnu99 -Wall)
 
 file(GLOB  SRC "*.c")
 add_executable(mget-bin ${SRC})

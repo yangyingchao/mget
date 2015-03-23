@@ -230,8 +230,7 @@ Error in server response, closing control ftp_connection.\n"));
         abort();
     }
 
-  ret:
-    return 0;
+    return err;
 }
 
 
@@ -250,7 +249,7 @@ static int ftp_read_sock(connection * conn, void *priv)
     int rd = 0;
     do {
         rd = conn->co.read(conn, param->addr + dp->cur_pos,
-                           dp->end_pos - dp->cur_pos, NULL);
+                           (uint32)(dp->end_pos - dp->cur_pos), NULL);
     } while (rd == -1 && errno == EINTR);
 
     if (rd > 0) {
@@ -280,7 +279,6 @@ static int ftp_read_sock(connection * conn, void *priv)
                dp, dp->cur_pos, dp->end_pos);
     }
 
-  ret:
     return rd;
 }
 
@@ -491,7 +489,6 @@ void *ftp_download_thread(void *arg)
 
     ftp_connection *conn = NULL;
     uerr_t err = get_data_connection(param->info, param, &conn);
-    data_chunk *dp = (data_chunk *) param->dp;
     if (!conn || err != FTPOK) {
         fprintf(stderr, "OOPS: %p, err: %d\n", conn, (int) err);
         return NULL;
@@ -554,8 +551,7 @@ mget_err process_ftp_request(dinfo * info,
     bool can_split = true;
     uint64 total_size = 0;
 
-    uerr_t err =
-        get_remote_file_size_ftp(info, fconn, &can_split, &total_size);
+    get_remote_file_size_ftp(info, fconn, &can_split, &total_size);
 
     if (!total_size) {
         fprintf(stderr, "Can't get remote file size: %s\n", ui->furl);
@@ -603,7 +599,6 @@ mget_err process_ftp_request(dinfo * info,
     bool need_request = false;
     ftp_connection *conn = NULL;
     ftp_connection *conns = ZALLOC(ftp_connection, md->hd.nr_effective);
-    uerr_t uerr = FTPOK;
     data_chunk *dp = md->ptrs->body;
     int maxfd = 0;
     co_param *params = ZALLOC(co_param, md->hd.nr_effective);

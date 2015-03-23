@@ -125,8 +125,8 @@ bool dinfo_create(const char* url, const file_name* fn,
         FIF(fpath);
         if (dirn) {
             fpath =
-                ZALLOC(char,
-                       strlen(dirn) + strlen(dInfo->md->ptrs->fn) + 2);
+                    ZALLOC(char,
+                           strlen(dirn) + strlen(dInfo->md->ptrs->fn) + 2);
             sprintf(fpath, "%s/%s", dirn, dInfo->md->ptrs->fn);
         } else {
             fpath = strdup(dInfo->md->ptrs->fn);
@@ -161,7 +161,7 @@ bool dinfo_create(const char* url, const file_name* fn,
         hash_table *ht = hash_table_create(128, free);
         mp *ptrs = ZALLOC1(mp);
 
-        unsigned char *ptr = (unsigned char *) &hd->iden;
+        char* ptr = (char*) &hd->iden;
         *ptr = MAGIC_NUMBER;
         ptr++;
         sprintf(ptr, "TMD");
@@ -181,30 +181,30 @@ bool dinfo_create(const char* url, const file_name* fn,
         ptrs->body = (data_chunk *) pmd->raw_data;
         ptrs->ht = ht;
         ptrs->ht_buffer = (char *) (pmd->raw_data) +
-            sizeof(data_chunk) * pmd->hd.nr_user;
+                          sizeof(data_chunk) * pmd->hd.nr_user;
 
         if (url) {
             ptrs->url = strdup(url);
-            hash_table_insert(ptrs->ht, K_URL, ptrs->url, strlen(url));
+            HASH_TABLE_INSERT(ptrs->ht, K_URL, ptrs->url, strlen(url));
         }
 
         if (fpath) {
             char *tmp = get_basename(fpath);
             ptrs->fn = strdup(tmp);
             free(tmp);
-            hash_table_insert(ptrs->ht, K_FN, ptrs->fn, strlen(ptrs->fn));
+            HASH_TABLE_INSERT(ptrs->ht, K_FN, ptrs->fn, strlen(ptrs->fn));
         }
 
         if (opt->user) {
             pmd->ptrs->user = strdup(opt->user);
-            hash_table_insert(ptrs->ht, K_USR, ptrs->user,
+            HASH_TABLE_INSERT(ptrs->ht, K_USR, ptrs->user,
                               strlen(ptrs->fn));
         }
 
         if (opt->passwd) {
             pmd->ptrs->passwd = strdup(opt->passwd);
-            hash_table_insert(ptrs->ht, K_PASSWD, ptrs->passwd,
-                              strlen(ptrs->fn));
+            HASH_TABLE_INSERT(ptrs->ht, K_PASSWD, ptrs->passwd,
+                             strlen(ptrs->fn));
         }
     }
 
@@ -224,11 +224,11 @@ bool dinfo_create(const char* url, const file_name* fn,
         goto out;
     }
 
-  free:
+free:
     FIF(dInfo);
     FIF(fpath);
 
-  out:
+out:
     return ret;
 }
 
@@ -260,7 +260,7 @@ bool dinfo_update_url(dinfo * info, const char *url)
 #define DINFO_UPDATE_HASH(K, V)                     \
     PDEBUG("showing: %s - %s: \n", (K), ((V)));     \
     if (V)                                          \
-        hash_table_update(ht, (K), (V), strlen(V))
+        hash_table_update(ht, (K), (V), (uint32)strlen(V))
 
     DINFO_UPDATE_HASH(K_URL, md->ptrs->url);
     DINFO_UPDATE_HASH(K_USR, md->ptrs->user);
@@ -270,8 +270,8 @@ bool dinfo_update_url(dinfo * info, const char *url)
 
     // reset ht_buffer...
     char *ptr = (char *) (md->raw_data) +
-        sizeof(data_chunk) * hd->nr_effective;
-    uint32 n_ebl = md->ptrs->ht_buffer + hd->ebl - ptr;
+                sizeof(data_chunk) * hd->nr_effective;
+    size_t n_ebl = md->ptrs->ht_buffer + hd->ebl - ptr;
 
     md->ptrs->ht_buffer = ptr;
     hd->ebl = dump_hash_table(ht, md->ptrs->ht_buffer, n_ebl);
@@ -315,10 +315,10 @@ bool dinfo_update_metadata(dinfo * info, uint64 size, const char *fn)
     hash_table *ht = md->ptrs->ht;
     assert(ht != NULL);
 
-#define DINFO_UPDATE_HASH(K, V)                 \
-    PDEBUG("showing: %s - %s: \n", (K), ((V)));              \
-    if (V)                                                 \
-        hash_table_update(ht, (K), (V), strlen(V))
+#define DINFO_UPDATE_HASH(K, V)                     \
+    PDEBUG("showing: %s - %s: \n", (K), ((V)));     \
+    if (V)                                          \
+        hash_table_update(ht, (K), (V), (uint32)strlen(V))
 
     DINFO_UPDATE_HASH(K_URL, md->ptrs->url);
     DINFO_UPDATE_HASH(K_USR, md->ptrs->user);
@@ -333,8 +333,8 @@ bool dinfo_update_metadata(dinfo * info, uint64 size, const char *fn)
 
     // reset ht_buffer...
     char *ptr = (char *) (md->raw_data) +
-        sizeof(data_chunk) * hd->nr_effective;
-    uint32 n_ebl = md->ptrs->ht_buffer + hd->ebl - ptr;
+                sizeof(data_chunk) * hd->nr_effective;
+    size_t n_ebl = md->ptrs->ht_buffer + hd->ebl - ptr;
 
     md->ptrs->ht_buffer = ptr;
     hd->ebl = dump_hash_table(ht, md->ptrs->ht_buffer, n_ebl);

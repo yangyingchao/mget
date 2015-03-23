@@ -86,7 +86,7 @@ struct _connection_group {
 #define SHM_LENGTH 4096
 
 typedef struct _shm_region {
-    int len;
+    size_t len;
     bool busy;                  // Race condition: this may be used by multiple instances
     char buf[SHM_LENGTH];
 } shm_region;
@@ -143,8 +143,11 @@ static int tcp_connection_read(connection * conn, char *buf,
 static int tcp_connection_write(connection * conn, const char *buf,
                                 uint32 size, void *priv);
 
+// TODO: Remove this ifdef!
+#if 0
 static void tcp_connection_close(connection * conn, char *buf,
                                  uint32 size, void *priv);
+#endif // End of #if 0
 static bool validate_connection(connection_p * pconn);
 
 #ifdef SSL_SUPPORT
@@ -437,7 +440,7 @@ void connection_put(connection * conn)
         cache->count++;
         cache->lst = &pconn->lst;
 
-        hash_table_insert(g_conn_cache, host_key, cache, sizeof(void *));
+        HASH_TABLE_INSERT(g_conn_cache, host_key, cache, sizeof(void *));
     } else if (cache->count >= MAX_CONNS_PER_HOST) {
         goto clean;
     } else {
@@ -609,7 +612,7 @@ int connection_save_to_fd(connection *conn, int out)
     char buf[4096];
     int s = conn->co.read(conn, buf, 4096, NULL);
     if (s > 0) {
-        s = write(out, buf, s);
+        s = (int)write(out, buf, s);
     }
 
     return s;
@@ -663,7 +666,7 @@ int tcp_connection_write(connection * conn, const char *buf,
     if (pconn && pconn->sock && buf) {
         PDEBUG("begin write, conn: %p, sock: %d ....\n",
                pconn, pconn->sock);
-        int wd = write(pconn->sock, buf, size);
+        int wd = (int)write(pconn->sock, buf, size);
         PDEBUG("%d bytes written\n", wd);
         if (wd < 0) {
             PDEBUG("failed to write to sock: %d, (%d):%s\n",
@@ -671,15 +674,18 @@ int tcp_connection_write(connection * conn, const char *buf,
         }
 
 
-        return (uint32) wd;
+        return wd;
     }
     return 0;
 }
 
+// TODO: Remove this ifdef!
+#if 0
 void tcp_connection_close(connection * conn, char *buf,
                           uint32 size, void *priv)
 {
 }
+#endif // End of #if 0
 
 #ifdef SSL_SUPPORT
 int secure_connection_read(connection * conn, char *buf,
@@ -846,6 +852,7 @@ int do_perform_select(connection_group * group)
                     switch (ret) {
                         case COF_CLOSED:{
                             close_connection(pconn);
+                            break;
                         }
                         case COF_FAILED:
                         case COF_FINISHED:{

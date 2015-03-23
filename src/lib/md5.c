@@ -221,7 +221,7 @@ char *get_unique_name(const char *source)
     unsigned char decrypt[16];
     MD5_CTX md5;
     MD5Init(&md5);
-    MD5Update(&md5, (char *) source, strlen((char *) source));
+    MD5Update(&md5, (unsigned char *) source, (unsigned int )strlen((char *) source));
     MD5Final(&md5, decrypt);
     for (i = 0; i < 16; i++) {
         sprintf(output + i * 2, "%02x", decrypt[i]);

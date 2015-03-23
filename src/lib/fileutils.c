@@ -71,7 +71,7 @@ void fhandle_destroy(fhandle *fh)
 
         PDEBUG("fh: %p, fn: %s\n", fh, fh->fn);
         if (fh->fn) {
-            if (0) {
+            if (/* DISABLES CODE */ (0)) {
                 remove_file(fh->fn);
             }
             free(fh->fn);

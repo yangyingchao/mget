@@ -69,6 +69,8 @@ bool hash_table_update(hash_table * table, char *key, void *val,
 void *hash_table_entry_get(hash_table * table, const char *key);
 
 #define HASH_ENTRY_GET(T, H, K) (T*)hash_table_entry_get((H),(K))
+#define HASH_TABLE_INSERT(T, K, V, L) \
+    hash_table_insert((T), (K), (V), (uint32)(L))
 
 /**
  * @name dump_hash_table - Dump hash table to buffer.
@@ -77,8 +79,8 @@ void *hash_table_entry_get(hash_table * table, const char *key);
  * @param buffer_size - buffer size 
  * @return uint32: size used, or -1 if not enough space.
  */
-uint32 dump_hash_table(hash_table * ht, void *buffer,
-                       uint32 buffer_size);
+size_t dump_hash_table(hash_table * ht, void *buffer,
+                       size_t buffer_size);
 
 /**
  * @name hash_table_create_from_buffer - Creates a hash table from buffer.

@@ -91,8 +91,8 @@ int integer_size(const char *size)
 
 
 struct _progress {
-    int   capacity;
-    int   offset;
+    size_t   capacity;
+    size_t   offset;
     char  pbuf[256];
     char* buf;
     char* marker;
@@ -121,7 +121,7 @@ progress* progress_create(int capacity, char* head, char* tail)
     memset(p->buf, ' ', total);
     *p->marker = MARKERS[0];
     int i      = 0;
-    int offset = capacity+p->offset;
+    size_t offset = capacity+p->offset;
 
     p->buf[0] = '\r';
     if (head) {

@@ -236,7 +236,7 @@ void *hash_table_entry_get(hash_table * table, const char *key)
     return NULL;
 }
 
-uint32 dump_hash_table(hash_table * ht, void *buffer, uint32 buffer_size)
+size_t dump_hash_table(hash_table * ht, void *buffer, size_t buffer_size)
 {
     if (!buffer || buffer_size <= 3 * sizeof(uint32)) {
         return -1;
@@ -358,7 +358,6 @@ hash_table *hash_table_create_from_buffer(void *buffer, uint32 buffer_size)
         --ht->occupied;
     }
 
-  ret:
     return ht;
 }
 
@@ -395,7 +394,7 @@ const char *stringify_size(uint64 sz)
 byte_queue *bq_init(size_t size)
 {
     byte_queue *bq = ZALLOC1(byte_queue);
-    bq->r = bq->w = bq->p = ZALLOC(byte, size);
+    bq->r = bq->w = bq->p = ZALLOC(char, size);
     bq->x = bq->p + size;
     return bq;
 }
