@@ -469,10 +469,10 @@ static int dissect_header(byte_queue * bq, hash_table ** ht)
     }
     //TODO: Check http version if necessary...
     char *key = "version";
-    hash_table_insert(pht, key, strdup(version), strlen(version));
+    HASH_TABLE_INSERT(pht, key, strdup(version), strlen(version));
 
     key = "status";
-    hash_table_insert(pht, key, strdup(value), strlen(value));
+    HASH_TABLE_INSERT(pht, key, strdup(value), strlen(value));
     ptr += n;
 
     num = sscanf(value, "%d", &stat);
@@ -488,7 +488,7 @@ static int dissect_header(byte_queue * bq, hash_table ** ht)
         if (sscanf((const char *) ptr, "%[^ 	:]: %[^\r\n]\r\n%n",
                    k, v, &n)) {
             lowwer_case(k, strlen(k));
-            hash_table_insert(pht, k, strdup(v), strlen(v));
+            HASH_TABLE_INSERT(pht, k, strdup(v), strlen(v));
             ldsize += n;
             ptr += n;
         }

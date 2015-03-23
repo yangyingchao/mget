@@ -43,3 +43,5 @@ proj/mget.xcodeproj/xcuserdata/
 /src/tmp/
 /src/lib/generated.h
 /src/lib/protocols.h
+/project/xcode/mget/mget.xcodeproj/project.xcworkspace/
+/project/xcode/mget/mget.xcodeproj/xcuserdata/

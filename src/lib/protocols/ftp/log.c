@@ -572,132 +572,12 @@ void log_close(void)
     trailing_line = false;
 }
 
-/* Dump saved lines to logfp. */
-static void log_dump_context(void)
-{
-    int num = log_line_current;
-    FILE *fp = get_log_fp();
-    FILE *warcfp = get_warc_log_fp();
-
-    if (!fp)
-        return;
-
-    if (num == -1)
-        return;
-    if (trailing_line)
-        ROT_ADVANCE(num);
-    do {
-        struct log_ln *ln = log_lines + num;
-
-        if (ln->content) {
-            FPUTS(ln->content, fp);
-            if (warcfp != NULL)
-                FPUTS(ln->content, warcfp);
-        }
-        ROT_ADVANCE(num);
-    }
-    while (num != log_line_current);
-    if (trailing_line)
-        if (log_lines[log_line_current].content) {
-            FPUTS(log_lines[log_line_current].content, fp);
-            if (warcfp != NULL)
-                FPUTS(log_lines[log_line_current].content, warcfp);
-        }
-    fflush(fp);
-    fflush(warcfp);
-}
-
-/* String escape functions. */
-
-/* Return the number of non-printable characters in SOURCE.
-   Non-printable characters are determined as per c-ctype.c.  */
-
-static int count_nonprint(const char *source)
-{
-    // TODO: Remove this ifdef!
-#if 0
-
-    const char *p;
-    int cnt;
-
-    for (p = source, cnt = 0; *p; p++)
-        if (!c_isprint(*p))
-            ++cnt;
-    return cnt;
-#endif                          // End of #if 0
-    return 0;
-}
-
-/* Copy SOURCE to DEST, escaping non-printable characters.
-
-   Non-printable refers to anything outside the non-control ASCII
-   range (32-126) which means that, for example, CR, LF, and TAB are
-   considered non-printable along with ESC, BS, and other control
-   chars.  This is by design: it makes sure that messages from remote
-   servers cannot be easily used to deceive the users by mimicking
-   Wget's output.  Disallowing non-ASCII characters is another
-   necessary security measure, which makes sure that remote servers
-   cannot garble the screen or guess the local charset and perform
-   homographic attacks.
-
-   Of course, the above mandates that escnonprint only be used in
-   contexts expected to be ASCII, such as when printing host names,
-   URL components, HTTP headers, FTP server messages, and the like.
-
-   ESCAPE is the leading character of the escape sequence.  BASE
-   should be the base of the escape sequence, and must be either 8 for
-   octal or 16 for hex.
-
-   DEST must point to a location with sufficient room to store an
-   encoded version of SOURCE.  */
-
-static void
-copy_and_escape(const char *source, char *dest, char escape, int base)
-{
-    // TODO: Remove this ifdef!
-#if 0
-
-    const char *from = source;
-    char *to = dest;
-    unsigned char c;
-
-    /* Copy chars from SOURCE to DEST, escaping non-printable ones. */
-    switch (base) {
-    case 8:
-        while ((c = *from++) != '\0')
-            if (c_isprint(c))
-                *to++ = c;
-            else {
-                *to++ = escape;
-                *to++ = '0' + (c >> 6);
-                *to++ = '0' + ((c >> 3) & 7);
-                *to++ = '0' + (c & 7);
-            }
-        break;
-    case 16:
-        while ((c = *from++) != '\0')
-            if (c_isprint(c))
-                *to++ = c;
-            else {
-                *to++ = escape;
-                *to++ = XNUM_TO_DIGIT(c >> 4);
-                *to++ = XNUM_TO_DIGIT(c & 0xf);
-            }
-        break;
-    default:
-        abort();
-    }
-    *to = '\0';
-#endif                          // End of #if 0
-
-}
 
 #define RING_SIZE 3
 struct ringel {
     char *buffer;
     int size;
 };
-static struct ringel ring[RING_SIZE];   /* ring data */
 
 static const char *escnonprint_internal(const char *str, char escape,
                                         int base)

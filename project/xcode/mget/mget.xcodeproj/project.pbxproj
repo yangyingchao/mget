@@ -1,0 +1,448 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A5B9555A1ABF9F0D00F78293 /* mget.c in Sources */ = {isa = PBXBuildFile; fileRef = A5B955591ABF9F0D00F78293 /* mget.c */; };
+		A5B955D31ABF9F1900F78293 /* connection.c in Sources */ = {isa = PBXBuildFile; fileRef = A5B9558D1ABF9F1900F78293 /* connection.c */; };
+		A5B955D41ABF9F1900F78293 /* data_utlis.c in Sources */ = {isa = PBXBuildFile; fileRef = A5B9558F1ABF9F1900F78293 /* data_utlis.c */; };
+		A5B955D51ABF9F1900F78293 /* download_info.c in Sources */ = {isa = PBXBuildFile; fileRef = A5B955911ABF9F1900F78293 /* download_info.c */; };
+		A5B955D61ABF9F1900F78293 /* fileutils.c in Sources */ = {isa = PBXBuildFile; fileRef = A5B955931ABF9F1900F78293 /* fileutils.c */; };
+		A5B955D71ABF9F1900F78293 /* libmget.c in Sources */ = {isa = PBXBuildFile; fileRef = A5B955951ABF9F1900F78293 /* libmget.c */; };
+		A5B955D91ABF9F1900F78293 /* logutils.c in Sources */ = {isa = PBXBuildFile; fileRef = A5B955981ABF9F1900F78293 /* logutils.c */; };
+		A5B955DA1ABF9F1900F78293 /* md5.c in Sources */ = {isa = PBXBuildFile; fileRef = A5B9559A1ABF9F1900F78293 /* md5.c */; };
+		A5B955DB1ABF9F1900F78293 /* metadata.c in Sources */ = {isa = PBXBuildFile; fileRef = A5B9559B1ABF9F1900F78293 /* metadata.c */; };
+		A5B955DC1ABF9F1900F78293 /* mget_utils.c in Sources */ = {isa = PBXBuildFile; fileRef = A5B955A21ABF9F1900F78293 /* mget_utils.c */; };
+		A5B955DD1ABF9F1900F78293 /* netutils.c in Sources */ = {isa = PBXBuildFile; fileRef = A5B955A41ABF9F1900F78293 /* netutils.c */; };
+		A5B955DF1ABF9F1900F78293 /* openssl.c in Sources */ = {isa = PBXBuildFile; fileRef = A5B955AB1ABF9F1900F78293 /* openssl.c */; };
+		A5B955E01ABF9F1900F78293 /* c-ctype.c in Sources */ = {isa = PBXBuildFile; fileRef = A5B955B01ABF9F1900F78293 /* c-ctype.c */; };
+		A5B955E11ABF9F1900F78293 /* ftp.c in Sources */ = {isa = PBXBuildFile; fileRef = A5B955B21ABF9F1900F78293 /* ftp.c */; };
+		A5B955E21ABF9F1900F78293 /* log.c in Sources */ = {isa = PBXBuildFile; fileRef = A5B955B31ABF9F1900F78293 /* log.c */; };
+		A5B955E31ABF9F1900F78293 /* wftp-basic.c in Sources */ = {isa = PBXBuildFile; fileRef = A5B955B51ABF9F1900F78293 /* wftp-basic.c */; };
+		A5B955E41ABF9F1900F78293 /* wftp-ls.c in Sources */ = {isa = PBXBuildFile; fileRef = A5B955B61ABF9F1900F78293 /* wftp-ls.c */; };
+		A5B955E51ABF9F1900F78293 /* wftp-opie.c in Sources */ = {isa = PBXBuildFile; fileRef = A5B955B71ABF9F1900F78293 /* wftp-opie.c */; };
+		A5B955E61ABF9F1900F78293 /* http.c in Sources */ = {isa = PBXBuildFile; fileRef = A5B955BB1ABF9F1900F78293 /* http.c */; };
+		A5B955E71ABF9F1900F78293 /* https.c in Sources */ = {isa = PBXBuildFile; fileRef = A5B955BD1ABF9F1900F78293 /* https.c */; };
+		A5B955E91ABF9FEC00F78293 /* libssl.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = A5B955E81ABF9FEC00F78293 /* libssl.dylib */; };
+		A5B955EB1ABFA03700F78293 /* libcrypto.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = A5B955EA1ABFA03700F78293 /* libcrypto.dylib */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A5B9554D1ABF9EF400F78293 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		A5B9554F1ABF9EF400F78293 /* mget */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = mget; sourceTree = BUILT_PRODUCTS_DIR; };
+		A5B955591ABF9F0D00F78293 /* mget.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = mget.c; path = ../../../../src/mget.c; sourceTree = "<group>"; };
+		A5B9558D1ABF9F1900F78293 /* connection.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = connection.c; sourceTree = "<group>"; };
+		A5B9558E1ABF9F1900F78293 /* connection.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = connection.h; sourceTree = "<group>"; };
+		A5B9558F1ABF9F1900F78293 /* data_utlis.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = data_utlis.c; sourceTree = "<group>"; };
+		A5B955901ABF9F1900F78293 /* data_utlis.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = data_utlis.h; sourceTree = "<group>"; };
+		A5B955911ABF9F1900F78293 /* download_info.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = download_info.c; sourceTree = "<group>"; };
+		A5B955921ABF9F1900F78293 /* download_info.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = download_info.h; sourceTree = "<group>"; };
+		A5B955931ABF9F1900F78293 /* fileutils.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = fileutils.c; sourceTree = "<group>"; };
+		A5B955941ABF9F1900F78293 /* fileutils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fileutils.h; sourceTree = "<group>"; };
+		A5B955951ABF9F1900F78293 /* libmget.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = libmget.c; sourceTree = "<group>"; };
+		A5B955971ABF9F1900F78293 /* libmget.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = libmget.h; sourceTree = "<group>"; };
+		A5B955981ABF9F1900F78293 /* logutils.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = logutils.c; sourceTree = "<group>"; };
+		A5B955991ABF9F1900F78293 /* logutils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = logutils.h; sourceTree = "<group>"; };
+		A5B9559A1ABF9F1900F78293 /* md5.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = md5.c; sourceTree = "<group>"; };
+		A5B9559B1ABF9F1900F78293 /* metadata.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = metadata.c; sourceTree = "<group>"; };
+		A5B9559C1ABF9F1900F78293 /* metadata.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = metadata.h; sourceTree = "<group>"; };
+		A5B9559D1ABF9F1900F78293 /* mget_config.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = mget_config.h; sourceTree = "<group>"; };
+		A5B9559F1ABF9F1900F78293 /* mget_macros.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = mget_macros.h; sourceTree = "<group>"; };
+		A5B955A01ABF9F1900F78293 /* mget_metadata.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = mget_metadata.h; sourceTree = "<group>"; };
+		A5B955A11ABF9F1900F78293 /* mget_types.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = mget_types.h; sourceTree = "<group>"; };
+		A5B955A21ABF9F1900F78293 /* mget_utils.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = mget_utils.c; sourceTree = "<group>"; };
+		A5B955A31ABF9F1900F78293 /* mget_utils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = mget_utils.h; sourceTree = "<group>"; };
+		A5B955A41ABF9F1900F78293 /* netutils.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = netutils.c; sourceTree = "<group>"; };
+		A5B955A51ABF9F1900F78293 /* netutils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = netutils.h; sourceTree = "<group>"; };
+		A5B955AB1ABF9F1900F78293 /* openssl.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = openssl.c; sourceTree = "<group>"; };
+		A5B955AC1ABF9F1900F78293 /* ssl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ssl.h; sourceTree = "<group>"; };
+		A5B955B01ABF9F1900F78293 /* c-ctype.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = "c-ctype.c"; sourceTree = "<group>"; };
+		A5B955B11ABF9F1900F78293 /* c-ctype.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "c-ctype.h"; sourceTree = "<group>"; };
+		A5B955B21ABF9F1900F78293 /* ftp.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = ftp.c; sourceTree = "<group>"; };
+		A5B955B31ABF9F1900F78293 /* log.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = log.c; sourceTree = "<group>"; };
+		A5B955B41ABF9F1900F78293 /* log.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = log.h; sourceTree = "<group>"; };
+		A5B955B51ABF9F1900F78293 /* wftp-basic.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = "wftp-basic.c"; sourceTree = "<group>"; };
+		A5B955B61ABF9F1900F78293 /* wftp-ls.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = "wftp-ls.c"; sourceTree = "<group>"; };
+		A5B955B71ABF9F1900F78293 /* wftp-opie.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = "wftp-opie.c"; sourceTree = "<group>"; };
+		A5B955B81ABF9F1900F78293 /* wftp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = wftp.h; sourceTree = "<group>"; };
+		A5B955B91ABF9F1900F78293 /* wget.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = wget.h; sourceTree = "<group>"; };
+		A5B955BB1ABF9F1900F78293 /* http.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = http.c; sourceTree = "<group>"; };
+		A5B955BD1ABF9F1900F78293 /* https.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = https.c; sourceTree = "<group>"; };
+		A5B955BE1ABF9F1900F78293 /* protocols.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = protocols.h; sourceTree = "<group>"; };
+		A5B955E81ABF9FEC00F78293 /* libssl.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libssl.dylib; path = usr/lib/libssl.dylib; sourceTree = SDKROOT; };
+		A5B955EA1ABFA03700F78293 /* libcrypto.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libcrypto.dylib; path = usr/lib/libcrypto.dylib; sourceTree = SDKROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A5B9554C1ABF9EF400F78293 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A5B955EB1ABFA03700F78293 /* libcrypto.dylib in Frameworks */,
+				A5B955E91ABF9FEC00F78293 /* libssl.dylib in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A5B955461ABF9EF400F78293 = {
+			isa = PBXGroup;
+			children = (
+				A5B955EA1ABFA03700F78293 /* libcrypto.dylib */,
+				A5B955E81ABF9FEC00F78293 /* libssl.dylib */,
+				A5B955511ABF9EF400F78293 /* mget */,
+				A5B955501ABF9EF400F78293 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A5B955501ABF9EF400F78293 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A5B9554F1ABF9EF400F78293 /* mget */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A5B955511ABF9EF400F78293 /* mget */ = {
+			isa = PBXGroup;
+			children = (
+				A5B9555B1ABF9F1800F78293 /* lib */,
+				A5B955591ABF9F0D00F78293 /* mget.c */,
+			);
+			path = mget;
+			sourceTree = "<group>";
+		};
+		A5B9555B1ABF9F1800F78293 /* lib */ = {
+			isa = PBXGroup;
+			children = (
+				A5B9558D1ABF9F1900F78293 /* connection.c */,
+				A5B9558E1ABF9F1900F78293 /* connection.h */,
+				A5B9558F1ABF9F1900F78293 /* data_utlis.c */,
+				A5B955901ABF9F1900F78293 /* data_utlis.h */,
+				A5B955911ABF9F1900F78293 /* download_info.c */,
+				A5B955921ABF9F1900F78293 /* download_info.h */,
+				A5B955931ABF9F1900F78293 /* fileutils.c */,
+				A5B955941ABF9F1900F78293 /* fileutils.h */,
+				A5B955951ABF9F1900F78293 /* libmget.c */,
+				A5B955971ABF9F1900F78293 /* libmget.h */,
+				A5B955981ABF9F1900F78293 /* logutils.c */,
+				A5B955991ABF9F1900F78293 /* logutils.h */,
+				A5B9559A1ABF9F1900F78293 /* md5.c */,
+				A5B9559B1ABF9F1900F78293 /* metadata.c */,
+				A5B9559C1ABF9F1900F78293 /* metadata.h */,
+				A5B9559D1ABF9F1900F78293 /* mget_config.h */,
+				A5B9559F1ABF9F1900F78293 /* mget_macros.h */,
+				A5B955A01ABF9F1900F78293 /* mget_metadata.h */,
+				A5B955A11ABF9F1900F78293 /* mget_types.h */,
+				A5B955A21ABF9F1900F78293 /* mget_utils.c */,
+				A5B955A31ABF9F1900F78293 /* mget_utils.h */,
+				A5B955A41ABF9F1900F78293 /* netutils.c */,
+				A5B955A51ABF9F1900F78293 /* netutils.h */,
+				A5B955A61ABF9F1900F78293 /* plugin */,
+				A5B955AE1ABF9F1900F78293 /* protocols */,
+				A5B955BE1ABF9F1900F78293 /* protocols.h */,
+			);
+			name = lib;
+			path = ../../../../src/lib;
+			sourceTree = "<group>";
+		};
+		A5B955A61ABF9F1900F78293 /* plugin */ = {
+			isa = PBXGroup;
+			children = (
+				A5B955A71ABF9F1900F78293 /* ssl */,
+			);
+			path = plugin;
+			sourceTree = "<group>";
+		};
+		A5B955A71ABF9F1900F78293 /* ssl */ = {
+			isa = PBXGroup;
+			children = (
+				A5B955AA1ABF9F1900F78293 /* openssl */,
+				A5B955AC1ABF9F1900F78293 /* ssl.h */,
+			);
+			path = ssl;
+			sourceTree = "<group>";
+		};
+		A5B955AA1ABF9F1900F78293 /* openssl */ = {
+			isa = PBXGroup;
+			children = (
+				A5B955AB1ABF9F1900F78293 /* openssl.c */,
+			);
+			path = openssl;
+			sourceTree = "<group>";
+		};
+		A5B955AE1ABF9F1900F78293 /* protocols */ = {
+			isa = PBXGroup;
+			children = (
+				A5B955AF1ABF9F1900F78293 /* ftp */,
+				A5B955BA1ABF9F1900F78293 /* http */,
+				A5B955BC1ABF9F1900F78293 /* https */,
+			);
+			path = protocols;
+			sourceTree = "<group>";
+		};
+		A5B955AF1ABF9F1900F78293 /* ftp */ = {
+			isa = PBXGroup;
+			children = (
+				A5B955B01ABF9F1900F78293 /* c-ctype.c */,
+				A5B955B11ABF9F1900F78293 /* c-ctype.h */,
+				A5B955B21ABF9F1900F78293 /* ftp.c */,
+				A5B955B31ABF9F1900F78293 /* log.c */,
+				A5B955B41ABF9F1900F78293 /* log.h */,
+				A5B955B51ABF9F1900F78293 /* wftp-basic.c */,
+				A5B955B61ABF9F1900F78293 /* wftp-ls.c */,
+				A5B955B71ABF9F1900F78293 /* wftp-opie.c */,
+				A5B955B81ABF9F1900F78293 /* wftp.h */,
+				A5B955B91ABF9F1900F78293 /* wget.h */,
+			);
+			path = ftp;
+			sourceTree = "<group>";
+		};
+		A5B955BA1ABF9F1900F78293 /* http */ = {
+			isa = PBXGroup;
+			children = (
+				A5B955BB1ABF9F1900F78293 /* http.c */,
+			);
+			path = http;
+			sourceTree = "<group>";
+		};
+		A5B955BC1ABF9F1900F78293 /* https */ = {
+			isa = PBXGroup;
+			children = (
+				A5B955BD1ABF9F1900F78293 /* https.c */,
+			);
+			path = https;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A5B9554E1ABF9EF400F78293 /* mget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A5B955561ABF9EF400F78293 /* Build configuration list for PBXNativeTarget "mget" */;
+			buildPhases = (
+				A5B9554B1ABF9EF400F78293 /* Sources */,
+				A5B9554C1ABF9EF400F78293 /* Frameworks */,
+				A5B9554D1ABF9EF400F78293 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = mget;
+			productName = mget;
+			productReference = A5B9554F1ABF9EF400F78293 /* mget */;
+			productType = "com.apple.product-type.tool";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A5B955471ABF9EF400F78293 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0600;
+				ORGANIZATIONNAME = yiyang;
+				TargetAttributes = {
+					A5B9554E1ABF9EF400F78293 = {
+						CreatedOnToolsVersion = 6.0.1;
+					};
+				};
+			};
+			buildConfigurationList = A5B9554A1ABF9EF400F78293 /* Build configuration list for PBXProject "mget" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = A5B955461ABF9EF400F78293;
+			productRefGroup = A5B955501ABF9EF400F78293 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A5B9554E1ABF9EF400F78293 /* mget */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A5B9554B1ABF9EF400F78293 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A5B955E11ABF9F1900F78293 /* ftp.c in Sources */,
+				A5B955DB1ABF9F1900F78293 /* metadata.c in Sources */,
+				A5B955D71ABF9F1900F78293 /* libmget.c in Sources */,
+				A5B955E71ABF9F1900F78293 /* https.c in Sources */,
+				A5B955D31ABF9F1900F78293 /* connection.c in Sources */,
+				A5B9555A1ABF9F0D00F78293 /* mget.c in Sources */,
+				A5B955D51ABF9F1900F78293 /* download_info.c in Sources */,
+				A5B955E51ABF9F1900F78293 /* wftp-opie.c in Sources */,
+				A5B955E31ABF9F1900F78293 /* wftp-basic.c in Sources */,
+				A5B955DC1ABF9F1900F78293 /* mget_utils.c in Sources */,
+				A5B955D41ABF9F1900F78293 /* data_utlis.c in Sources */,
+				A5B955E61ABF9F1900F78293 /* http.c in Sources */,
+				A5B955DA1ABF9F1900F78293 /* md5.c in Sources */,
+				A5B955D91ABF9F1900F78293 /* logutils.c in Sources */,
+				A5B955DF1ABF9F1900F78293 /* openssl.c in Sources */,
+				A5B955E41ABF9F1900F78293 /* wftp-ls.c in Sources */,
+				A5B955E01ABF9F1900F78293 /* c-ctype.c in Sources */,
+				A5B955D61ABF9F1900F78293 /* fileutils.c in Sources */,
+				A5B955E21ABF9F1900F78293 /* log.c in Sources */,
+				A5B955DD1ABF9F1900F78293 /* netutils.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A5B955541ABF9EF400F78293 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.10;
+				MTL_ENABLE_DEBUG_INFO = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		A5B955551ABF9EF400F78293 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.10;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		A5B955571ABF9EF400F78293 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
+					/opt/usr/include/,
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					/Volumes/Home/Work/mget/src/lib,
+				);
+				MACOSX_DEPLOYMENT_TARGET = "";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				USER_HEADER_SEARCH_PATHS = "";
+			};
+			name = Debug;
+		};
+		A5B955581ABF9EF400F78293 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
+					/opt/usr/include/,
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					/Volumes/Home/Work/mget/src/lib,
+				);
+				MACOSX_DEPLOYMENT_TARGET = "";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				USER_HEADER_SEARCH_PATHS = "";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A5B9554A1ABF9EF400F78293 /* Build configuration list for PBXProject "mget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A5B955541ABF9EF400F78293 /* Debug */,
+				A5B955551ABF9EF400F78293 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A5B955561ABF9EF400F78293 /* Build configuration list for PBXNativeTarget "mget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A5B955571ABF9EF400F78293 /* Debug */,
+				A5B955581ABF9EF400F78293 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A5B955471ABF9EF400F78293 /* Project object */;
+}
