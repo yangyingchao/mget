@@ -20,19 +20,20 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#include "logutils.h"
+#include "data_utlis.h"
 #include "fileutils.h"
-#include <unistd.h>
+#include "logutils.h"
 #include <fcntl.h>
+#include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string.h>
+#include <sys/mman.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <string.h>
-#include <libgen.h>
-#include "data_utlis.h"
+#include <unistd.h>
 #define FM_DEFAULT       (S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)
 
 fhandle *fhandle_create(const char *fn, FHM mode)
@@ -295,6 +296,40 @@ size_t get_file_size(fh_map* fm)
         return st.st_size;
     }
     return -1;
+}
+
+
+
+#define shm_error(msg)                                              \
+    do { perror("sm_error, " msg); r = NULL; goto err; } while (0)
+
+shm_region* shm_region_open(const char* key)
+{
+    shm_region* r = NULL;
+    size_t length = sizeof(shm_region);
+    int fd = shm_open(key, O_RDWR, S_IRUSR | S_IWUSR);
+    if (fd == -1) { // no shared memory created for this library, create new one.
+        fd = shm_open(key, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
+        if (fd == -1)
+            shm_error("Failed to open shared memory");
+        if (ftruncate(fd, length) == -1)
+            shm_error("Failed to truncate..");
+    }
+
+    /* Map shared memory object */
+    r = (shm_region*) mmap(NULL, length,
+                           PROT_READ | PROT_WRITE,
+                           MAP_SHARED, fd, 0);
+    if (r == MAP_FAILED)
+        shm_error("do mmap");
+
+err:
+    return r;
+}
+
+void shm_region_close(shm_region* region)
+{
+    ;
 }
 
 /*

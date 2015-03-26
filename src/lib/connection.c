@@ -27,15 +27,14 @@
 #include "data_utlis.h"
 #include "mget_config.h"
 #include "mget_types.h"
+#include "fileutils.h"
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
 #include <netinet/in.h>
-#include <sys/mman.h>
 #include <sys/select.h>
 #include <sys/socket.h>
-#include <sys/stat.h>           /* For mode constants */
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -83,14 +82,6 @@ struct _connection_group {
     slist_head *lst;            // list of sockets.
 };
 
-#define SHM_LENGTH 4096
-
-typedef struct _shm_region {
-    size_t len;
-    bool busy;                  // Race condition: this may be used by multiple instances
-    char buf[SHM_LENGTH];
-} shm_region;
-
 typedef struct _connection_cache {
     int count;
     slist_head *lst;
@@ -113,11 +104,7 @@ typedef struct _connection_cache {
 #define CONN2CONNP(X) (connection_p*)(X)
 #define LIST2PCONN(X) (connection_p*)((char*)X - offsetof(connection_p, lst))
 
-#define shm_error(msg)                                                  \
-    do { perror("sm_error, " msg); goto alloc_addr_cache; } while (0)
 
-
-
 #define TIME_OUT      5
 
 #define MAX_CONNS_PER_HOST  32
@@ -246,25 +233,11 @@ connection *connection_get(const url_info* ui)
             if (g_hct == HC_BYPASS)
                 goto alloc_addr_cache;
 
-            //@todo: should check if shm is supported..
             char key[64] = { '\0' };
             sprintf(key, "/libmget_%s_uid_%d", VERSION_STRING, getuid());
-            int fd = shm_open(key, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
-            PDEBUG("shared_memory: %d\n", fd);
-            if (fd == -1)
-                shm_error("Failed to open shared memory");
-
-            if (ftruncate(fd, sizeof(shm_region)) == -1)
-                shm_error("Failed to truncate..");
-
-            /* Map shared memory object */
-            shm_rptr = (shm_region *) mmap(NULL, sizeof(shm_region),
-                                           PROT_READ | PROT_WRITE,
-                                           MAP_SHARED, fd, 0);
-            if (shm_rptr == MAP_FAILED)
-                shm_error("do mmap");
-
-            addr_cache = hash_table_create_from_buffer(shm_rptr->buf, SHM_LENGTH);
+            shm_rptr = shm_region_open(key);
+            if (shm_rptr)
+                addr_cache = hash_table_create_from_buffer(shm_rptr->buf, SHM_LENGTH);
             if (!addr_cache) {
           alloc_addr_cache:;
                 addr_cache = hash_table_create(64, addr_entry_destroy);
@@ -342,8 +315,7 @@ connection *connection_get(const url_info* ui)
                     // Only update cache to shm when it is not used by others.
                     // This is just for optimization, and it does not hurt
                     // much if one or two cache is missing...
-                    if (shm_rptr && shm_rptr != MAP_FAILED
-                        && !shm_rptr->busy && g_hct != HC_BYPASS) {
+                    if (shm_rptr && !shm_rptr->busy && g_hct != HC_BYPASS) {
                         shm_rptr->busy = true;
                         shm_rptr->len = dump_hash_table(addr_cache,
                                                         shm_rptr->buf,

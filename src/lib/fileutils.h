@@ -29,6 +29,7 @@
 /** returns true if final path is file, or false if final path is directory*/
 bool get_full_path(const file_name *, char **);
 
+/* FileHandle: handler of file */
 typedef struct _fhandle {
     char   *fn;                         /*!< File name */
     int     fd;                         /*!< File descriptor. */
@@ -44,6 +45,7 @@ typedef enum _FHM {
 fhandle *fhandle_create(const char *fn, FHM mode);
 void fhandle_destroy(fhandle *fh);
 
+// File mapping.
 typedef struct _fh_map {
     fhandle *fh;
     void    *addr;
@@ -63,10 +65,22 @@ int     fm_get_fd(fh_map* fm);
 
 char *fm_get_directory(fh_map * fm);
 
+// Utilities..
 bool safe_write(int fd, char* buf, size_t total);
 size_t get_file_size(fh_map* fm);
 
-#endif				/* _FILEUTILS_H_ */
+// shared memory region.
+#define SHM_LENGTH 4096
+typedef struct _shm_region {
+    size_t len;
+    bool busy;                  // Race condition: this may be used by multiple instances
+    char buf[SHM_LENGTH];
+} shm_region;
+
+shm_region* shm_region_open(const char* key);
+void shm_region_close(shm_region*);
+
+#endif	/* _FILEUTILS_H_ */
 
 /*
  * Editor modelines
