@@ -192,10 +192,6 @@ int http_read_sock(connection* conn, void* priv)
     if (dp->cur_pos >= dp->end_pos) {
         PDEBUG("Finished chunk: %p\n", dp);
         rd = COF_FINISHED;
-    } else if (!rd) {
-        rd = COF_CLOSED;
-        PDEBUG("retuned zero: dp: %p : %llX -- %llX\n",
-               dp, dp->cur_pos, dp->end_pos);
     }
 
 ret:
