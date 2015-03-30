@@ -621,6 +621,7 @@ int connection_save_to_fd(connection *conn, int out)
 int tcp_connection_read(connection * conn, char *buf,
                         uint32 size, void *priv)
 {
+    int rd = COF_INVALID;
     connection_p* pconn = (connection_p*) conn;
     if (pconn && pconn->sock && buf) {
 
@@ -631,31 +632,28 @@ int tcp_connection_read(connection * conn, char *buf,
             abort();
         }
 
-        uint32 rd = (uint32) read(pconn->sock, buf, size);
+        rd = read(pconn->sock, buf, size);
         if (rd == -1) {
             PDEBUG("rd: %d, sock: %d, errno: (%d) - %s\n",
                    rd, pconn->sock, errno, strerror(errno));
             if (errno == EAGAIN) {      // nothing to read, normal if non-blocking
-                return COF_AGAIN;
+                rd = COF_AGAIN;
             } else {
                 mlog(LL_ALWAYS, "Read connection:"
                      " %p returns -1, (%d): %s.\n",
                      pconn, errno, strerror(errno));
-                rd = 0;
-                return COF_FAILED;
+                rd = COF_FAILED;
             }
         } else if (!rd) {
             mlog(LL_NONVERBOSE, "Read connection: "
                  "%p, sock: %d returns 0, connection closed...\n",
                  pconn, pconn->sock);
             pconn->connected = false;
-            return COF_CLOSED;
+            rd = COF_CLOSED;
         }
-
-        return rd;
     }
 
-    return COF_INVALID;
+    return rd;
 }
 
 int tcp_connection_write(connection * conn, const char *buf,
@@ -850,15 +848,13 @@ int do_perform_select(connection_group * group)
                                                 pconn->conn.priv);
                     pconn->last_access = get_time_s();
                     switch (ret) {
-                        case COF_CLOSED:{
+                        case COF_CLOSED:
+                        case COF_FAILED: {
                             close_connection(pconn);
-                            break;
                         }
-                        case COF_FAILED:
-                        case COF_FINISHED:{
-                            PDEBUG
-                                    ("remove conn: %p socket: %d, ret: %d...\n",
-                                     pconn, pconn->sock, ret);
+                        case COF_FINISHED:{ //TODO:
+                            PDEBUG("remove conn: %p socket: %d, ret: %d...\n",
+                                   pconn, pconn->sock, ret);
                             FD_CLR(pconn->sock, &rfds);
                             /* close(pconn->sock); */
                             cnt--;
