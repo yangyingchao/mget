@@ -138,6 +138,7 @@ int main(int argc, char *argv[]) {
 
     bool view_only = false;
     int opt = 0;
+    int ret = 0;
 
     file_name fn;
     char *target = NULL;
@@ -273,7 +274,7 @@ int main(int argc, char *argv[]) {
         act.sa_sigaction = sigterm_handler2;
         sigemptyset(&act.sa_mask);
         act.sa_flags = SA_SIGINFO;
-        int ret = sigaction(SIGINT, &act, NULL);
+        ret = sigaction(SIGINT, &act, NULL);
         if (ret == -1) {
             fprintf(stderr, "Failed to install signal handler\n");
         }
@@ -289,6 +290,7 @@ int main(int argc, char *argv[]) {
                 result = start_request(target, &fn, &opts, show_progress, &control_byte,
                                        NULL);
                 if (result == ME_OK || result > ME_DO_NOT_RETRY) {
+                    ret = (int)result;
                     goto next;
                 }
             }
@@ -300,7 +302,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    return 0;
+    return ret;
 }
 
 /*
