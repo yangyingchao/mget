@@ -104,6 +104,7 @@ void print_help() {
         "\t-d:  set folder to store downloaded data.\n",
         "\t-o:  set file name to store downloaded data."
         "If not provided, mget will name it.\n",
+        "\t-I:  request file information only.\n",
         "\t-r:  resume a previous download using stored metadata.\n",
         "\t-u:  set user name.\n", "\t-p:  set user password.\n",
         "\t-s:  show metadata of unfinished task.\n",
@@ -150,7 +151,7 @@ int main(int argc, char *argv[]) {
 
     memset(&fn, 0, sizeof(file_name));
 
-    while ((opt = getopt(argc, argv, "hH:j:d:o:r:svu:p:l:L:P:")) != -1) {
+    while ((opt = getopt(argc, argv, "hIH:j:d:o:r:svu:p:l:L:P:")) != -1) {
         switch (opt) {
             case 'h': {
                 print_help();
@@ -175,6 +176,10 @@ int main(int argc, char *argv[]) {
                     opts.max_connections = MAX_NC;
                 }
 
+                break;
+            }
+            case 'I': {
+                opts.informational = true;
                 break;
             }
             case 'H': {

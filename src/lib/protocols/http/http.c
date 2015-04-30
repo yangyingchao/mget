@@ -331,7 +331,12 @@ mget_err process_http_request(dinfo *info, dp_callback cb,
 
 start:;
     metadata *md = info->md;
+    if (opts->informational)  {
+        goto ret;
+    }
+
     metadata_display(md);
+
 
 restart:
     dinfo_sync(info);

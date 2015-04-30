@@ -523,8 +523,11 @@ Error in server response, closing control ftp_connection.\n"));
     return NULL;
 }
 
-mget_err process_ftp_request(dinfo * info,
-                             dp_callback cb, bool * cflag, void *user_data)
+mget_err process_ftp_request(dinfo* info,
+                             dp_callback cb,
+                             bool* cflag,
+                             mget_option* opts,
+                             void*user_data)
 {
     PDEBUG("enter\n");
 
@@ -583,6 +586,10 @@ mget_err process_ftp_request(dinfo * info,
 
   start:;
     metadata *md = info->md;
+    if (opts->informational)   {
+        goto ret;
+    }
+
     metadata_display(md);
 
     dinfo_sync(info);
