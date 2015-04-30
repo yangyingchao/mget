@@ -73,6 +73,7 @@ typedef struct _mget_option {
 	int limit;
 	log_level ll;
 	host_cache_type hct;
+    bool informational;
 
     struct mget_proxy {
         bool  enabled;
