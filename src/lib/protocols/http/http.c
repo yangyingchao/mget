@@ -1009,26 +1009,26 @@ static url_info* add_proxy(url_info* ui, const struct mget_proxy* proxy)
 
 static bool setup_proxy(hcontext* context)
 {
-    if (!HAS_PROXY(&context->opts->proxy) || context->proxy_ready)
-        return true;
+    bool ret = true;
+    if (HAS_PROXY(&context->opts->proxy) && !context->proxy_ready) {
+        url_info* ui = context->info->ui;
+        const struct mget_proxy* proxy = &context->opts->proxy;
 
-    url_info* ui = context->info->ui;
-    const struct mget_proxy* proxy = &context->opts->proxy;
-    bool ret = false;
-
-    /* When using SSL over proxy, CONNECT establishes a direct
-       connection to the HTTPS server.  Therefore use the same
-       argument as when talking to the server directly. */
-    if (ui->eprotocol == HTTP) {
-        url_info* new = add_proxy(ui, proxy);
-        if (new) {
-            url_info_destroy(context->info->ui);
-            context->info->ui  = new;
-            context->uri = new->uri;
-            ret = true;
+        /* When using SSL over proxy, CONNECT establishes a direct
+           connection to the HTTPS server.  Therefore use the same
+           argument as when talking to the server directly. */
+        if (ui->eprotocol == HTTP) {
+            url_info* new = add_proxy(ui, proxy);
+            if (new) {
+                url_info_destroy(context->info->ui);
+                context->info->ui  = new;
+                context->uri = new->uri;
+            }
+            else {
+                ret = false;
+            }
         }
     }
-
     context->conn = get_proxied_connection(context);
     return ret;
 }
