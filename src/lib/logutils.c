@@ -22,7 +22,7 @@
 #include <stdarg.h>
 #include <string.h>
 
-log_level g_log_level = LL_NOTQUIET;
+log_level g_log_level = DEFAULT;
 
 void mlog(log_level o, const char *fmt, ...)
 {
@@ -80,11 +80,11 @@ void dump_buffer(const char *tip, const unsigned char *buf, int max)
     int w = l - i > 1 ? 0x10 : max;
     const unsigned char *ptr = buf;
     char out[78];
-    mlog(LL_DEBUG, tip);
+    mlog(DEBUG, tip);
     for (; i < l; ++i, w = l - i > 1 ? 0x10 : max - 0x10 * i) {
         memset(out, 0, 78);
         dump_line(ptr, w, i, out);
-        mlog(LL_DEBUG, "\t%s", out);
+        mlog(DEBUG, "\t%s", out);
         ptr += w;
     }
 }

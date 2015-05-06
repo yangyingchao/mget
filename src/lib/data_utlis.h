@@ -68,7 +68,7 @@ bool hash_table_update(hash_table * table, char *key, void *val,
 void *hash_table_entry_get(hash_table * table, const char *key);
 
 #define HASH_ENTRY_GET(T, H, K) (T*)hash_table_entry_get((H),(K))
-#define HASH_TABLE_INSERT(T, K, V, L) \
+#define HASH_TABLE_INSERT(T, K, V, L)               \
     hash_table_insert((T), (K), (V), (uint32)(L))
 
 /**

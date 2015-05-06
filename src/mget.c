@@ -147,7 +147,7 @@ int main(int argc, char *argv[]) {
     mget_option opts;
     memset(&opts, 0, sizeof(mget_option));
     opts.max_connections = -1;
-    opts.ll = LL_NONVERBOSE;
+    opts.ll = DEFAULT;
 
     memset(&fn, 0, sizeof(file_name));
 
@@ -205,8 +205,8 @@ int main(int argc, char *argv[]) {
                 break;
             }
             case 'l': {
-                int dl = ((int)LL_ALWAYS) - atoi(optarg);  // debug level
-                if (dl < 0) dl = LL_INVLID;
+                int dl = ((int)ALWAYS) - atoi(optarg);  // debug level
+                if (dl < 0) dl = INVLID;
                 opts.ll = ((log_level)dl);
                 break;
             }

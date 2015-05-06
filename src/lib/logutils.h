@@ -39,7 +39,7 @@ void dump_buffer(const char *tip, const unsigned char *buf, int max);
         char* msg = NULL;                                   \
         masprintf(&msg, "mget: - %s:%d, %s: %s",            \
                   __FILE__, __LINE__,__FUNCTION__, fmt);    \
-        mlog(LL_DEBUG, msg, ##  __VA_ARGS__);               \
+        mlog(DEBUG, msg, ##  __VA_ARGS__);               \
         free(msg);                                          \
     } while(0)
 #endif				/*End of if PDEBUG */

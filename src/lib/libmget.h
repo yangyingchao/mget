@@ -51,12 +51,12 @@ typedef enum {
 } mget_err;
 
 typedef enum _log_level {
-	LL_DEBUG = 1,
-	LL_VERBOSE = 3,
-	LL_NOTQUIET = 5,
-	LL_NONVERBOSE = 7,
-	LL_ALWAYS = 9,
-	LL_INVLID = 0xFFFFFFFF
+	DEBUG   = 1,
+	VERBOSE = 3,
+	QUIET   = 5,
+    DEFAULT = 7,
+	ALWAYS  = 9,
+	INVLID  = 0xFFFFFFFF
 } log_level;
 
 typedef enum _host_cache_type {

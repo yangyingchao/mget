@@ -52,7 +52,7 @@ fhandle *fhandle_create(const char *fn, FHM mode)
         return fh;
     }
 
-  err:
+err:
     PDEBUG("err..\n");
 
     if (fh) {
@@ -221,7 +221,7 @@ bool get_full_path(const file_name * fn, char **final)
 
     PDEBUG("final: %s\n", *final);
 
-  ret:
+ret:
     return ret;
 }
 

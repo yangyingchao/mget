@@ -56,15 +56,15 @@ mget_err start_request(const char* url, const file_name* fn, mget_option* opt,
     }
 
     protocol_handler handler =
-        (protocol_handler) hash_table_entry_get(g_handlers,
-                                                info->ui->protocol);
+            (protocol_handler) hash_table_entry_get(g_handlers,
+                                                    info->ui->protocol);
     if (!handler) {
         fprintf(stderr, "Protocol: %s is not supported...\n",
                 info->ui->protocol);
         return ME_NOT_SUPPORT;
     }
 
-    mlog(LL_ALWAYS, "Using internal %s handler...\n", info->ui->protocol);
+    mlog(ALWAYS, "Using internal %s handler...\n", info->ui->protocol);
 
     if (opt->limit > 0)
         set_global_bandwidth(opt->limit);

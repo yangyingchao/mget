@@ -131,7 +131,7 @@ int http_read_sock(connection* conn, void* priv)
             case 307:{
                 char *loc = (char*) hash_table_entry_get(param->ht, "location");
                 if (dinfo_update_url(param->info, loc)) {
-                    mlog(LL_ALWAYS, "url updated to :%s\n", loc);
+                    mlog(ALWAYS, "url updated to :%s\n", loc);
                     return COF_CLOSED;
                 } else {
                     printf("Server returns 302, but failed to"
@@ -162,7 +162,7 @@ int http_read_sock(connection* conn, void* priv)
         if (dp->cur_pos == dp->end_pos)
             goto ret;
         else if (dp->cur_pos == dp->end_pos)
-            mlog(LL_ALWAYS, "Wrong data: dp: %p : %llX -- %llX\n",
+            mlog(ALWAYS, "Wrong data: dp: %p : %llX -- %llX\n",
                  dp, dp->cur_pos, dp->end_pos);
     }
 
@@ -184,7 +184,7 @@ int http_read_sock(connection* conn, void* priv)
     } else {
         PDEBUG("read returns %d\n", rd);
         if (errno != EAGAIN) {
-            mlog(LL_ALWAYS, "read returns %d: %s\n", rd, strerror(errno));
+            mlog(ALWAYS, "read returns %d: %s\n", rd, strerror(errno));
             rd = COF_ABORT;
             metadata_display(param->md);
         }
@@ -265,7 +265,7 @@ mget_err process_http_request(dinfo *info, dp_callback cb,
     uint64      total = get_remote_file_size(info->ui, &ht, &context);
 
     if (!ht) {
-        mlog(LL_ALWAYS, "Failed to parse http response..\n");
+        mlog(ALWAYS, "Failed to parse http response..\n");
         return ME_RES_ERR;
     }
 
@@ -421,7 +421,7 @@ static char *generate_request_header(const char* method,
                 VERSION_STRING,
                 uri_host);
 
-    mlog(LL_NONVERBOSE,
+    mlog(QUIET,
          "\n---request begin---\n%s---request end---\n", buffer);
     return strdup(buffer);
 }
@@ -598,12 +598,12 @@ uint64 get_remote_file_size(url_info* ui,
         case 200: {
             ptr = (char *) hash_table_entry_get(*ht, "content-length");
             if (!ptr) {
-                mlog(LL_ALWAYS, "Content Length not returned!\n");
+                mlog(ALWAYS, "Content Length not returned!\n");
                 t = 0;
                 goto show_rsp;
             }
 
-            mlog(LL_NONVERBOSE,
+            mlog(QUIET,
                  "Not sure if server supports Content-Range,"
                  " Will not use multi-connections..\n");
             PDEBUG("Content-Length: %s\n", ptr);
@@ -616,17 +616,17 @@ uint64 get_remote_file_size(url_info* ui,
         default: {
             t = -1;
             if (stat >= 400 && stat < 511) {
-                mlog(LL_ALWAYS, "Server returns %d for HTTP request\n",
+                mlog(ALWAYS, "Server returns %d for HTTP request\n",
                      stat);
             } else if (stat == 511) {
-                mlog(LL_ALWAYS, "Network Authentication Required"
+                mlog(ALWAYS, "Network Authentication Required"
                      "(%d)..\n", stat);
             } else {
-                mlog(LL_ALWAYS, "Not implemented for status code: %d\n",
+                mlog(ALWAYS, "Not implemented for status code: %d\n",
                      stat);
             }
       show_rsp:
-            mlog(LL_NOTQUIET, "Detail Responds: %s\n", context->bq->p);
+            mlog(QUIET, "Detail Responds: %s\n", context->bq->p);
             goto ret;
         }
     }
@@ -677,12 +677,12 @@ char* get_suggested_name(const char* dis)
     FIF(tmp);
 
     if (fn && !(*fn)) {
-        mlog(LL_NOTQUIET, "Sadly, we can't parse filename: %s\n",
+        mlog(QUIET, "Sadly, we can't parse filename: %s\n",
              dis);
         FIFZ(&fn);
     }
     else {
-        mlog(LL_ALWAYS, "Renaming file name to: %s\n", fn);
+        mlog(ALWAYS, "Renaming file name to: %s\n", fn);
     }
 
     return fn;
@@ -743,7 +743,7 @@ read_chunk_size:
 
         size_t total =  bq->w - bq->r - 2;
         if (!(safe_write(fd, (char*)bq->r, total))) { // exclude \r\n
-            mlog(LL_NONVERBOSE,
+            mlog(QUIET,
                  "Failed to write to fd: %d, error: %d -- %s\n",
                  fd, errno, strerror(errno));
             return ME_RES_ERR;
@@ -821,7 +821,7 @@ retry:
 
 mget_err process_request_single_form(hcontext* context)
 {
-    mlog(LL_VERBOSE, "entering single form\n");
+    mlog(VERBOSE, "entering single form\n");
     connection* conn = context->conn;
     if (!conn) {
   retry:
@@ -869,13 +869,13 @@ mget_err process_request_single_form(hcontext* context)
             }
             default:{
                 if (state >= 400 && state < 511) {
-                    mlog(LL_ALWAYS, "Server returns %d for HTTP request\n",
+                    mlog(ALWAYS, "Server returns %d for HTTP request\n",
                          state);
                 } else if (state == 511) {
-                    mlog(LL_ALWAYS, "Network Authentication Required"
+                    mlog(ALWAYS, "Network Authentication Required"
                          "(%d)..\n", state);
                 } else {
-                    mlog(LL_ALWAYS, "Not implemented for status code: %d\n",
+                    mlog(ALWAYS, "Not implemented for status code: %d\n",
                          state);
                 }
                 exit(1);
@@ -995,7 +995,7 @@ static url_info* add_proxy(url_info* ui, const struct mget_proxy* proxy)
     sprintf(new->sport, "%d", proxy->port);
 
     if (!ui->furl) {
-        mlog(LL_ALWAYS, "Failed to get url!");
+        mlog(ALWAYS, "Failed to get url!");
         url_info_destroy(new);
         return NULL;
     }
