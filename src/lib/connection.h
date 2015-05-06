@@ -51,11 +51,11 @@ typedef struct _connection connection;
  */
 
 typedef struct _connection_operations {
-	int32(*read) (connection *, char *, uint32, void *);
-	int32(*write) (connection *, const char *, uint32, void *);
-	void (*close) (connection *, void *);
+	int32(*read) (connection*, char*, uint32, void*);
+	int32(*write) (connection*, const char*, uint32, void*);
+	void (*close) (connection*, void*);
 
-    int32 (*save_to_fd)(connection *, int);
+    int32 (*save_to_fd)(connection*, int);
 } connection_operations;
 
 
@@ -95,10 +95,12 @@ void connection_add_to_group(connection_group *, connection *);
   return remained connections if no error occur but processing
   stopped by user.
 */
-int connection_perform(connection_group * group);
+int connection_perform(connection_group* group);
 
-connection *connection_get(const url_info * ui);
-void connection_put(connection * sock);
+connection* connection_get(const url_info * ui);
+void connection_put(connection* sock);
+
+void connection_make_secure(connection* conn);
 
 /** Set global bandwith limit, unit: bps.
  */

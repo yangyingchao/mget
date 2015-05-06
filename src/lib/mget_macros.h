@@ -24,7 +24,6 @@
 #ifndef _MACROS_H_
 #define _MACROS_H_
 
-#define _GNU_SOURCE
 #include <string.h>
 #include <stdlib.h>
 

@@ -19,7 +19,7 @@
  * the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
  * Boston, MA 02110-1301, USA.
  */
-#define _GNU_SOURCE             /* See feature_test_macros(7) */
+
 #include <stdio.h>
 
 #include "logutils.h"
@@ -372,28 +372,11 @@ post_connected:;
         conn->active = true;
         conn->last_access = get_time_s();
         switch (ui->eprotocol) {
-            case UP_HTTPS:
-            {
-#ifdef SSL_SUPPORT
-                ssl_init();
-                if (conn->priv) {
-                    ssl_destroy(conn->priv);
-                }
-                if ((conn->priv = make_socket_secure(conn->sock)) == NULL) {
-                    fprintf(stderr, "Failed to make socket secure\n");
-                    abort();
-                }
-                conn->rco.write = secure_connection_write;
-                conn->rco.read  = secure_connection_read;
-#else
-                fprintf(stderr,
-                        "FATAL: HTTPS requires GnuTLS, which is not installed....\n");
-                abort();
-#endif
+            case HTTPS: {
+                connection_make_secure(&conn->conn);
                 break;
             }
-            default:
-            {
+            default: {
                 conn->rco.write = tcp_connection_write;
                 conn->rco.read = tcp_connection_read;
                 break;
@@ -402,6 +385,10 @@ post_connected:;
         conn->rco.save_to_fd = connection_save_to_fd;
         conn->conn.co.write = mget_connection_write;
         conn->conn.co.read = mget_connection_read;
+
+        PDEBUG ("C: %p, P: %p, W: %p, R: %p\n",
+                conn,
+                &conn->rco,conn->rco.write, conn->rco.read);
         goto ret;
     }
 
@@ -991,6 +978,8 @@ int mget_connection_write(connection * conn, const char *buf,
     // do nothing but invoke real writer..
     connection_p *pconn = (connection_p *) conn;
     if (pconn && pconn->sock && buf) {
+        PDEBUG ("C: %p, P: %p, W: %p, R: %p\n",
+                conn, &pconn->rco, pconn->rco.write, pconn->rco.read);
         return pconn->rco.write(conn, buf, size, priv);
     }
     return 0;
@@ -1035,6 +1024,32 @@ void limit_bandwidth(connection_p* conn, int size)
     chunk = 0;
     ts = cts;
 #endif                          // End of #if 0
+}
+
+void connection_make_secure(connection* conn)
+{
+    if (!conn)
+        return;
+
+#ifdef SSL_SUPPORT
+    connection_p* pconn = (connection_p*)conn;
+    ssl_init();
+    if (pconn->priv) {
+        ssl_destroy(pconn->priv);
+    }
+    if ((pconn->priv = make_socket_secure(pconn->sock)) == NULL) {
+        fprintf(stderr, "Failed to make socket secure\n");
+        abort();
+    }
+    pconn->rco.write = secure_connection_write;
+    pconn->rco.read  = secure_connection_read;
+    PDEBUG ("C: %p, P: %p, W: %p, R: %p\n",
+            conn, &pconn->rco, pconn->rco.write, pconn->rco.read);
+#else
+    fprintf(stderr,
+            "FATAL: HTTPS requires GnuTLS, which is not installed....\n");
+    abort();
+#endif
 }
 
 /*

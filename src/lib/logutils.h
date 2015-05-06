@@ -37,7 +37,7 @@ void dump_buffer(const char *tip, const unsigned char *buf, int max);
 #define PDEBUG(fmt, ...)                                    \
     do {                                                    \
         char* msg = NULL;                                   \
-        masprintf(&msg, "mget: - %s(%d)-%s: %s",            \
+        masprintf(&msg, "mget: - %s:%d, %s: %s",            \
                   __FILE__, __LINE__,__FUNCTION__, fmt);    \
         mlog(LL_DEBUG, msg, ##  __VA_ARGS__);               \
         free(msg);                                          \

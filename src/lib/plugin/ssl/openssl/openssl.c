@@ -182,7 +182,7 @@ int secure_socket_write(int sk, char *buf, uint32 size, void *priv)
     return r;
 }
 
-void *make_socket_secure(int sock)
+void* make_socket_secure(int sock)
 {
     PDEBUG("enter with sock: %d\n", sock);
 

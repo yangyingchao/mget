@@ -456,7 +456,7 @@ Error in server response, closing control ftp_connection.\n"));
 
     url_info ui;
     memset(&ui, 0, sizeof(url_info));
-    ui.eprotocol = UP_FTP;
+    ui.eprotocol = FTP;
     ui.addr = &passive_addr;
     ui.port = passive_port;
 
