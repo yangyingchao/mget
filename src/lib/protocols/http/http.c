@@ -59,6 +59,7 @@ typedef struct _connection_operation_param {
 
 struct http_request_context {
     bool        can_split;
+    bool        proxy_ready;
     bool*       cflag;                  // control flag
     byte_queue* bq;
     htxtype     type;
@@ -100,8 +101,8 @@ static char *generate_request_header(const char*, const char*, const char*,
                                      bool, uint64, uint64);
 static int get_response_for_header(connection*, byte_queue*, const char*,
                                    hash_table**);
-static url_info* add_proxy(url_info*, const struct mget_proxy*);
-
+static bool setup_proxy(hcontext* context);
+static connection* get_proxied_connection(hcontext* context);
 
 
 int http_read_sock(connection* conn, void* priv)
@@ -130,7 +131,7 @@ int http_read_sock(connection* conn, void* priv)
             case 307:{
                 char *loc = (char*) hash_table_entry_get(param->ht, "location");
                 if (dinfo_update_url(param->info, loc)) {
-                    mlog(LL_ALWAYS, "url updated to :%s\n", loc);
+                    mlog(ALWAYS, "url updated to :%s\n", loc);
                     return COF_CLOSED;
                 } else {
                     printf("Server returns 302, but failed to"
@@ -161,7 +162,7 @@ int http_read_sock(connection* conn, void* priv)
         if (dp->cur_pos == dp->end_pos)
             goto ret;
         else if (dp->cur_pos == dp->end_pos)
-            mlog(LL_ALWAYS, "Wrong data: dp: %p : %llX -- %llX\n",
+            mlog(ALWAYS, "Wrong data: dp: %p : %llX -- %llX\n",
                  dp, dp->cur_pos, dp->end_pos);
     }
 
@@ -183,7 +184,7 @@ int http_read_sock(connection* conn, void* priv)
     } else {
         PDEBUG("read returns %d\n", rd);
         if (errno != EAGAIN) {
-            mlog(LL_ALWAYS, "read returns %d: %s\n", rd, strerror(errno));
+            mlog(ALWAYS, "read returns %d: %s\n", rd, strerror(errno));
             rd = COF_ABORT;
             metadata_display(param->md);
         }
@@ -198,7 +199,7 @@ ret:
     return rd;
 }
 
-int http_write_sock(connection * conn, void *priv)
+int http_write_sock(connection* conn, void *priv)
 {
     PDEBUG("enter\n");
     if (!priv) {
@@ -245,19 +246,14 @@ mget_err process_http_request(dinfo *info, dp_callback cb,
     };
 
     PDEBUG ("Proxy enabled: %d, host: %s\n", opts->proxy.enabled, opts->proxy.server);
-    if (HAS_PROXY(&opts->proxy)) {
-        url_info* new = add_proxy(info->ui, &opts->proxy);
-        if (new) {
-            url_info_destroy(info->ui);
-            info->ui     = new;
-            context.uri = new->uri;
-        }
-        PDEBUG ("new: %p\n", new);
-    }
-
     PDEBUG ("host: %p\n", info->ui->host);
     PDEBUG ("host: %s, uri_host: %s, uri: %s\n",
             info->ui->host, context.uri_host, context.uri);
+    setup_proxy(&context);
+    if (!context.conn) {
+        fprintf(stderr, "Failed to get socket!\n");
+        return ME_CONN_ERR;
+    }
 
     if (dinfo_ready(info)) {
         context.can_split = info->md->hd.package_size != 0;
@@ -265,18 +261,11 @@ mget_err process_http_request(dinfo *info, dp_callback cb,
         goto start;
     }
 
-    url_info *ui = info ? info->ui : NULL;
-    context.conn = connection_get(info->ui);
-    if (!context.conn) {
-        fprintf(stderr, "Failed to get socket!\n");
-        return ME_CONN_ERR;
-    }
-
     hash_table *ht    = NULL;
     uint64      total = get_remote_file_size(info->ui, &ht, &context);
 
     if (!ht) {
-        mlog(LL_ALWAYS, "Failed to parse http response..\n");
+        mlog(ALWAYS, "Failed to parse http response..\n");
         return ME_RES_ERR;
     }
 
@@ -295,7 +284,7 @@ mget_err process_http_request(dinfo *info, dp_callback cb,
         }
     }
 
-    ui = context.info->ui; // ui maybe changed ...
+    url_info *ui = context.info->ui; // ui maybe changed ...
     // try to get file name from http header..
     char *fn = NULL;
     if (info->md->hd.update_name) {
@@ -409,10 +398,11 @@ static char *generate_request_header(const char* method,
                 "%s %s HTTP/1.1\r\n"
                 "User-Agent: mget(%s)\r\n"
                 "Host: %s\r\n"
-                "Accept: *\r\n"
+                "Accept: */*\r\n"
                 "Connection: Keep-Alive\r\n"
-                "Keep-Alive: timeout=600\r\n"
-                "Range: bytes=%" PRIu64 "-%" PRIu64 "\r\n\r\n",
+                "Proxy-Connection: Keep-Alive\r\n"
+                "Range: bytes=%" PRIu64 "-%" PRIu64 "\r\n"
+                "\r\n",
                 method, uri,
                 VERSION_STRING,
                 uri_host,
@@ -423,18 +413,20 @@ static char *generate_request_header(const char* method,
                 "%s %s HTTP/1.1\r\n"
                 "User-Agent: mget(%s)\r\n"
                 "Host: %s\r\n"
-                "Accept: *\r\n"
+                "Accept: */*\r\n"
                 "Connection: Keep-Alive\r\n"
-                "Keep-Alive: timeout=600\r\n\r\n",
+                "Proxy-Connection: Keep-Alive\r\n"
+                "\r\n",
                 method, uri,
                 VERSION_STRING,
                 uri_host);
 
-    PDEBUG ("hd: %s\n", buffer);
+    mlog(QUIET,
+         "\n---request begin---\n%s---request end---\n", buffer);
     return strdup(buffer);
 }
 
-static int dissect_header(byte_queue * bq, hash_table ** ht)
+static int dissect_header(byte_queue* bq, hash_table** ht)
 {
     if (!ht || !bq || !bq->r) {
         return -1;
@@ -590,18 +582,10 @@ uint64 get_remote_file_size(url_info* ui,
             if (loc && parse_url(loc, &nui)) {
                 url_info_copy(ui, nui);
                 url_info_destroy(nui);
-                if (HAS_PROXY(&context->opts->proxy)) {
-                    url_info* new = add_proxy(ui, &context->opts->proxy);
-                    if (new) {
-                        url_info_destroy(ui);
-                        ui           = new;
-                        context->uri = new->uri;
-                    }
-                    PDEBUG ("new: %p\n", new);
-                }
-                else {
+                connection* conn = get_proxied_connection(context);
+                if (conn) {
                     connection_put(context->conn);
-                    context->conn = connection_get(ui);
+                    context->conn = conn;
                 }
                 bq_reset(context->bq);
                 context->info->ui = ui;
@@ -614,12 +598,12 @@ uint64 get_remote_file_size(url_info* ui,
         case 200: {
             ptr = (char *) hash_table_entry_get(*ht, "content-length");
             if (!ptr) {
-                mlog(LL_ALWAYS, "Content Length not returned!\n");
+                mlog(ALWAYS, "Content Length not returned!\n");
                 t = 0;
                 goto show_rsp;
             }
 
-            mlog(LL_NONVERBOSE,
+            mlog(QUIET,
                  "Not sure if server supports Content-Range,"
                  " Will not use multi-connections..\n");
             PDEBUG("Content-Length: %s\n", ptr);
@@ -632,17 +616,17 @@ uint64 get_remote_file_size(url_info* ui,
         default: {
             t = -1;
             if (stat >= 400 && stat < 511) {
-                mlog(LL_ALWAYS, "Server returns %d for HTTP request\n",
+                mlog(ALWAYS, "Server returns %d for HTTP request\n",
                      stat);
             } else if (stat == 511) {
-                mlog(LL_ALWAYS, "Network Authentication Required"
+                mlog(ALWAYS, "Network Authentication Required"
                      "(%d)..\n", stat);
             } else {
-                mlog(LL_ALWAYS, "Not implemented for status code: %d\n",
+                mlog(ALWAYS, "Not implemented for status code: %d\n",
                      stat);
             }
       show_rsp:
-            mlog(LL_NOTQUIET, "Detail Responds: %s\n", context->bq->p);
+            mlog(QUIET, "Detail Responds: %s\n", context->bq->p);
             goto ret;
         }
     }
@@ -693,12 +677,12 @@ char* get_suggested_name(const char* dis)
     FIF(tmp);
 
     if (fn && !(*fn)) {
-        mlog(LL_NOTQUIET, "Sadly, we can't parse filename: %s\n",
+        mlog(QUIET, "Sadly, we can't parse filename: %s\n",
              dis);
         FIFZ(&fn);
     }
     else {
-        mlog(LL_ALWAYS, "Renaming file name to: %s\n", fn);
+        mlog(ALWAYS, "Renaming file name to: %s\n", fn);
     }
 
     return fn;
@@ -717,6 +701,7 @@ static long get_chunk_size(byte_queue* bq, int* consumed)
 
 static mget_err receive_chunked_data(hcontext* context)
 {
+    PDEBUG ("enter.\n");
     int         fd   = fm_get_fd(context->info->fm_file);
     byte_queue* bq   = context->bq;
     connection* conn = context->conn;
@@ -758,7 +743,7 @@ read_chunk_size:
 
         size_t total =  bq->w - bq->r - 2;
         if (!(safe_write(fd, (char*)bq->r, total))) { // exclude \r\n
-            mlog(LL_NONVERBOSE,
+            mlog(QUIET,
                  "Failed to write to fd: %d, error: %d -- %s\n",
                  fd, errno, strerror(errno));
             return ME_RES_ERR;
@@ -774,6 +759,7 @@ read_chunk_size:
 
 static mget_err receive_limited_data(hcontext* context)
 {
+    PDEBUG ("enter.\n");
     uint64      pending = context->info->md->hd.package_size;
     int         fd      = fm_get_fd(context->info->fm_file);
     byte_queue* bq      = context->bq;
@@ -835,10 +821,11 @@ retry:
 
 mget_err process_request_single_form(hcontext* context)
 {
+    mlog(VERBOSE, "entering single form\n");
     connection* conn = context->conn;
     if (!conn) {
   retry:
-        conn = connection_get(context->info->ui);
+        conn = get_proxied_connection(context);
         if (!conn)
             return ME_RES_ERR;
 
@@ -870,18 +857,10 @@ mget_err process_request_single_form(hcontext* context)
                 if (loc && parse_url(loc, &nui)) {
                     url_info_copy(context->info->ui, nui);
                     url_info_destroy(nui);
-                    if (HAS_PROXY(&context->opts->proxy)) {
-                        url_info* new = add_proxy(context->info->ui, &context->opts->proxy);
-                        if (new) {
-                            url_info_destroy(context->info->ui);
-                            context->info->ui  = new;
-                            context->uri = new->uri;
-                        }
-                        PDEBUG ("new: %p\n", new);
-                    }
-                    else {
+                    connection* conn = get_proxied_connection(context);
+                    if (conn) {
                         connection_put(context->conn);
-                        context->conn = connection_get(context->info->ui);
+                        context->conn = conn;
                     }
                     bq_reset(context->bq);
                     goto retry;
@@ -890,13 +869,13 @@ mget_err process_request_single_form(hcontext* context)
             }
             default:{
                 if (state >= 400 && state < 511) {
-                    mlog(LL_ALWAYS, "Server returns %d for HTTP request\n",
+                    mlog(ALWAYS, "Server returns %d for HTTP request\n",
                          state);
                 } else if (state == 511) {
-                    mlog(LL_ALWAYS, "Network Authentication Required"
+                    mlog(ALWAYS, "Network Authentication Required"
                          "(%d)..\n", state);
                 } else {
-                    mlog(LL_ALWAYS, "Not implemented for status code: %d\n",
+                    mlog(ALWAYS, "Not implemented for status code: %d\n",
                          state);
                 }
                 exit(1);
@@ -937,14 +916,14 @@ mget_err process_request_multi_form(hcontext* ctx)
     metadata*    md   = info->md;
     data_chunk  *dp   = md->ptrs->body;
     url_info*    ui   = ctx->info->ui;
-
+    connection*  conn = ctx->conn;
     for (int i = 0; i < md->hd.nr_effective; ++i, ++dp) {
         if (dp->cur_pos >= dp->end_pos) {
             continue;
         }
 
         need_request = true;
-        connection*  conn = connection_get(ui);
+        conn = conn ? conn : get_proxied_connection(ctx);
         if (!conn) {
             fprintf(stderr, "Failed to create connection!!\n");
             err = ME_RES_ERR; // @todo: clean up resource..
@@ -1004,11 +983,11 @@ static url_info* add_proxy(url_info* ui, const struct mget_proxy* proxy)
     url_info* new = ZALLOC1(url_info);
     new->host = strdup(proxy->server); // needs to update this.
     if (proxy->encrypted) {
-        new->eprotocol = UP_HTTPS;
+        new->eprotocol = HTTPS;
         sprintf(new->protocol, "https");
     }
     else {
-        new->eprotocol = UP_HTTP;
+        new->eprotocol = HTTP;
         sprintf(new->protocol, "http");
     }
 
@@ -1016,7 +995,7 @@ static url_info* add_proxy(url_info* ui, const struct mget_proxy* proxy)
     sprintf(new->sport, "%d", proxy->port);
 
     if (!ui->furl) {
-        mlog(LL_ALWAYS, "Failed to get url!");
+        mlog(ALWAYS, "Failed to get url!");
         url_info_destroy(new);
         return NULL;
     }
@@ -1026,6 +1005,66 @@ static url_info* add_proxy(url_info* ui, const struct mget_proxy* proxy)
     new->bname = strdup(ui->bname);
 
     return new;
+}
+
+static bool setup_proxy(hcontext* context)
+{
+    bool ret = true;
+    if (HAS_PROXY(&context->opts->proxy) && !context->proxy_ready) {
+        url_info* ui = context->info->ui;
+        const struct mget_proxy* proxy = &context->opts->proxy;
+
+        /* When using SSL over proxy, CONNECT establishes a direct
+           connection to the HTTPS server.  Therefore use the same
+           argument as when talking to the server directly. */
+        if (ui->eprotocol == HTTP) {
+            url_info* new = add_proxy(ui, proxy);
+            if (new) {
+                url_info_destroy(context->info->ui);
+                context->info->ui  = new;
+                context->uri = new->uri;
+            }
+            else {
+                ret = false;
+            }
+        }
+    }
+    context->conn = get_proxied_connection(context);
+    return ret;
+}
+
+static connection* get_proxied_connection(hcontext* context)
+{
+    if (!HAS_PROXY(&context->opts->proxy))
+        return connection_get(context->info->ui);
+
+    url_info*   ui   = context->info->ui;
+    url_info*   new  = add_proxy(context->info->ui, &context->opts->proxy);
+    connection* conn = conn = connection_get(new);;
+
+    if ((context->info->ui->eprotocol) == HTTPS) {
+        url_info_destroy(new);
+        hash_table* ht = NULL;
+        char* host = format_string("%s:%u", ui->host, ui->port);
+        char *hd = generate_request_header("CONNECT", host, host,
+                                           false, 0, 1);
+        free(host);
+        int stat = get_response_for_header(conn, context->bq, hd, &ht);
+        free(hd);
+        if (ht)
+            hash_table_destroy(ht);
+
+        if (stat == 200) {
+            connection_make_secure(conn);
+        }
+        else {
+            connection_put(conn);
+            conn = NULL;
+        }
+    }
+
+    PDEBUG ("return conn: %p\n", conn);
+    return conn;
 }
 
 /*

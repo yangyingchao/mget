@@ -73,7 +73,7 @@ uerr_t get_remote_file_size_ftp(dinfo * info, ftp_connection * conn,
     /* First: Establish the control ftp_connection, already done.  */
 
     /* Second: Login with proper USER/PASS sequence.  */
-    mlog(LL_VERBOSE, "Logging in as %s ... \n", info->md->ptrs->user);
+    mlog(VERBOSE, "Logging in as %s ... \n", info->md->ptrs->user);
 
     uerr_t err =
         ftp_login(conn, info->md->ptrs->user, info->md->ptrs->passwd);
@@ -264,7 +264,7 @@ static int ftp_read_sock(connection * conn, void *priv)
     } else {
         PDEBUG("read returns %d\n", rd);
         if (errno != EAGAIN) {
-            mlog(LL_ALWAYS, "read returns %d: %s\n", rd, strerror(errno));
+            mlog(ALWAYS, "read returns %d: %s\n", rd, strerror(errno));
             rd = COF_ABORT;
             metadata_display(param->md);
         }
@@ -456,7 +456,7 @@ Error in server response, closing control ftp_connection.\n"));
 
     url_info ui;
     memset(&ui, 0, sizeof(url_info));
-    ui.eprotocol = UP_FTP;
+    ui.eprotocol = FTP;
     ui.addr = &passive_addr;
     ui.port = passive_port;
 
@@ -647,7 +647,7 @@ mget_err process_ftp_request(dinfo* info,
 
     connection_group *group = connection_group_create(cg_read, cflag);
     if (!group) {
-        mlog(LL_ALWAYS, "Failed to create connection group\n");
+        mlog(ALWAYS, "Failed to create connection group\n");
         return ME_CONN_ERR;
     }
 

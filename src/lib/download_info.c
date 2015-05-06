@@ -204,7 +204,7 @@ bool dinfo_create(const char* url, const file_name* fn,
         if (opt->passwd) {
             pmd->ptrs->passwd = strdup(opt->passwd);
             HASH_TABLE_INSERT(ptrs->ht, K_PASSWD, ptrs->passwd,
-                             strlen(ptrs->fn));
+                              strlen(ptrs->fn));
         }
     }
 
@@ -257,9 +257,9 @@ bool dinfo_update_url(dinfo * info, const char *url)
     hash_table *ht = md->ptrs->ht;
     assert(ht != NULL);
 
-#define DINFO_UPDATE_HASH(K, V)                     \
-    PDEBUG("showing: %s - %s: \n", (K), ((V)));     \
-    if (V)                                          \
+#define DINFO_UPDATE_HASH(K, V)                             \
+    PDEBUG("showing: %s - %s: \n", (K), ((V)));             \
+    if (V)                                                  \
         hash_table_update(ht, (K), (V), (uint32)strlen(V))
 
     DINFO_UPDATE_HASH(K_URL, md->ptrs->url);
@@ -315,9 +315,9 @@ bool dinfo_update_metadata(dinfo * info, uint64 size, const char *fn)
     hash_table *ht = md->ptrs->ht;
     assert(ht != NULL);
 
-#define DINFO_UPDATE_HASH(K, V)                     \
-    PDEBUG("showing: %s - %s: \n", (K), ((V)));     \
-    if (V)                                          \
+#define DINFO_UPDATE_HASH(K, V)                             \
+    PDEBUG("showing: %s - %s: \n", (K), ((V)));             \
+    if (V)                                                  \
         hash_table_update(ht, (K), (V), (uint32)strlen(V))
 
     DINFO_UPDATE_HASH(K_URL, md->ptrs->url);

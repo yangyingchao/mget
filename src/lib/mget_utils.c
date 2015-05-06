@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
+#include <stdarg.h>
 #include <sys/time.h>
 #include <stdlib.h>
 
@@ -169,6 +170,17 @@ void progress_destroy(progress* p)
         return;
     FIF(p->buf);
     FIF(p);
+}
+
+
+char* format_string(const char* fmt, ...)
+{
+    char* result = NULL;
+    va_list ap;
+    va_start(ap, fmt);
+    vasprintf(&result, fmt, ap);
+    va_end(ap);
+    return result;
 }
 
 /*

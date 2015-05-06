@@ -68,7 +68,7 @@ char *fd_read_line(ftp_connection * conn)
         }
     }
 
-    mlog(LL_VERBOSE, "MSG:\n%s\n", bq->r);
+    mlog(VERBOSE, "MSG:\n%s\n", bq->r);
 
     if (p) {
         size_t size = p - bq->r;

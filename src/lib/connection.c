@@ -19,7 +19,7 @@
  * the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
  * Boston, MA 02110-1301, USA.
  */
-#define _GNU_SOURCE             /* See feature_test_macros(7) */
+
 #include <stdio.h>
 
 #include "logutils.h"
@@ -252,7 +252,7 @@ connection *connection_get(const url_info* ui)
         }
 
         if (entry) {
-            mlog(LL_NOTQUIET, "Using cached address...\n");
+            mlog(QUIET, "Using cached address...\n");
             conn->addr = addrentry_to_address(entry);
       connect:
             PDEBUG("Connecting to: %s:%d\n", ui->host, ui->port);
@@ -267,7 +267,7 @@ connection *connection_get(const url_info* ui)
                 goto hint;
             }
         } else {
-            mlog(LL_NOTQUIET, "Can't find cached address..\n");
+            mlog(QUIET, "Can't find cached address..\n");
       hint:;
             address hints;
 
@@ -276,7 +276,7 @@ connection *connection_get(const url_info* ui)
             hints.ai_socktype = SOCK_STREAM;
             hints.ai_flags = 0;
             hints.ai_protocol = 0;
-            mlog(LL_ALWAYS, "Resolving host: %s ...\n", ui->host);
+            mlog(ALWAYS, "Resolving host: %s ...\n", ui->host);
             struct addrinfo *infos = NULL;
             int ret = getaddrinfo(ui->host, ui->sport, &hints, &infos);
 
@@ -344,28 +344,11 @@ post_connected:;
         conn->active = true;
         conn->last_access = get_time_s();
         switch (ui->eprotocol) {
-            case UP_HTTPS:
-            {
-#ifdef SSL_SUPPORT
-                ssl_init();
-                if (conn->priv) {
-                    ssl_destroy(conn->priv);
-                }
-                if ((conn->priv = make_socket_secure(conn->sock)) == NULL) {
-                    fprintf(stderr, "Failed to make socket secure\n");
-                    abort();
-                }
-                conn->rco.write = secure_connection_write;
-                conn->rco.read  = secure_connection_read;
-#else
-                fprintf(stderr,
-                        "FATAL: HTTPS requires GnuTLS, which is not installed....\n");
-                abort();
-#endif
+            case HTTPS: {
+                connection_make_secure(&conn->conn);
                 break;
             }
-            default:
-            {
+            default: {
                 conn->rco.write = tcp_connection_write;
                 conn->rco.read = tcp_connection_read;
                 break;
@@ -374,6 +357,10 @@ post_connected:;
         conn->rco.save_to_fd = connection_save_to_fd;
         conn->conn.co.write = mget_connection_write;
         conn->conn.co.read = mget_connection_read;
+
+        PDEBUG ("C: %p, P: %p, W: %p, R: %p\n",
+                conn,
+                &conn->rco,conn->rco.write, conn->rco.read);
         goto ret;
     }
 
@@ -508,10 +495,10 @@ bool timed_wait(int sock, int type, int delay)
 
     int ret = select(sock + 1, &r, &w, &err, delay == -1 ? NULL : &tv);
     if (ret < 0) {
-        mlog(LL_ALWAYS, "select fail: %s\n", strerror(errno));
+        mlog(ALWAYS, "select fail: %s\n", strerror(errno));
         return false;
     } else if (!ret) {
-        mlog(LL_ALWAYS, "Connection timed out...\n");
+        mlog(ALWAYS, "Connection timed out...\n");
         return false;
     }
 
@@ -599,7 +586,7 @@ int tcp_connection_read(connection * conn, char *buf,
 
         // double check to ensure there are something to read.
         if (!timed_wait(pconn->sock, WT_READ, -1)) {
-            mlog(LL_ALWAYS, "Nothing to read: (%d):%s\n",
+            mlog(ALWAYS, "Nothing to read: (%d):%s\n",
                  errno, strerror(errno));
             abort();
         }
@@ -611,13 +598,13 @@ int tcp_connection_read(connection * conn, char *buf,
             if (errno == EAGAIN) {      // nothing to read, normal if non-blocking
                 rd = COF_AGAIN;
             } else {
-                mlog(LL_ALWAYS, "Read connection:"
+                mlog(ALWAYS, "Read connection:"
                      " %p returns -1, (%d): %s.\n",
                      pconn, errno, strerror(errno));
                 rd = COF_FAILED;
             }
         } else if (!rd) {
-            mlog(LL_NONVERBOSE, "Read connection: "
+            mlog(QUIET, "Read connection: "
                  "%p, sock: %d returns 0, connection closed...\n",
                  pconn, pconn->sock);
             pconn->connected = false;
@@ -731,7 +718,7 @@ bool validate_connection(connection_p * pconn)
 int do_perform_select(connection_group * group)
 {
     if (!(group->type & cg_all)) {
-        mlog(LL_ALWAYS, "Connection timed out...\n");
+        mlog(ALWAYS, "Connection timed out...\n");
         return 0;
     }
 
@@ -811,7 +798,7 @@ int do_perform_select(connection_group * group)
                         FD_SET(pconn->sock, &efds);
                     } else {
                         //@todo: handle this?
-                        mlog(LL_ALWAYS, "Unknown value: %d\n", ret);
+                        mlog(ALWAYS, "Unknown value: %d\n", ret);
                     }
 
                     pconn->last_access = get_time_s();
@@ -881,7 +868,7 @@ int connect_to(int ai_family, int ai_socktype,
 {
     int sock = create_nonblocking_socket();
     if (sock == -1) {
-        mlog(LL_ALWAYS, "Failed to create socket - %s ...\n",
+        mlog(ALWAYS, "Failed to create socket - %s ...\n",
              strerror(errno));
         goto ret;
     }
@@ -916,7 +903,7 @@ char *get_host_key(const char *host, int port)
     char *key = NULL;
     masprintf(&key, "%s:%d", host, port);
     if (!key) {
-        mlog(LL_ALWAYS, "Failed to create host key -- %s: %d\n",
+        mlog(ALWAYS, "Failed to create host key -- %s: %d\n",
              host, port);
         abort();
     }
@@ -929,7 +916,7 @@ int create_nonblocking_socket()
 #if defined(USE_FCNTL)
     int sock = socket(PF_INET, SOCK_STREAM, 0);
     if (sock != -1 && fcntl(sock, F_SETFL, O_NONBLOCK) == -1) {
-        mlog(LL_ALWAYS,
+        mlog(ALWAYS,
              "Failed to make socket (%d) non-blocking: %s ...\n", sock,
              strerror(errno));
         close(sock);
@@ -963,6 +950,8 @@ int mget_connection_write(connection * conn, const char *buf,
     // do nothing but invoke real writer..
     connection_p *pconn = (connection_p *) conn;
     if (pconn && pconn->sock && buf) {
+        PDEBUG ("C: %p, P: %p, W: %p, R: %p\n",
+                conn, &pconn->rco, pconn->rco.write, pconn->rco.read);
         return pconn->rco.write(conn, buf, size, priv);
     }
     return 0;
@@ -1007,6 +996,32 @@ void limit_bandwidth(connection_p* conn, int size)
     chunk = 0;
     ts = cts;
 #endif                          // End of #if 0
+}
+
+void connection_make_secure(connection* conn)
+{
+    if (!conn)
+        return;
+
+#ifdef SSL_SUPPORT
+    connection_p* pconn = (connection_p*)conn;
+    ssl_init();
+    if (pconn->priv) {
+        ssl_destroy(pconn->priv);
+    }
+    if ((pconn->priv = make_socket_secure(pconn->sock)) == NULL) {
+        fprintf(stderr, "Failed to make socket secure\n");
+        abort();
+    }
+    pconn->rco.write = secure_connection_write;
+    pconn->rco.read  = secure_connection_read;
+    PDEBUG ("C: %p, P: %p, W: %p, R: %p\n",
+            conn, &pconn->rco, pconn->rco.write, pconn->rco.read);
+#else
+    fprintf(stderr,
+            "FATAL: HTTPS requires GnuTLS, which is not installed....\n");
+    abort();
+#endif
 }
 
 /*

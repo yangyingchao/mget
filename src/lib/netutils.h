@@ -34,10 +34,10 @@ extern "C" {
 #include <netinet/in.h>
 
 typedef enum _url_protocol {
-	UP_HTTP = 0,
-	UP_HTTPS,
-	UP_FTP,
-	UP_INVALID
+    HTTP = 0,
+    HTTPS,
+    FTP,
+    INVALID
 } url_protocol;
 
 typedef struct {

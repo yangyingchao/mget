@@ -40,7 +40,7 @@ struct _TableEntry {
 static const int HASH_SIZE = 256;
 
 // debug int ptr.
-#define DIP(X, Y)\
+#define DIP(X, Y)                                       \
     PDEBUG (#X": (%p): %X\n", (Y), *((uint32*)(Y)));
 
 
@@ -63,12 +63,12 @@ uint32 StringHashFunction(const char *str)
     return hash % HASH_SIZE;
 }
 
-#define DEL_ENTRY(T, E)                 \
-    do                                  \
-    {                                   \
-        FIF((E)->key);                  \
-        if ((E)->val && (T)->deFunctor) \
-            (T)->deFunctor(entry->val); \
+#define DEL_ENTRY(T, E)                         \
+    do                                          \
+    {                                           \
+        FIF((E)->key);                          \
+        if ((E)->val && (T)->deFunctor)         \
+            (T)->deFunctor(entry->val);         \
     } while (0)
 
 void hash_table_destroy(hash_table * table)
@@ -154,7 +154,7 @@ bool hash_table_insert(hash_table * table, const char *key, void *val,
     return ret;
 }
 
-#define DTB(X, Y)                                                         \
+#define DTB(X, Y)                                                       \
     PDEBUG (X ", table: %p, capacity: %d, occupied: %d\n",Y,Y->capacity, Y->occupied)
 
 bool hash_table_update(hash_table * table, char *key, void *val,
@@ -182,7 +182,7 @@ bool hash_table_update(hash_table * table, char *key, void *val,
                 }
             } else {
                 table->occupied++;
-              fill_slot:
+          fill_slot:
                 entry->key = d_key;
                 entry->val = val;
                 entry->val_len = len;
@@ -286,7 +286,7 @@ size_t dump_hash_table(hash_table * ht, void *buffer, size_t buffer_size)
 hash_table *hash_table_create_from_buffer(void *buffer, uint32 buffer_size)
 {
     if (!buffer || buffer_size <= 3 * sizeof(uint32)) {
-        mlog(LL_NOTQUIET, "Invalid arguments: buffer: %p, size: %d\n",
+        mlog(VERBOSE, "Invalid arguments: buffer: %p, size: %d\n",
              buffer, buffer_size);
         return NULL;
     }
@@ -302,15 +302,15 @@ hash_table *hash_table_create_from_buffer(void *buffer, uint32 buffer_size)
 
     PDEBUG("buffer info: version: %d.%d.%d\n", DIVIDE_VERSION(v));
 
-    log_level lo = LL_INVLID;
+    log_level lo = INVLID;
     if (VER_TO_MAJOR(v) != VERSION_MAJOR)
-        lo = LL_ALWAYS;
+        lo = ALWAYS;
     else if (VER_TO_MINOR(v) != VERSION_MINOR)
-        lo = LL_NONVERBOSE;
+        lo = DEFAULT;
     else if (VER_TO_PATCH(v) != VERSION_PATCH)
-        lo = LL_DEBUG;
+        lo = DEBUG;
 
-    if (lo != LL_INVLID) {
+    if (lo != INVLID) {
         mlog(lo, "Version changed!!!\n"
              " You're reading hash tables of old version!!"
              " -- %u.%u.%u: %u.%u.%u\n", DIVIDE_VERSION(v),
@@ -441,9 +441,9 @@ void lowwer_case(char *p, size_t len)
 }
 
 
- /* This code is public-domain - it is based on libcrypt
-  * placed in the public domain by Wei Dai and other contributors.
-  */
+/* This code is public-domain - it is based on libcrypt
+ * placed in the public domain by Wei Dai and other contributors.
+ */
 
 
 

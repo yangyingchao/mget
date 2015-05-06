@@ -45,6 +45,9 @@ int get_time_s();
 char *stringify_time(uint64 ts);
 char *current_time_str();
 
+// caller should free the returned string using free.
+char* format_string(const char* fmt, ...);
+
 typedef struct _progress progress;
 
 progress* progress_create(int capacity, char* head, char* tail);

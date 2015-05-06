@@ -91,22 +91,22 @@ bool parse_url(const char* url, url_info** ui)
         up->bname = tmp;
     }
 
-    up->eprotocol = UP_INVALID;
+    up->eprotocol = INVALID;
 
     if (strlen(up->protocol) > 0) {
         if (strcasecmp(up->protocol, PROTOCOL_IDENTIFIER_HTTP) == 0) {
-            up->eprotocol = UP_HTTP;
+            up->eprotocol = HTTP;
             if (!up->port) {
                 up->port = DEFAULT_HTTP_PORT;
             }
         } else if (strcasecmp(up->protocol, PROTOCOL_IDENTIFIER_HTTPS) ==
                    0) {
-            up->eprotocol = UP_HTTPS;
+            up->eprotocol = HTTPS;
             if (!up->port) {
                 up->port = DEFAULT_HTTPS_PORT;
             }
         } else if (strcasecmp(up->protocol, PROTOCOL_IDENTIFIER_FTP) == 0) {
-            up->eprotocol = UP_FTP;
+            up->eprotocol = FTP;
             if (!up->port) {
                 up->port = DEFAULT_FTP_PORT;
             }
