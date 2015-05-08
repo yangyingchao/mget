@@ -433,6 +433,19 @@ void bq_destroy(byte_queue* bq)
     }
 }
 
+byte_queue* bq_copy(const byte_queue* bq)
+{
+    byte_queue* copy = NULL;
+    if (bq) {
+        copy = bq_init(bq->x - bq->p);
+        memcpy(copy->p, bq->p, bq->w - bq->p);
+        copy->r += bq->r - bq->p;
+        copy->w += bq->w - bq->p;
+    }
+
+    return copy;
+}
+
 void lowwer_case(char *p, size_t len)
 {
     for (int i = 0; i < len; i++) {

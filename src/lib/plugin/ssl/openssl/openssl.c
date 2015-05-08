@@ -71,7 +71,8 @@ int secure_socket_read(int sk, char *buf, uint32 size, void *priv)
         return -1;
 
     ssl_wrapper *wrapper = (ssl_wrapper *) priv;
-    int bq_size = wrapper->bq->w > wrapper->bq->r;
+    int bq_size = wrapper->bq->w - wrapper->bq->r;
+    PDEBUG ("%p:%p -- %d\n", wrapper->bq->r, wrapper->bq->w, bq_size);
     if (bq_size > 0) {
         int s =  MIN(bq_size, size);
         memcpy(buf, wrapper->bq->r,s);
@@ -95,7 +96,7 @@ read:
         PDEBUG ("buf: %p, size: %d\n", buf, size);
         int tmp = SSL_read(wrapper->ssl, wrapper->bq->w, size);
         wrapper->bq->w += tmp;
-        mlog(DEFAULT, "%d bytes will be dropped..\n", tmp);
+        mlog(DEFAULT, "%d bytes saved in bq..\n", tmp);
     } else
         ret = SSL_read(wrapper->ssl, buf, size);
 
@@ -143,7 +144,6 @@ read:
             bq_enlarge(wrapper->bq, PAGE);
             buf = wrapper->bq->w;
             size = wrapper->bq->x - wrapper->bq->w;
-            mlog(DEFAULT, "Data save to bq\n");
             extended = true;
         }
         goto read;
@@ -247,6 +247,16 @@ void ssl_destroy(void *priv)
     }
 
 }
+
+bool secure_socket_has_more(int sk, void *priv)
+{
+    ssl_wrapper *wrapper = (ssl_wrapper *) priv;
+    PDEBUG ("%d\n", wrapper->bq->w - wrapper->bq->r);
+    if (wrapper && wrapper->bq && (wrapper->bq->w - wrapper->bq->r > 0))
+        return true;
+    return false;
+}
+
 
 /*
  * Editor modelines

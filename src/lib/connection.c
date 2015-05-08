@@ -367,9 +367,9 @@ post_connected:;
         PDEBUG("sock(%d) %p connected to %s. \n", conn->sock, conn,
                conn->host);
 
-        conn->connected = true;
-        conn->port = ui->port;
-        conn->active = true;
+        conn->connected   = true;
+        conn->port        = ui->port;
+        conn->active      = true;
         conn->last_access = get_time_s();
         switch (ui->eprotocol) {
             case HTTPS: {
@@ -378,13 +378,13 @@ post_connected:;
             }
             default: {
                 conn->rco.write = tcp_connection_write;
-                conn->rco.read = tcp_connection_read;
+                conn->rco.read  = tcp_connection_read;
                 break;
             }
         }
         conn->rco.save_to_fd = connection_save_to_fd;
-        conn->conn.co.write = mget_connection_write;
-        conn->conn.co.read = mget_connection_read;
+        conn->conn.co.write  = mget_connection_write;
+        conn->conn.co.read   = mget_connection_read;
 
         PDEBUG ("C: %p, P: %p, W: %p, R: %p\n",
                 conn,
@@ -694,6 +694,15 @@ int secure_connection_write(connection * conn, const char *buf,
     }
     return 0;
 }
+
+bool secure_connection_has_more(connection * conn, void *priv)
+{
+    connection_p *pconn = (connection_p *) conn;
+    if (pconn && pconn->sock && pconn->rco.has_more) {
+        return secure_socket_has_more(pconn->sock, pconn->priv);
+    }
+    return false;
+}
 #endif
 
 /* Return true iff the connection to the remote site established
@@ -743,7 +752,7 @@ bool validate_connection(connection_p * pconn)
         x->connected = false;                   \
     } while (0)
 
-int do_perform_select(connection_group * group)
+int do_perform_select(connection_group* group)
 {
     if (!(group->type & cg_all)) {
         mlog(ALWAYS, "Connection timed out...\n");
@@ -763,6 +772,13 @@ int do_perform_select(connection_group * group)
     slist_head *p;
     SLIST_FOREACH(p, group->lst) {
         connection_p *pconn = LIST2PCONN(p);
+        // make sure no pending data left.
+        if (pconn->rco.has_more) {
+            while (pconn->rco.has_more(&pconn->conn, pconn->priv)) {
+                 pconn->conn.recv_data((connection *) pconn, pconn->conn.priv);
+            }
+        }
+
         if (pconn->sock) {
             if ((group->type & cg_read) && pconn->conn.recv_data)
                 FD_SET(pconn->sock, &rfds);
@@ -812,7 +828,6 @@ int do_perform_select(connection_group * group)
                 if (!pconn->active) {
                     continue;
                 }
-
                 if (FD_ISSET(pconn->sock, &wfds)) {
                     ret = pconn->conn.write_data((connection *) pconn,
                                                  pconn->conn.priv);
@@ -1041,8 +1056,9 @@ void connection_make_secure(connection* conn)
         fprintf(stderr, "Failed to make socket secure\n");
         abort();
     }
-    pconn->rco.write = secure_connection_write;
-    pconn->rco.read  = secure_connection_read;
+    pconn->rco.write    = secure_connection_write;
+    pconn->rco.read     = secure_connection_read;
+    pconn->rco.has_more = secure_connection_has_more;
     PDEBUG ("C: %p, P: %p, W: %p, R: %p\n",
             conn, &pconn->rco, pconn->rco.write, pconn->rco.read);
 #else

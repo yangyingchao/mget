@@ -77,11 +77,34 @@ struct http_request_context {
     void*       user_data;
 };
 
-typedef struct _http_url_info
-{
-    url_info    info;
-    const char* uri_host; // used by http request header.
+typedef struct _http_header {
+    slist_head  lst;
+    char* content;
+} http_header;
+
+
+typedef struct _http_requeset {
+    const char* method;
+    const char* host;
+    const char* uri;
+    slist_head  headers;
 } http_request;
+
+
+
+static const http_request*
+http_request_create(const char*, const char*, const char*, bool, uint64, uint64);
+static void http_request_destroy(const http_request* req);
+
+typedef struct _http_response {
+    int           stat;
+    http_request* req;
+    byte_queue*   bq;
+    hash_table*   ht;
+} http_response;
+
+static void http_response_destroy(const http_response* rsp);
+
 
 #define CALLBACK(X)                             \
     do                                          \
@@ -91,18 +114,16 @@ typedef struct _http_url_info
     } while (0)
 
 
-static int dissect_header(byte_queue*, hash_table**);
-static uint64 get_remote_file_size(url_info*, hash_table**, hcontext*);
+static int parse_respnse(byte_queue*, hash_table**);
+static uint64 get_remote_file_size(url_info*, const http_response**, hcontext*);
 static char* get_suggested_name(const char*);
 static mget_err process_request_single_form(hcontext*);
 static mget_err process_request_multi_form(hcontext*);
 
-static char *generate_request_header(const char*, const char*, const char*,
-                                     bool, uint64, uint64);
-static int get_response_for_header(connection*, byte_queue*, const char*,
-                                   hash_table**);
+static const http_response* get_response(connection*, const http_request* rea);
 static bool setup_proxy(hcontext* context);
 static connection* get_proxied_connection(hcontext* context);
+static size_t request_send(connection*, const http_request*, byte_queue*);
 
 
 int http_read_sock(connection* conn, void* priv)
@@ -119,8 +140,8 @@ int http_read_sock(connection* conn, void* priv)
     int rd = 0;
     void *addr = param->addr + dp->cur_pos;
     if (!param->header_finished) {
-        int stat = get_response_for_header(conn, param->bq, NULL, &param->ht);
-        switch (stat) {
+        const http_response* rsp = get_response(conn, NULL);
+        switch (rsp->stat) {
             case 206:
             case 200:{
                 break;
@@ -144,7 +165,7 @@ int http_read_sock(connection* conn, void* priv)
             }
             default:{
                 fprintf(stderr, "Error occurred, status code is %d!\n",
-                        stat);
+                        rsp->stat);
                 exit(1);
             }
         }
@@ -208,17 +229,15 @@ int http_write_sock(connection* conn, void *priv)
     }
 
     co_param *cp = (co_param *) priv;
-    char *hd = generate_request_header("GET",
-                                       cp->context->uri_host,
-                                       cp->context->uri,
-                                       true,
-                                       cp->dp->cur_pos,
-                                       cp->dp->end_pos);
-    size_t written = conn->co.write(conn, hd, strlen(hd), NULL);
-
+    const http_request* req = http_request_create("GET",
+                                                  cp->context->uri_host,
+                                                  cp->context->uri,
+                                                  true,
+                                                  cp->dp->cur_pos,
+                                                  cp->dp->end_pos);
+    size_t written = request_send(conn, req, NULL);
+    http_request_destroy(req);
     PDEBUG("written: %d\n", written);
-
-    free(hd);
     return COF_FINISHED;
 }
 
@@ -233,7 +252,7 @@ mget_err process_http_request(dinfo *info, dp_callback cb,
         .can_split = false,
         .cflag     = stop_flag,
         .type      = htt_raw,
-        .bq        = bq_init(PAGE),
+        .bq        = NULL,
         .info      = info,
         .cb        = cb,
 
@@ -261,20 +280,21 @@ mget_err process_http_request(dinfo *info, dp_callback cb,
         goto start;
     }
 
-    hash_table *ht    = NULL;
-    uint64      total = get_remote_file_size(info->ui, &ht, &context);
-
-    if (!ht) {
+    const http_response* rsp   = NULL;
+    uint64               total = get_remote_file_size(info->ui, &rsp, &context);
+    if (!rsp || !rsp->ht || !rsp->bq) {
         mlog(ALWAYS, "Failed to parse http response..\n");
         return ME_RES_ERR;
     }
+
+    context.bq = bq_copy(rsp->bq);
 
     if (total == (uint64)-1) {
         info->md->hd.status = RS_DROP;
         return ME_RES_ERR;
     }
     else if (!total) {
-        const char* val = (char*) hash_table_entry_get(ht, "transfer-encoding");
+        const char* val = (char*) hash_table_entry_get(rsp->ht, "transfer-encoding");
         if (val) {
             PDEBUG ("Transer-Encoding is: %s\n", val);
             if (!strcmp(val, "chunked")) {
@@ -288,7 +308,7 @@ mget_err process_http_request(dinfo *info, dp_callback cb,
     // try to get file name from http header..
     char *fn = NULL;
     if (info->md->hd.update_name) {
-        char *dis = hash_table_entry_get(ht, "content-disposition");
+        char *dis = hash_table_entry_get(rsp->ht, "content-disposition");
         PDEBUG("updating name based on disposition: %s\n", dis);
         fn = get_suggested_name(dis);
 
@@ -320,7 +340,7 @@ mget_err process_http_request(dinfo *info, dp_callback cb,
 
 start:;
     metadata *md = info->md;
-    if (opts->informational)  {
+    if (opts->informational) {
         goto ret;
     }
 
@@ -383,50 +403,71 @@ ret:
 
 
 
-static char *generate_request_header(const char* method,
-                                     const char* uri_host,
-                                     const char* uri,
-                                     bool        request_partial,
-                                     uint64      start_pos,
-                                     uint64      end_pos)
+static size_t request_send(connection* conn, const http_request* req, byte_queue* bq)
 {
-    PDEBUG ("enter with: %s -- %s \n", uri_host, uri);
-    static char buffer[PAGE];
-    memset(buffer, 0, PAGE);
-    if (request_partial)
-        sprintf(buffer,
-                "%s %s HTTP/1.1\r\n"
-                "User-Agent: mget(%s)\r\n"
-                "Host: %s\r\n"
-                "Accept: */*\r\n"
-                "Connection: Keep-Alive\r\n"
-                "Proxy-Connection: Keep-Alive\r\n"
-                "Range: bytes=%" PRIu64 "-%" PRIu64 "\r\n"
-                "\r\n",
-                method, uri,
-                VERSION_STRING,
-                uri_host,
-                start_pos,
-                end_pos);
-    else
-        sprintf(buffer,
-                "%s %s HTTP/1.1\r\n"
-                "User-Agent: mget(%s)\r\n"
-                "Host: %s\r\n"
-                "Accept: */*\r\n"
-                "Connection: Keep-Alive\r\n"
-                "Proxy-Connection: Keep-Alive\r\n"
-                "\r\n",
-                method, uri,
-                VERSION_STRING,
-                uri_host);
+    PDEBUG ("enter...\n");
+    size_t written = -1;
+    if (conn && req) {
+        if (!bq)
+            bq = bq_init(PAGE);
+        bq->w += sprintf (bq->w, "%s %s HTTP/1.1\r\n", req->method, req->uri);
 
-    mlog(QUIET,
-         "\n---request begin---\n%s---request end---\n", buffer);
-    return strdup(buffer);
+        slist_head* pr;
+        SLIST_FOREACH(pr, req->headers.next) {
+            bq->w+= sprintf (bq->w, "%s\r\n", ((http_header*)pr)->content);
+        }
+        bq->w += sprintf (bq->w, "\r\n");
+
+        written = conn->co.write(conn, bq->r, bq->w - bq->r, NULL);
+
+        mlog(QUIET,
+             "\n---request begin---\n%s---request end---\n", bq->r);
+
+        bq_reset(bq);
+    }
+
+    return written;
 }
 
-static int dissect_header(byte_queue* bq, hash_table** ht)
+static const http_request* http_request_create(const char* method,
+                                               const char* host,
+                                               const char* uri,
+                                               bool        request_partial,
+                                               uint64      start_pos,
+                                               uint64      end_pos)
+{
+    PDEBUG ("enter with: %s -- %s \n", host, uri);
+    http_request* req = ZALLOC1(http_request);
+    if (!req)
+        return NULL;
+
+    req->method    = method;
+    req->uri       = uri;
+
+    slist_head** p = &req->headers.next;
+
+#define SET_HEADER(X, ...)                                              \
+    do {                                                                \
+        *p = &(ZALLOC1(http_header))->lst;                              \
+        asprintf(&((http_header*)(*p))->content, (X), ## __VA_ARGS__);  \
+        p = &(*p)->next;                                                \
+    } while (0)
+
+    
+    SET_HEADER("User-Agent: mget(%s)", VERSION_STRING);
+    SET_HEADER("Host: %s", host);
+    SET_HEADER("Accept: */*");
+    SET_HEADER("Connection: Keep-Alive");
+    SET_HEADER("Proxy-Connection: Keep-Alive");
+    if (request_partial)
+        SET_HEADER("Range: bytes=%" PRIu64 "-%" PRIu64, start_pos, end_pos);
+
+#undef SET_HEADER
+
+    return req;
+}
+
+static int parse_respnse(byte_queue* bq, hash_table** ht)
 {
     if (!ht || !bq || !bq->r) {
         return -1;
@@ -495,46 +536,59 @@ static int dissect_header(byte_queue* bq, hash_table** ht)
 }
 
 // return http status if success, or -1 if failed.
-int get_response_for_header(connection* conn,
-                            byte_queue* bq,
-                            const char* hd,
-                            hash_table** ht)
+const http_response* get_response(connection* conn, const http_request* req)
 {
     PDEBUG("enter\n");
 
-    if (!conn)
-        return -1;
-    if (!bq)
-        bq = bq_init(PAGE);
+    http_response* rsp = NULL;
 
-    if (hd) {
-        conn->co.write(conn, hd, strlen(hd), NULL);
+    if (!conn)
+        goto out;
+
+    rsp = ZALLOC1(http_response);
+    if (!rsp)
+        goto out;
+
+    rsp->bq = bq_init(PAGE);
+    if (req && (int)request_send(conn, req, rsp->bq) == -1)  {
+        goto err;
     }
 
     char *eptr = NULL;
     do {
-        bq = bq_enlarge(bq, PAGE);
-        size_t rd = conn->co.read(conn, bq->w, bq->x - bq->w, NULL);
+        rsp->bq = bq_enlarge(rsp->bq, PAGE);
+        size_t rd = conn->co.read(conn, rsp->bq->w, rsp->bq->x - rsp->bq->w, NULL);
         if (!rd) {
             PDEBUG("Failed to read from connection(%p),"
                    " connection closed.\n", conn);
             return 0;
         }
 
-        bq->w += rd;
-    } while ((eptr = strstr(bq->r, HEADER_END)) == NULL);
+        rsp->bq->w += rd;
+    } while ((eptr = strstr(rsp->bq->r, HEADER_END)) == NULL);
 
-    PDEBUG ("header: %p -- %p, %s\n", bq->r, eptr, bq->r);
-    int stat = dissect_header(bq, ht);
+    static char buf[PAGE];
+    memcpy(buf, rsp->bq->r, eptr-rsp->bq->r);
+    buf[eptr-rsp->bq->r] = '\0';
+    mlog(QUIET,
+         "\n---response begin---\n%s\n---response end---\n", buf);
+
+    rsp->stat = parse_respnse(rsp->bq, &rsp->ht);
     PDEBUG("stat: %d, description: %s\n",
-           stat, (char *) hash_table_entry_get(*ht, "status"));
-    return stat;
+           rsp->stat, (char *) hash_table_entry_get(rsp->ht, "status"));
+
+    goto out;
+
+err:
+    FIF(rsp);
+out:
+    return rsp;
 }
 
 
 // return size of remote file, or -1 if error occurs, or 0 if size not returned...
 uint64 get_remote_file_size(url_info* ui,
-                            hash_table** ht,
+                            const http_response** rsp,
                             hcontext* context)
 {
     if (!context || !context->conn) {
@@ -543,22 +597,25 @@ uint64 get_remote_file_size(url_info* ui,
 
     PDEBUG("enter, uri_host: %s, uri: %s\n", context->uri_host, context->uri);
 
-    char *hd   = generate_request_header("GET", context->uri_host, context->uri, true, 0, 1);
-    int   stat = get_response_for_header(context->conn,
-                                         context->bq,
-                                         hd, ht);
-    free(hd);
+    const http_request* req   = http_request_create("GET",
+                                                    context->uri_host,
+                                                    context->uri, true, 0, 1);
+    *rsp = get_response(context->conn, req);
+    if (!*rsp)
+        return 0;
 
     int     num = 0;
     char   *ptr = NULL;
     uint64  t   = 0;
+    int stat = (*rsp)->stat;
+    hash_table* ht = (*rsp)->ht;
 
     switch (stat) {
         case 206: { // Ok, we can start download now.
-            ptr = (char *) hash_table_entry_get(*ht, "content-range");
+            ptr = (char *) hash_table_entry_get(ht, "content-range");
             if (!ptr) {
                 fprintf(stderr, "Content Range not returned: %s!\n",
-                        context->bq->p);
+                        (*rsp)->bq->p);
                 t = 0;
                 goto ret;
             }
@@ -574,7 +631,7 @@ uint64 get_remote_file_size(url_info* ui,
         case 302:
         case 303:
         case 307: {
-            char *loc = (char *) hash_table_entry_get(*ht, "location");
+            char *loc = (char *) hash_table_entry_get(ht, "location");
 
             printf("Server returns 302, trying new locations: %s...\n",
                    loc);
@@ -587,16 +644,16 @@ uint64 get_remote_file_size(url_info* ui,
                     connection_put(context->conn);
                     context->conn = conn;
                 }
-                bq_reset(context->bq);
                 context->info->ui = ui;
-                return get_remote_file_size(ui, ht, context);
+                http_response_destroy(*rsp);
+                return get_remote_file_size(ui, rsp, context);
             }
             fprintf(stderr,
                     "Failed to get new location for status code: 302\n");
             break;
         }
         case 200: {
-            ptr = (char *) hash_table_entry_get(*ht, "content-length");
+            ptr = (char *) hash_table_entry_get(ht, "content-length");
             if (!ptr) {
                 mlog(ALWAYS, "Content Length not returned!\n");
                 t = 0;
@@ -626,7 +683,7 @@ uint64 get_remote_file_size(url_info* ui,
                      stat);
             }
       show_rsp:
-            mlog(QUIET, "Detail Responds: %s\n", context->bq->p);
+            mlog(QUIET, "Detail Responds: %s\n", (*rsp)->bq->p);
             goto ret;
         }
     }
@@ -764,8 +821,10 @@ static mget_err receive_limited_data(hcontext* context)
     int         fd      = fm_get_fd(context->info->fm_file);
     byte_queue* bq      = context->bq;
     connection* conn    = context->conn;
-    size_t      length = bq->w - bq->r;
+    size_t      length = 0;
 retry:
+    length = bq->w - bq->r;
+    PDEBUG ("enter, length; %u, pending: %d\n", length, pending);
     if (length > 0) {
         if (!safe_write(fd, (char*)bq->r, length))
             return ME_RES_ERR;
@@ -773,6 +832,7 @@ retry:
         pending -= length;
     }
     if (pending > 0) {
+        PDEBUG ("pending: %d\n", pending);
         int rd = conn->co.read(conn, (char*)bq->w, PAGE, NULL);
         length = rd;
         context->info->md->hd.current_size += length;
@@ -785,6 +845,7 @@ retry:
             return ME_CONN_ERR;
     }
 
+    PDEBUG ("return\n");
     return ME_OK;
 }
 
@@ -830,17 +891,15 @@ mget_err process_request_single_form(hcontext* context)
             return ME_RES_ERR;
 
         context->conn = conn;
-        hash_table* ht = NULL;
-        char* header = generate_request_header("GET", context->uri_host,
-                                               context->uri,
-                                               false, 0, 0);
-        int state = get_response_for_header(context->conn,
-                                            context->bq,
-                                            header, &ht);
-        free(header);
-        if (state == -1)
+        const http_request* req = http_request_create("GET", context->uri_host,
+                                                      context->uri,
+                                                      false, 0, 0);
+        const http_response* rsp = get_response(context->conn, req);
+        int stat = rsp->stat;
+        http_response_destroy(rsp);
+        if (stat == -1)
             return ME_CONN_ERR;
-        switch (state) {
+        switch (stat) {
             case 200:
             case 206: {
                 break;
@@ -849,7 +908,7 @@ mget_err process_request_single_form(hcontext* context)
             case 302:
             case 303:
             case 307:{
-                char *loc = (char *) hash_table_entry_get(ht, "location");
+                char *loc = (char *) hash_table_entry_get(rsp->ht, "location");
                 printf("Server returns 302, trying new locations: %s...\n",
                        loc);
                 url_info *nui = NULL;
@@ -868,15 +927,15 @@ mget_err process_request_single_form(hcontext* context)
                 break;
             }
             default:{
-                if (state >= 400 && state < 511) {
+                if (stat >= 400 && stat < 511) {
                     mlog(ALWAYS, "Server returns %d for HTTP request\n",
-                         state);
-                } else if (state == 511) {
+                         stat);
+                } else if (stat == 511) {
                     mlog(ALWAYS, "Network Authentication Required"
-                         "(%d)..\n", state);
+                         "(%d)..\n", stat);
                 } else {
                     mlog(ALWAYS, "Not implemented for status code: %d\n",
-                         state);
+                         stat);
                 }
                 exit(1);
             }
@@ -1044,27 +1103,50 @@ static connection* get_proxied_connection(hcontext* context)
 
     if ((context->info->ui->eprotocol) == HTTPS) {
         url_info_destroy(new);
-        hash_table* ht = NULL;
         char* host = format_string("%s:%u", ui->host, ui->port);
-        char *hd = generate_request_header("CONNECT", host, host,
-                                           false, 0, 1);
-        free(host);
-        int stat = get_response_for_header(conn, context->bq, hd, &ht);
-        free(hd);
-        if (ht)
-            hash_table_destroy(ht);
-
-        if (stat == 200) {
+        const http_request* req= http_request_create("CONNECT", host, host,
+                                                     false, 0, 1);
+        const http_response* rsp = get_response(conn, req);
+        if (rsp->stat == 200) {
             connection_make_secure(conn);
         }
         else {
             connection_put(conn);
             conn = NULL;
         }
+
+        http_response_destroy(rsp);
     }
 
     PDEBUG ("return conn: %p\n", conn);
     return conn;
+}
+
+static void http_request_destroy(const http_request* req)
+{
+    if (req) {
+        slist_head* p;
+        for (p = req->headers.next; p;) {
+            http_header* h = (http_header*)p;
+            p = p->next;
+            FIF(h->content);
+            FIF(h);
+        }
+        FIF(req);
+    }
+}
+
+static void http_response_destroy(const http_response* rsp)
+{
+    if (rsp) {
+        if (rsp->req)
+            http_request_destroy(rsp->req);
+        if (rsp->bq)
+            bq_destroy(rsp->bq);
+        if (rsp->ht)
+            hash_table_destroy(rsp->ht);
+        FIF(rsp);
+    }
 }
 
 /*

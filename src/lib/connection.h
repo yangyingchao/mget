@@ -51,9 +51,10 @@ typedef struct _connection connection;
  */
 
 typedef struct _connection_operations {
-	int32(*read) (connection*, char*, uint32, void*);
-	int32(*write) (connection*, const char*, uint32, void*);
+	int32 (*read) (connection*, char*, uint32, void*);
+	int32 (*write) (connection*, const char*, uint32, void*);
 	void (*close) (connection*, void*);
+ 	bool (*has_more) (connection*, void*);
 
     int32 (*save_to_fd)(connection*, int);
 } connection_operations;

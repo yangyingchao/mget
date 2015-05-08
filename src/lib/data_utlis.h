@@ -108,6 +108,8 @@ byte_queue *bq_enlarge(byte_queue*, size_t);
 void bq_destroy(byte_queue*);
 void bq_reset(byte_queue*);
 
+byte_queue* bq_copy(const byte_queue* bq);
+
 void lowwer_case(char *p, size_t len);
 
 #ifdef __cplusplus
