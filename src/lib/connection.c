@@ -86,6 +86,7 @@ typedef struct _connection_cache {
     int count;
     slist_head *lst;
 } ccache;
+
 
 
 
@@ -111,6 +112,7 @@ typedef struct _connection_cache {
 host_cache_type g_hct = HC_DEFAULT;
 static hash_table *g_conn_cache = NULL;
 static byte_queue *dq = NULL;   // drop queue
+static hash_table *addr_cache = NULL;
 
 static int bw_limit = -1;       // band-width limit.
 
@@ -165,6 +167,36 @@ static char *get_host_key(const char *host, int port);
 static int create_nonblocking_socket();
 
 
+static void connection_destroy(void* conn)
+{
+    PDEBUG("cleaning connetion: %p\n", conn);
+    connection_p *pconn = (connection_p *) conn;
+    if (pconn->rco.close)
+        (*pconn->rco.close)(conn, pconn->priv);
+
+    FIF(pconn->host);
+    if (pconn->addr)
+        FIF(pconn->addr->ai_addr);
+    FIF(pconn->addr);
+    FIF(pconn);
+}
+
+static void ccache_destroy(void* ptr)
+{
+    if (!ptr)
+        return;
+
+    ccache* cache = (ccache*)ptr;
+    slist_head* p = cache->lst;
+    while (p) {
+        connection_p* pc = LIST2PCONN(p);
+        p = p->next;
+        connection_destroy(pc);
+    }
+
+    FIF(cache);
+}
+
 connection *connection_get(const url_info* ui)
 {
     PDEBUG ("Getting connection for  %s\n", url_info_stringify(ui));
@@ -181,7 +213,7 @@ connection *connection_get(const url_info* ui)
     }
 
     if (!g_conn_cache) {
-        g_conn_cache = hash_table_create(64, free);
+        g_conn_cache = hash_table_create(64, ccache_destroy);
         assert(g_conn_cache);
     }
 
@@ -227,7 +259,6 @@ connection *connection_get(const url_info* ui)
 
   alloc:
         conn = ZALLOC1(connection_p);
-        static hash_table *addr_cache = NULL;
         static shm_region *shm_rptr = NULL;
         if (!addr_cache) {
             if (g_hct == HC_BYPASS)
@@ -339,9 +370,9 @@ post_connected:;
         PDEBUG("sock(%d) %p connected to %s. \n", conn->sock, conn,
                conn->host);
 
-        conn->connected = true;
-        conn->port = ui->port;
-        conn->active = true;
+        conn->connected   = true;
+        conn->port        = ui->port;
+        conn->active      = true;
         conn->last_access = get_time_s();
         switch (ui->eprotocol) {
             case HTTPS: {
@@ -350,13 +381,13 @@ post_connected:;
             }
             default: {
                 conn->rco.write = tcp_connection_write;
-                conn->rco.read = tcp_connection_read;
+                conn->rco.read  = tcp_connection_read;
                 break;
             }
         }
         conn->rco.save_to_fd = connection_save_to_fd;
-        conn->conn.co.write = mget_connection_write;
-        conn->conn.co.read = mget_connection_read;
+        conn->conn.co.write  = mget_connection_write;
+        conn->conn.co.read   = mget_connection_read;
 
         PDEBUG ("C: %p, P: %p, W: %p, R: %p\n",
                 conn,
@@ -378,12 +409,14 @@ ret:
 
 void connection_put(connection * conn)
 {
-    PDEBUG("enter: %p\n", conn);
+    if (!conn)
+        return;
 
     connection_p *pconn = (connection_p *) conn;
     if (!pconn->host) {
         goto clean;
     }
+    pconn->lst.next = NULL;
 
     char *host_key = NULL;
     int ret = asprintf(&host_key, "%s:%d", pconn->host, pconn->port);
@@ -416,12 +449,8 @@ void connection_put(connection * conn)
 
     //@todo: convert this conn_p to connection_p_list and cache it.
 clean:
-    PDEBUG("cleaning connetion: %p\n", pconn);
-
-    FIF(pconn->host);
-    FIF(pconn);
+    connection_destroy(conn);
     PDEBUG("leave with connection cleared...\n");
-
 }
 
 
@@ -666,6 +695,23 @@ int secure_connection_write(connection * conn, const char *buf,
     }
     return 0;
 }
+
+bool secure_connection_has_more(connection * conn, void *priv)
+{
+    connection_p *pconn = (connection_p *) conn;
+    if (pconn && priv) {
+        return secure_socket_has_more(0, priv);
+    }
+    return false;
+}
+
+void secure_connection_close(connection * conn, void *priv)
+{
+    connection_p *pconn = (connection_p *) conn;
+    if (pconn && priv) {
+        ssl_destroy(priv);
+    }
+}
 #endif
 
 /* Return true iff the connection to the remote site established
@@ -715,7 +761,7 @@ bool validate_connection(connection_p * pconn)
         x->connected = false;                   \
     } while (0)
 
-int do_perform_select(connection_group * group)
+int do_perform_select(connection_group* group)
 {
     if (!(group->type & cg_all)) {
         mlog(ALWAYS, "Connection timed out...\n");
@@ -735,6 +781,13 @@ int do_perform_select(connection_group * group)
     slist_head *p;
     SLIST_FOREACH(p, group->lst) {
         connection_p *pconn = LIST2PCONN(p);
+        // make sure no pending data left.
+        if (pconn->rco.has_more) {
+            while (pconn->rco.has_more(&pconn->conn, pconn->priv)) {
+                 pconn->conn.recv_data((connection *) pconn, pconn->conn.priv);
+            }
+        }
+
         if (pconn->sock) {
             if ((group->type & cg_read) && pconn->conn.recv_data)
                 FD_SET(pconn->sock, &rfds);
@@ -784,7 +837,6 @@ int do_perform_select(connection_group * group)
                 if (!pconn->active) {
                     continue;
                 }
-
                 if (FD_ISSET(pconn->sock, &wfds)) {
                     ret = pconn->conn.write_data((connection *) pconn,
                                                  pconn->conn.priv);
@@ -963,7 +1015,7 @@ void limit_bandwidth(connection_p* conn, int size)
 #if 0
 
     if (bw_limit == -1)         // not enabled.
-        return;
+       return;
 
     //Don't enable this for ftp which using multi-threads...
     if (conn->port == IPPORT_FTP) {
@@ -1013,8 +1065,10 @@ void connection_make_secure(connection* conn)
         fprintf(stderr, "Failed to make socket secure\n");
         abort();
     }
-    pconn->rco.write = secure_connection_write;
-    pconn->rco.read  = secure_connection_read;
+    pconn->rco.write    = secure_connection_write;
+    pconn->rco.read     = secure_connection_read;
+    pconn->rco.has_more = secure_connection_has_more;
+    pconn->rco.close = secure_connection_close;
     PDEBUG ("C: %p, P: %p, W: %p, R: %p\n",
             conn, &pconn->rco, pconn->rco.write, pconn->rco.read);
 #else
@@ -1022,6 +1076,15 @@ void connection_make_secure(connection* conn)
             "FATAL: HTTPS requires GnuTLS, which is not installed....\n");
     abort();
 #endif
+}
+
+void connection_cleanup()
+{
+    PDEBUG("connn: %p\n", g_conn_cache);
+    hash_table_destroy(g_conn_cache);
+    PDEBUG("addr_cache: %p\n", addr_cache);
+    hash_table_destroy(addr_cache);
+    bq_destroy(dq);
 }
 
 /*

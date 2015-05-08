@@ -36,6 +36,7 @@ void ssl_destroy(void *);
 
 int secure_socket_read(int, char *, uint32, void *);
 int secure_socket_write(int, char *, uint32, void *);
+bool secure_socket_has_more(int, void *);
 
 #ifdef __cplusplus
 }

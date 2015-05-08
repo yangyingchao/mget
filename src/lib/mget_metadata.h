@@ -87,14 +87,15 @@ typedef struct _hash_table hash_table;
 // **+-------------------------------+-------------------------------+
 
 typedef struct _metadata_ptrs {
-    data_chunk *body;   // pointer to data_chunk
-    char *ht_buffer;    // points to buffer for serialized hash_tables.
-    hash_table *ht;     // points to hash table.
-    char *url;      // pointer to url
-    char *fn;       // saved file name.
-    char *user;
-    char *passwd;
-    char *mime;     // pointer to mime type
+    bool        dirty;
+    data_chunk *body;                   // pointer to data_chunk
+    char       *ht_buffer;              // points to buffer of serialized hash_tables.
+    hash_table *ht;                     // points to hash table.
+    char       *url;                    // pointer to url
+    char       *fn;                     // saved file name.
+    char       *user;
+    char       *passwd;
+    char       *mime;                   // pointer to mime type
 } mp;
 
 

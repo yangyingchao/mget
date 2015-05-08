@@ -29,7 +29,7 @@
 
 #define ZALLOC(T, N)       (T*)calloc(N, sizeof(T))
 #define ZALLOC1(T) ZALLOC(T, 1)
-#define FIF(X)     if((X)) free((X))
+#define FIF(X)     if((X)) free((void*)(X))
 #define FIFZ(X)    if(*X) {free(*(X)), *(X) = NULL;}
 
 #define XZERO(X)       memset(&(X), '\0', sizeof(X));

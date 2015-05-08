@@ -51,9 +51,10 @@ typedef struct _connection connection;
  */
 
 typedef struct _connection_operations {
-	int32(*read) (connection*, char*, uint32, void*);
-	int32(*write) (connection*, const char*, uint32, void*);
+	int32 (*read) (connection*, char*, uint32, void*);
+	int32 (*write) (connection*, const char*, uint32, void*);
 	void (*close) (connection*, void*);
+ 	bool (*has_more) (connection*, void*);
 
     int32 (*save_to_fd)(connection*, int);
 } connection_operations;
@@ -96,6 +97,8 @@ void connection_add_to_group(connection_group *, connection *);
   stopped by user.
 */
 int connection_perform(connection_group* group);
+
+void connection_cleanup();
 
 connection* connection_get(const url_info * ui);
 void connection_put(connection* sock);

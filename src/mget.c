@@ -307,6 +307,9 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    free(opts.proxy.server);
+    mget_cleanup();
+
     return ret;
 }
 

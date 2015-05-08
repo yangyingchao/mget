@@ -110,7 +110,7 @@ bool fhandle_mmap(fh_map* fm, fhandle *fh, off_t offset, size_t length)
     return true;
 }
 
-void fhandle_munmap(fh_map *fm)
+void fhandle_munmap(fh_map* fm)
 {
     if (fm) {
         if (fm->addr) {
@@ -119,16 +119,15 @@ void fhandle_munmap(fh_map *fm)
     }
 }
 
-void fhandle_munmap_close(fh_map ** fm)
+void fhandle_munmap_close(fh_map* fm)
 {
-    if (fm && *fm) {
-        if ((*fm)->addr) {
-            munmap((*fm)->addr, (*fm)->length);
+    if (fm) {
+        if (fm->addr) {
+            munmap(fm->addr, fm->length);
         }
 
-        fhandle_destroy((*fm)->fh);
-        free(*fm);
-        *fm = NULL;
+        fhandle_destroy(fm->fh);
+        free(fm);
     }
 }
 
