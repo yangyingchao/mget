@@ -98,6 +98,8 @@ void connection_add_to_group(connection_group *, connection *);
 */
 int connection_perform(connection_group* group);
 
+void connection_cleanup();
+
 connection* connection_get(const url_info * ui);
 void connection_put(connection* sock);
 

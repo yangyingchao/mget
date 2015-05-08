@@ -42,8 +42,9 @@ void dinfo_destroy(dinfo* info)
     if (remove_metadata)
         remove_file(info->fm_md->fh->fn);
 
-    fhandle_munmap_close(&info->fm_md);
-    fhandle_munmap_close(&info->fm_file);
+    metadata_destroy(info->md);
+    fhandle_munmap_close(info->fm_md);
+    fhandle_munmap_close(info->fm_file);
 
     url_info_destroy(info->ui);
     FIF(info);
@@ -160,7 +161,7 @@ bool dinfo_create(const char* url, const file_name* fn,
         mh *hd = &pmd->hd;
         hash_table *ht = hash_table_create(128, free);
         mp *ptrs = ZALLOC1(mp);
-
+        ptrs->dirty = true;
         char* ptr = (char*) &hd->iden;
         *ptr = MAGIC_NUMBER;
         ptr++;
@@ -190,21 +191,21 @@ bool dinfo_create(const char* url, const file_name* fn,
 
         if (fpath) {
             char *tmp = get_basename(fpath);
-            ptrs->fn = strdup(tmp);
-            free(tmp);
+            pmd->ptrs->fn  = strdup(tmp);
             HASH_TABLE_INSERT(ptrs->ht, K_FN, ptrs->fn, strlen(ptrs->fn));
+            free(tmp);
         }
 
         if (opt->user) {
             pmd->ptrs->user = strdup(opt->user);
             HASH_TABLE_INSERT(ptrs->ht, K_USR, ptrs->user,
-                              strlen(ptrs->fn));
+                              strlen(ptrs->user));
         }
 
         if (opt->passwd) {
             pmd->ptrs->passwd = strdup(opt->passwd);
             HASH_TABLE_INSERT(ptrs->ht, K_PASSWD, ptrs->passwd,
-                              strlen(ptrs->fn));
+                              strlen(ptrs->passwd));
         }
     }
 
@@ -226,9 +227,10 @@ bool dinfo_create(const char* url, const file_name* fn,
 
 free:
     FIF(dInfo);
-    FIF(fpath);
 
 out:
+    FIF(fpath);
+    FIF(tfn);
     return ret;
 }
 
@@ -307,6 +309,8 @@ bool dinfo_update_metadata(dinfo * info, uint64 size, const char *fn)
         }
     }
 
+    FIF(dc);
+
     hd->package_size = size;
     hd->chunk_size   = cs;
     hd->nr_effective = nc;
@@ -325,6 +329,7 @@ bool dinfo_update_metadata(dinfo * info, uint64 size, const char *fn)
     DINFO_UPDATE_HASH(K_PASSWD, md->ptrs->passwd);
 
     if (fn && hd->update_name) {
+        FIF(md->ptrs->fn);
         md->ptrs->fn = strdup(fn);
         DINFO_UPDATE_HASH(K_FN, md->ptrs->fn);
         hd->update_name = FALSE;
@@ -350,6 +355,7 @@ bool dinfo_update_metadata(dinfo * info, uint64 size, const char *fn)
             sprintf(fpath, "%s/%s", dirn, md->ptrs->fn);
             PDEBUG("Creating file mapping: %s, dirn: %s, fn: %s\n",
                    fpath, dirn ? dirn : "NULL", md->ptrs->fn);
+            free(dirn);
         } else
             fpath = strdup(md->ptrs->fn);
 

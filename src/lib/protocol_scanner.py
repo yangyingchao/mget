@@ -30,7 +30,7 @@ MIDDLE='''
 
 hash_table* collect_handlers()
 {
-    hash_table* tbl = hash_table_create(64, free);
+    hash_table* tbl = hash_table_create(64, NULL);
     if (tbl)
     {
 '''

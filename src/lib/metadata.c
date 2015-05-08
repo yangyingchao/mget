@@ -209,6 +209,15 @@ void metadata_inspect(const char* path, mget_option* opts)
     metadata_display(md);
 }
 
+void metadata_destroy(metadata* md)
+{
+    if (!md || !md->ptrs)
+        return;
+    mp* p = md->ptrs;
+    hash_table_destroy(p->ht);
+    FIF(md->ptrs);
+}
+
 /*
  * Editor modelines
  *

@@ -75,11 +75,8 @@ void hash_table_destroy(hash_table * table)
 {
     if (table) {
         if (table->entries) {
-            int i = 0;
-
-            for (; i < table->capacity; ++i) {
+            for (uint32 i = 0; i < table->capacity; ++i) {
                 TableEntry *entry = &table->entries[i];
-
                 if (entry->key) {
                     free(entry->key);
                 }
@@ -126,17 +123,15 @@ bool hash_table_insert(hash_table * table, const char *key, void *val,
     bool ret = false;
     if (table && key && val) {
         uint32 i;
-        char *d_key = strdup(key);
-
         // Insert entry into the first open slot starting from index.
-        for (i = table->hashFunctor(d_key); i < table->capacity; ++i) {
+        for (i = table->hashFunctor(key); i < table->capacity; ++i) {
             TableEntry *entry = &table->entries[i];
             if (entry->key) {
                 if (!strcmp(key, entry->key)) {
-                    return false;
+                    break;
                 }
             } else {
-                entry->key = d_key;
+                entry->key = strdup(key);
                 entry->val = val;
                 entry->val_len = len;
                 entry->ts = time(NULL);
@@ -150,7 +145,6 @@ bool hash_table_insert(hash_table * table, const char *key, void *val,
     if (!ret) {
         PDEBUG("Failed to insert: %s -- %s\n", key, (char *) val);
     }
-
     return ret;
 }
 
@@ -165,11 +159,10 @@ bool hash_table_update(hash_table * table, char *key, void *val,
     bool ret = false;
     if (table && key && val) {
         uint32 i;
-        char *d_key = strdup(key);
         TableEntry *oldest = NULL;
         TableEntry *entry = NULL;
         // Insert entry into the first open slot starting from index.
-        for (i = table->hashFunctor(d_key); i < table->capacity; ++i) {
+        for (i = table->hashFunctor(key); i < table->capacity; ++i) {
             entry = &table->entries[i];
             if (entry->key) {
                 if (!strcmp(key, entry->key)) {
@@ -183,7 +176,8 @@ bool hash_table_update(hash_table * table, char *key, void *val,
             } else {
                 table->occupied++;
           fill_slot:
-                entry->key = d_key;
+                FIF(entry->key);
+                entry->key = strdup(key);
                 entry->val = val;
                 entry->val_len = len;
                 entry->ts = time(NULL);
@@ -202,7 +196,6 @@ bool hash_table_update(hash_table * table, char *key, void *val,
 
         if (!ret) {
             PDEBUG("Failed to update hash table for key: %s\n", key);
-            FIF(d_key);
         }
     }
 
@@ -322,7 +315,7 @@ hash_table *hash_table_create_from_buffer(void *buffer, uint32 buffer_size)
 
     DIP(capacity, ptr);
     if (*((int *) ptr) == 0
-        || !(ht = hash_table_create(*((uint32 *) ptr), NULL))) {
+        || !(ht = hash_table_create(*((uint32 *) ptr), free))) {
         PDEBUG("ptr: (%p): %d, ht: %p\n", ptr, *((uint32 *) ptr), ht);
         return NULL;
     }
@@ -340,10 +333,11 @@ hash_table *hash_table_create_from_buffer(void *buffer, uint32 buffer_size)
         assert(ptr - (char *) buffer <= buffer_size);
 
         uint32 key_len = *(uint32 *) ptr;
-        char *key = ZALLOC(char, key_len + 1);
+        assert(key_len < 512);
         ptr += sizeof(uint32);
-
+        static char key[512];
         memcpy(key, ptr, key_len);
+        key[key_len]='\0';
         ptr += key_len;
 
         uint32 val_len = *(uint32 *) ptr;

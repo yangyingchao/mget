@@ -76,6 +76,14 @@ mget_err start_request(const char* url, const file_name* fn, mget_option* opt,
     return ret;
 }
 
+void mget_cleanup()
+{
+    hash_table_destroy(g_handlers);
+    g_handlers = NULL;
+
+    connection_cleanup();
+}
+
 /*
  * Editor modelines
  *

@@ -114,6 +114,11 @@ mget_err start_request(const char *url, const file_name * fn,
  */
 void metadata_inspect(const char *path, mget_option * opts);
 
+/**
+ * @name mget_cleanup Cleans up mget library.
+ */
+void mget_cleanup();
+
 #ifdef __cplusplus
 }
 #endif

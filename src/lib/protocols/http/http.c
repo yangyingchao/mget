@@ -48,7 +48,6 @@ typedef struct _connection_operation_param {
     data_chunk    *dp;
     url_info      *ui;
     bool           header_finished;
-    byte_queue    *bq;
     hash_table    *ht;
     void (*cb) (metadata*, void*);
     metadata      *md;
@@ -98,7 +97,7 @@ static void http_request_destroy(const http_request* req);
 
 typedef struct _http_response {
     int           stat;
-    http_request* req;
+    const http_request* req;
     byte_queue*   bq;
     hash_table*   ht;
 } http_response;
@@ -141,7 +140,8 @@ int http_read_sock(connection* conn, void* priv)
     void *addr = param->addr + dp->cur_pos;
     if (!param->header_finished) {
         const http_response* rsp = get_response(conn, NULL);
-        switch (rsp->stat) {
+        int stat = rsp->stat;
+        switch (stat) {
             case 206:
             case 200:{
                 break;
@@ -159,32 +159,33 @@ int http_read_sock(connection* conn, void* priv)
                            " update metadata, please delete all files "
                            " and try again...\n"
                            "New locations: %s...\n", loc);
+                    http_response_destroy(rsp);
                     exit(1);
                 }
                 break;
             }
             default:{
-                fprintf(stderr, "Error occurred, status code is %d!\n",
-                        rsp->stat);
+                fprintf(stderr, "Error occurred, status code is %d!\n", stat);
+                http_response_destroy(rsp);
                 exit(1);
             }
         }
 
-        size_t length = param->bq->w - param->bq->r;
+        size_t length = rsp->bq->w - rsp->bq->r;
         PDEBUG("LEN: %ld, bq->w - bq->r: %ld\n", length,
-               param->bq->w - param->bq->r);
+               rsp->bq->w - rsp->bq->r);
         if (length) {
-            memcpy(addr, param->bq->r, length);
+            memcpy(addr, rsp->bq->r, length);
             param->md->hd.current_size+=length;
             dp->cur_pos += length;
         }
         param->header_finished = true;
-        bq_destroy(param->bq);
         if (dp->cur_pos == dp->end_pos)
             goto ret;
         else if (dp->cur_pos == dp->end_pos)
             mlog(ALWAYS, "Wrong data: dp: %p : %llX -- %llX\n",
                  dp, dp->cur_pos, dp->end_pos);
+        http_response_destroy(rsp);
     }
 
     do {
@@ -311,13 +312,13 @@ mget_err process_http_request(dinfo *info, dp_callback cb,
         char *dis = hash_table_entry_get(rsp->ht, "content-disposition");
         PDEBUG("updating name based on disposition: %s\n", dis);
         fn = get_suggested_name(dis);
-
         if (!fn && (!strcmp(ui->bname, ".") ||!strcmp(ui->bname, "/"))) {
             fn = strdup("index.html");
         }
     }
 
     PDEBUG("total: %" PRIu64 ", fileName: %s\n", total, fn);
+    http_response_destroy(rsp);
 
     /*
       If it goes here, means metadata is not ready, get nc (number of
@@ -336,6 +337,7 @@ mget_err process_http_request(dinfo *info, dp_callback cb,
         return ME_ABORT;
     }
 
+    FIF(fn);
     PDEBUG("metadata created from url: %s\n", ui->furl);
 
 start:;
@@ -346,9 +348,11 @@ start:;
 
     metadata_display(md);
 
-
 restart:
     dinfo_sync(info);
+
+    if (!context.bq)
+        context.bq = bq_init(PAGE);
 
     PDEBUG ("md: %p, status: %d, nr: %d -- %d\n", md, md->hd.status,
             md->hd.nr_user, md->hd.nr_effective);
@@ -363,8 +367,11 @@ restart:
     mget_err err = ME_OK;
     if (context.can_split)
         err = process_request_multi_form(&context);
-    else
+    else {
         err = process_request_single_form(&context);
+        connection_put(context.conn);
+    }
+
 
     PDEBUG ("md: %p, status: %d, nr: %d -- %d\n", md, md->hd.status,
             md->hd.nr_user, md->hd.nr_effective);
@@ -397,6 +404,7 @@ ret:
     }
 
     bq_destroy(context.bq);
+    FIF(context.uri_host);
     PDEBUG("stopped, ret: %d.\n", ME_OK);
     return ME_OK;
 }
@@ -408,8 +416,11 @@ static size_t request_send(connection* conn, const http_request* req, byte_queue
     PDEBUG ("enter...\n");
     size_t written = -1;
     if (conn && req) {
-        if (!bq)
+        bool fbq = false;
+        if (!bq) {
             bq = bq_init(PAGE);
+            fbq = true;
+        }
         bq->w += sprintf (bq->w, "%s %s HTTP/1.1\r\n", req->method, req->uri);
 
         slist_head* pr;
@@ -424,6 +435,8 @@ static size_t request_send(connection* conn, const http_request* req, byte_queue
              "\n---request begin---\n%s---request end---\n", bq->r);
 
         bq_reset(bq);
+        if (fbq)
+            bq_destroy(bq);
     }
 
     return written;
@@ -453,7 +466,7 @@ static const http_request* http_request_create(const char* method,
         p = &(*p)->next;                                                \
     } while (0)
 
-    
+
     SET_HEADER("User-Agent: mget(%s)", VERSION_STRING);
     SET_HEADER("Host: %s", host);
     SET_HEADER("Accept: */*");
@@ -522,7 +535,9 @@ static int parse_respnse(byte_queue* bq, hash_table** ht)
         if (sscanf((const char *) ptr, "%[^ 	:]: %[^\r\n]\r\n%n",
                    k, v, &n)) {
             lowwer_case(k, strlen(k));
-            HASH_TABLE_INSERT(pht, k, strdup(v), strlen(v));
+            char* dv = strdup(v);
+            if (!HASH_TABLE_INSERT(pht, k, dv, strlen(v)))
+                free(dv);
             ldsize += n;
             ptr += n;
         }
@@ -548,7 +563,7 @@ const http_response* get_response(connection* conn, const http_request* req)
     rsp = ZALLOC1(http_response);
     if (!rsp)
         goto out;
-
+    rsp->req = req;
     rsp->bq = bq_init(PAGE);
     if (req && (int)request_send(conn, req, rsp->bq) == -1)  {
         goto err;
@@ -996,7 +1011,6 @@ mget_err process_request_multi_form(hcontext* ctx)
         param->ui        = ui;
         param->md        = md;
         param->info      = info;
-        param->bq        = bq_init(PAGE);
         param->cb        = ctx->cb;
         param->context   = ctx;
         param->user_data = ctx->user_data;

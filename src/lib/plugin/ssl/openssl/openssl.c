@@ -72,7 +72,6 @@ int secure_socket_read(int sk, char *buf, uint32 size, void *priv)
 
     ssl_wrapper *wrapper = (ssl_wrapper *) priv;
     int bq_size = wrapper->bq->w - wrapper->bq->r;
-    PDEBUG ("%p:%p -- %d\n", wrapper->bq->r, wrapper->bq->w, bq_size);
     if (bq_size > 0) {
         int s =  MIN(bq_size, size);
         memcpy(buf, wrapper->bq->r,s);
@@ -242,10 +241,12 @@ void ssl_destroy(void *priv)
     CAST(ssl_wrapper, wrapper, priv);
     if (wrapper)
     {
+        /* BIO_free(wrapper->bio); */
+        /* SSL_CTX_free(wrapper->ctx); */
+        SSL_free(wrapper->ssl);
         bq_destroy(wrapper->bq);
         FIF(wrapper);
     }
-
 }
 
 bool secure_socket_has_more(int sk, void *priv)

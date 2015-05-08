@@ -41,6 +41,8 @@ void url_info_destroy(url_info* ui)
     if (ui) {
         FIF(ui->furl);
         FIF(ui->host);
+        FIF(ui->bname);
+        FIF(ui->uri);
         FIF(ui);
     }
 }
