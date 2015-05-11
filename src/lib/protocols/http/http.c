@@ -764,6 +764,7 @@ static long get_chunk_size(byte_queue* bq, int* consumed)
     char* ptr = strstr((char*)bq->r, "\r\n");
     if (!ptr)
         return -1;
+
     long  sz  = strtol((char*)bq->r, NULL, 16);
     *consumed = ptr - (char*)bq->r + 2;
     bq->r = ptr + 2;
@@ -778,13 +779,14 @@ static mget_err receive_chunked_data(hcontext* context)
     connection* conn = context->conn;
     long chunk_size;
     int consumed = 0;
+
 read_chunk_size:
-    chunk_size = get_chunk_size(context->bq, &consumed);
-    PDEBUG ("chunk_size: %d\n", chunk_size);
+    chunk_size = get_chunk_size(bq, &consumed);
+    PDEBUG ("chunk_size: %d, consumed: %d\n", chunk_size, consumed);
     if (chunk_size == -1)  { // not enough data...
+        PDEBUG ("data: %s\n", bq->r);
         bq_enlarge(bq, PAGE);
         int rd = conn->co.read(conn, (char*)bq->w, PAGE, NULL);
-        PDEBUG ("rd: %d\n", rd);
         if (rd > 0) {
             bq->w += rd;
             goto read_chunk_size;
@@ -793,38 +795,37 @@ read_chunk_size:
             return ME_CONN_ERR;
         }
     }
-
-    PDEBUG ("ChunkSize: %d\n", chunk_size);
-    if (chunk_size>0) {
-        long pending = chunk_size - consumed;
-        pending -= (bq->w  - bq->r);
-        do {
+    else if (chunk_size > 0) {
+        long has = bq->w  - bq->r;
+        long pending = chunk_size - has;
+        while (pending > 0) {
+            PDEBUG ("Ask more...\n");
             bq_enlarge(bq, PAGE);
-            int rd = conn->co.read(conn, (char*)bq->w, pending > PAGE ? PAGE:pending, NULL);
+            int rd = conn->co.read(conn, (char*)bq->w,
+                                   pending > PAGE ? PAGE:pending, NULL);
+            PDEBUG ("read returns: %d\n",  rd);
             CALLBACK(context);
             if (rd > 0) {
-                bq->w += rd;
+                bq->w   += rd;
                 pending -= rd;
             }
             else
                 return ME_CONN_ERR;
-
             PDEBUG ("pending: %d\n", pending);
-        } while (pending > 0);
+        }
 
-        size_t total =  bq->w - bq->r - 2;
-        if (!(safe_write(fd, (char*)bq->r, total))) { // exclude \r\n
+        if (!(safe_write(fd, (char*)bq->r, chunk_size))) { // exclude \r\n
             mlog(QUIET,
                  "Failed to write to fd: %d, error: %d -- %s\n",
                  fd, errno, strerror(errno));
             return ME_RES_ERR;
         }
-        context->info->md->hd.current_size += total;
-        bq_reset(bq);
-        PDEBUG ("read again...\n");
+        bq->r += chunk_size + 2;
+        context->info->md->hd.current_size += chunk_size;
         goto read_chunk_size;
     }
 
+    bq_reset(bq);
     return ME_OK;
 }
 
