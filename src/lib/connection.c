@@ -61,6 +61,14 @@ typedef struct _addr_entry {
     char buffer[0];             /* Buffer of sockaddr.  */
 } addr_entry;
 
+typedef enum _expected_operation
+{
+    eow = 1,
+    eor = 2,
+    eo_all =  eow | eor
+} expected_operation;
+
+
 typedef struct _connection_p {
     connection conn;
     connection_operations rco;  // real operators..
@@ -73,6 +81,7 @@ typedef struct _connection_p {
     bool connected;
     bool active;
     bool busy;
+    expected_operation expt;
     int last_access;            // last connected..
 } connection_p;
 
@@ -210,7 +219,7 @@ static void ccache_destroy(void* ptr)
     FIF(cache);
 }
 
-connection *connection_get(const url_info* ui)
+connection *connection_get(const url_info* ui, bool async)
 {
     PDEBUG ("Getting connection for  %s\n", url_info_stringify(ui));
     connection_p *conn = NULL;
@@ -241,7 +250,7 @@ connection *connection_get(const url_info* ui)
                print_address(ui->addr), ui->port);
         conn->sock = connect_to(AF_INET, SOCK_STREAM, 0,
                                 (struct sockaddr *) &sa, sizeof sa,
-                                TIME_OUT);
+                                async ? 0 : TIME_OUT);
         if (conn->sock == -1) {
             perror("connect");
             close(conn->sock);
@@ -319,7 +328,8 @@ connection *connection_get(const url_info* ui)
                                     conn->addr->ai_socktype,
                                     conn->addr->ai_protocol,
                                     conn->addr->ai_addr,
-                                    conn->addr->ai_addrlen, TIME_OUT);
+                                    conn->addr->ai_addrlen,
+                                    async ? 0 : TIME_OUT);
             if (conn->sock == -1) {
                 perror("Failed to connect");
                 goto hint;
@@ -432,6 +442,9 @@ err:
     conn = NULL;
 ret:
     PDEBUG("return connection: %p\n", conn);
+    if (conn)
+        conn->expt = eo_all;
+
     return (connection *) conn;
 }
 
@@ -840,7 +853,6 @@ int do_perform_select(connection_group* group)
             fprintf(stderr, "Failed to select: %s\n", strerror(errno));
             break;
         }
-
         if (nfds == 0) {
             PDEBUG("timed out...\n");
             int cts = get_time_s();
@@ -869,6 +881,7 @@ int do_perform_select(connection_group* group)
                     ret = pconn->conn.write_data((connection *) pconn,
                                                  pconn->conn.priv);
                     if (ret == COF_FINISHED) {
+                        pconn->expt ^= eow;
                         FD_CLR(pconn->sock, &wfds);
                         FD_SET(pconn->sock, &rfds);
                         FD_SET(pconn->sock, &efds);
@@ -900,6 +913,7 @@ int do_perform_select(connection_group* group)
                             PDEBUG("remaining sockets: %d\n", cnt);
                             pconn->active = false;
                             pconn->connected = false;
+                            pconn->expt ^= eor;
                             break;
                         }
                         case COF_ABORT:
@@ -915,10 +929,14 @@ int do_perform_select(connection_group* group)
                         }
                     }
                 } else if (FD_ISSET(pconn->sock, &efds)) {
+                    PDEBUG ("failed: pconn: %p\n", pconn);
                     close_connection(pconn);
                     cnt--;
                 } else if (pconn->active) {
-                    FD_SET(pconn->sock, &rfds);
+                    if (pconn->expt & eor)
+                        FD_SET(pconn->sock, &rfds);
+                    if (pconn->expt & eow)
+                        FD_SET(pconn->sock, &wfds);
                     FD_SET(pconn->sock, &efds);
                 }
             }
@@ -926,7 +944,7 @@ int do_perform_select(connection_group* group)
 
         if (cnt == 0) {
             break;
-        } else if (cnt < group->cnt / 2) {      // half of connections are free, reschedule.
+        } else if (cnt < group->cnt / 2) {// half of connections are free, reschedule.
             static bool rescheduled = false;
             if (!rescheduled) {
                 PDEBUG("TODO: implement reschduling...\n");
@@ -974,8 +992,10 @@ bool try_connect(int sockfd, const struct sockaddr *addr,
         }
         PDEBUG("Connecting ... (%d) - %s\n", errno, strerror(errno));
     }
-    // check if the socket is ready
-    return timed_wait(sockfd, WT_WRITE, timeout);
+    if (timeout)
+        return timed_wait(sockfd, WT_WRITE, timeout);
+    else
+        return true;
 }
 
 char *get_host_key(const char *host, int port)
