@@ -100,7 +100,7 @@ int connection_perform(connection_group* group);
 
 void connection_cleanup();
 
-connection* connection_get(const url_info * ui);
+connection* connection_get(const url_info* ui, bool async);
 void connection_put(connection* sock);
 
 void connection_make_secure(connection* conn);

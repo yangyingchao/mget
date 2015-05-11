@@ -288,7 +288,7 @@ static inline uerr_t get_data_connection(dinfo * info,
 {
     ftp_connection *conn = ZALLOC1(ftp_connection);
     /* Login to the server: */
-    conn->conn = connection_get(info->ui);
+    conn->conn = connection_get(info->ui, false);
     if (!conn->conn) {
         return FTPRERR;
     }
@@ -462,7 +462,7 @@ Error in server response, closing control ftp_connection.\n"));
 
     PDEBUG("A0: %p\n", ui.addr);
 
-    param->data_conn = connection_get(&ui);
+    param->data_conn = connection_get(&ui, true);
     if (!param->data_conn) {
         PDEBUG("Failed to get connection!\n");
 
@@ -545,7 +545,7 @@ mget_err process_ftp_request(dinfo* info,
     }
 
     ftp_connection *fconn = ZALLOC1(ftp_connection);
-    fconn->conn = connection_get(info->ui);
+    fconn->conn = connection_get(info->ui, false);
     if (!fconn->conn) {
         fprintf(stderr, "Failed to get socket!\n");
         return ME_CONN_ERR;

@@ -121,7 +121,7 @@ static mget_err process_request_multi_form(hcontext*);
 
 static const http_response* get_response(connection*, const http_request* rea);
 static bool setup_proxy(hcontext* context);
-static connection* get_proxied_connection(hcontext* context);
+static connection* get_proxied_connection(hcontext* context, bool async);
 static size_t request_send(connection*, const http_request*, byte_queue*);
 
 
@@ -223,7 +223,6 @@ ret:
 
 int http_write_sock(connection* conn, void *priv)
 {
-    PDEBUG("enter\n");
     if (!priv) {
         PDEBUG("no priv..\n");
         return -1;
@@ -654,7 +653,7 @@ uint64 get_remote_file_size(url_info* ui,
             if (loc && parse_url(loc, &nui)) {
                 url_info_copy(ui, nui);
                 url_info_destroy(nui);
-                connection* conn = get_proxied_connection(context);
+                connection* conn = get_proxied_connection(context, false);
                 if (conn) {
                     connection_put(context->conn);
                     context->conn = conn;
@@ -901,7 +900,7 @@ mget_err process_request_single_form(hcontext* context)
     connection* conn = context->conn;
     if (!conn) {
   retry:
-        conn = get_proxied_connection(context);
+        conn = get_proxied_connection(context, false);
         if (!conn)
             return ME_RES_ERR;
 
@@ -931,7 +930,7 @@ mget_err process_request_single_form(hcontext* context)
                 if (loc && parse_url(loc, &nui)) {
                     url_info_copy(context->info->ui, nui);
                     url_info_destroy(nui);
-                    connection* conn = get_proxied_connection(context);
+                    connection* conn = get_proxied_connection(context, false);
                     if (conn) {
                         connection_put(context->conn);
                         context->conn = conn;
@@ -990,14 +989,13 @@ mget_err process_request_multi_form(hcontext* ctx)
     metadata*    md   = info->md;
     data_chunk  *dp   = md->ptrs->body;
     url_info*    ui   = ctx->info->ui;
-    connection*  conn = ctx->conn;
     for (int i = 0; i < md->hd.nr_effective; ++i, ++dp) {
         if (dp->cur_pos >= dp->end_pos) {
             continue;
         }
 
         need_request = true;
-        conn = conn ? conn : get_proxied_connection(ctx);
+        connection* conn = get_proxied_connection(ctx, true);
         if (!conn) {
             fprintf(stderr, "Failed to create connection!!\n");
             err = ME_RES_ERR; // @todo: clean up resource..
@@ -1020,7 +1018,6 @@ mget_err process_request_multi_form(hcontext* ctx)
         conn->priv       = param;
 
         connection_add_to_group(sg, conn);
-        conn = NULL;
     }
 
     if (!need_request) {
@@ -1102,18 +1099,18 @@ static bool setup_proxy(hcontext* context)
             }
         }
     }
-    context->conn = get_proxied_connection(context);
+    context->conn = get_proxied_connection(context, false);
     return ret;
 }
 
-static connection* get_proxied_connection(hcontext* context)
+static connection* get_proxied_connection(hcontext* context, bool async)
 {
     if (!HAS_PROXY(&context->opts->proxy))
-        return connection_get(context->info->ui);
+        return connection_get(context->info->ui, async);
 
     url_info*   ui   = context->info->ui;
     url_info*   new  = add_proxy(context->info->ui, &context->opts->proxy);
-    connection* conn = conn = connection_get(new);;
+    connection* conn = conn = connection_get(new, false);
 
     if ((context->info->ui->eprotocol) == HTTPS) {
         url_info_destroy(new);
