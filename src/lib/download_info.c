@@ -59,6 +59,7 @@ bool dinfo_create(const char* url, const file_name* fn,
     bool      ret          = false;
     bool      update_fn    = false;
     bool      md_from_file = false;
+    char*     tfn          = NULL;
 
     PDEBUG ("enter, url: %s\n", url);
     dInfo = ZALLOC1(dinfo);
@@ -93,7 +94,7 @@ bool dinfo_create(const char* url, const file_name* fn,
         goto free;
     }
 
-    char *tfn = ZALLOC(char, strlen(fpath) + 5);
+    tfn = ZALLOC(char, strlen(fpath) + 5);
     sprintf(tfn, "%s.tmd", fpath);
 
     PDEBUG ("%s exist: %d\n", tfn, file_existp(tfn));
