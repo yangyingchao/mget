@@ -630,7 +630,7 @@ int tcp_connection_read(connection * conn, char *buf,
         if (!timed_wait(pconn->sock, WT_READ, -1)) {
             mlog(ALWAYS, "Nothing to read: (%d):%s\n",
                  errno, strerror(errno));
-            abort();
+            return 0;
         }
 
         rd = read(pconn->sock, buf, size);
@@ -879,7 +879,6 @@ int do_perform_select(connection_group* group)
                         case COF_FINISHED:{ //TODO:
                             PDEBUG("remove conn: %p socket: %d, ret: %d...\n",
                                    pconn, pconn->sock, ret);
-                            FD_CLR(pconn->sock, &rfds);
                             /* close(pconn->sock); */
                             cnt--;
                             PDEBUG("remaining sockets: %d\n", cnt);

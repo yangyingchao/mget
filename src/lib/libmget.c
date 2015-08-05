@@ -64,7 +64,7 @@ mget_err start_request(const char* url, const file_name* fn, mget_option* opt,
         return ME_NOT_SUPPORT;
     }
 
-    mlog(ALWAYS, "Using internal %s handler...\n", info->ui->protocol);
+    mlog(QUIET, "Using internal %s handler...\n", info->ui->protocol);
 
     if (opt->limit > 0)
         set_global_bandwidth(opt->limit);
