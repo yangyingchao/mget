@@ -302,12 +302,20 @@ size_t get_file_size(fh_map* fm)
 #define shm_error(msg)                                              \
     do { perror("sm_error, " msg); r = NULL; goto err; } while (0)
 
+/*@note: OS-X bug, ftruncate only works once on the initial creation of the
+         segment, but failed for reopened segments.
+         http://stackoverflow.com/questions/25502229/ftruncate-not-working-on-posix-shared-memory-in-mac-os-x
+         http://lists.apple.com/archives/darwin-dev/2004/Dec/msg00066.html
+*/
+
+
 shm_region* shm_region_open(const char* key)
 {
     shm_region* r = NULL;
     size_t length = sizeof(shm_region);
     int fd = shm_open(key, O_RDWR, S_IRUSR | S_IWUSR);
-    if (fd == -1) { // no shared memory created for this library, create new one.
+    if (fd == -1) { // no shared memory created for this library, create new
+                    // one.
         fd = shm_open(key, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
         if (fd == -1)
             shm_error("Failed to open shared memory");
