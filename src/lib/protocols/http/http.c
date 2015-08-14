@@ -140,6 +140,10 @@ int http_read_sock(connection* conn, void* priv)
     void *addr = param->addr + dp->cur_pos;
     if (!param->header_finished) {
         const http_response* rsp = get_response(conn, NULL);
+        if (!rsp) {
+            return COF_CLOSED;
+        }
+
         int stat = rsp->stat;
         switch (stat) {
             case 206:
@@ -150,19 +154,10 @@ int http_read_sock(connection* conn, void* priv)
             case 302:
             case 303:
             case 307:{
-                char *loc = (char*) hash_table_entry_get(param->ht, "location");
-                if (dinfo_update_url(param->info, loc)) {
-                    mlog(ALWAYS, "url updated to :%s\n", loc);
-                    return COF_CLOSED;
-                } else {
-                    printf("Server returns 302, but failed to"
-                           " update metadata, please delete all files "
-                           " and try again...\n"
-                           "New locations: %s...\n", loc);
-                    http_response_destroy(rsp);
-                    exit(1);
-                }
-                break;
+                char *loc = (char*) hash_table_entry_get(rsp->ht, "location");
+                mlog(ALWAYS, "Skip this chunk, url updated to :%s\n", loc);
+                http_response_destroy(rsp);
+                return COF_CLOSED;
             }
             default:{
                 fprintf(stderr, "Error occurred, status code is %d!\n", stat);
