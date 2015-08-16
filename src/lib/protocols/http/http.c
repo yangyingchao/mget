@@ -565,6 +565,11 @@ const http_response* get_response(connection* conn, const http_request* req)
 
     char *eptr = NULL;
     do {
+        if (rsp->bq->w - rsp->bq->r >= PAGE*2) {
+            mlog(VERBOSE, "Header not ends with 8192 bytes?\n");
+            goto err;
+        }
+
         rsp->bq = bq_enlarge(rsp->bq, PAGE);
         size_t rd = conn->co.read(conn, rsp->bq->w, rsp->bq->x - rsp->bq->w, NULL);
         if (!rd) {
