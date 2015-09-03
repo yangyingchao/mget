@@ -143,6 +143,27 @@ char *get_basename(const char *fname)
     return bname;
 }
 
+char *guess_basename(const char *fname)
+{
+    if (!fname)
+        return NULL;
+    char* tmp = strdup(fname);
+    char* bname = strdup(basename(tmp));
+    free(tmp);
+
+    char* ptr = bname;
+    char* end = ptr + strlen(bname);
+    while (ptr < end) {
+        if (*ptr == '?') {
+            *ptr = '\0';
+            break;
+        }
+
+        ++ptr;
+    }
+    return bname;
+}
+
 bool file_existp(const char *path)
 {
     PDEBUG("path: %s\n", path);

@@ -42,17 +42,18 @@ mget_err start_request(const char* url, const file_name* fn, mget_option* opt,
     dinfo *info = NULL;
     mget_err ret = ME_OK;
 
+    if (!g_handlers && !(g_handlers = collect_handlers())) {
+        fprintf(stderr, "Failed to scan protocol handlers\n");
+        return ME_RES_ERR;
+    }
+
+
     g_log_level = opt->ll;
     g_hct = opt->hct;
 
     if (!dinfo_create(url, fn, opt, &info)) {
         ret = ME_RES_ERR;
         return ret;
-    }
-
-    if (!g_handlers && !(g_handlers = collect_handlers())) {
-        fprintf(stderr, "Failed to scan protocol handlers\n");
-        return ME_RES_ERR;
     }
 
     protocol_handler handler =

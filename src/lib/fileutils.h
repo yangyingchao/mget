@@ -56,7 +56,8 @@ bool  fhandle_mmap(fh_map *fm, fhandle *fh, off_t offset, size_t length);
 void  fhandle_munmap(fh_map *fm);
 void  fhandle_msync(fh_map *fm);
 void  fhandle_munmap_close(fh_map* fm);
-char *get_basename(const char *fname);
+char* get_basename(const char *fname);
+char* guess_basename(const char *fname);
 void  remove_file(const char *fn);
 
 fh_map *fm_create(const char *fn, size_t length);

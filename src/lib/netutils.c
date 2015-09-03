@@ -86,7 +86,7 @@ bool parse_url(const char* url, url_info** ui)
     }
 
     up->uri = strdup(url);
-    up->bname = get_basename(url);
+    up->bname = guess_basename(url);
     if (strlen(up->bname) > 255) {
         char *tmp = strdup(get_unique_name(up->bname));
         FIF(up->bname);

@@ -137,8 +137,8 @@ void metadata_display(metadata* md)
 
         recv += chunk_recv;
         mlog(ALWAYS,
-             "Chunk: %d -- (%s), s: %08" PRIXFAST64 ", c: %08"
-             PRIXFAST64 ", e: %08" PRIXFAST64 " (%s) -- %.02f%%\n",
+             "Chunk: %d -- (%s), start: %08" PRIXFAST64 ", cur: %08"
+             PRIXFAST64 ", end: %08" PRIXFAST64 " (%s) -- %.02f%%\n",
              i, cs, cp->start_pos, cp->cur_pos,
              cp->end_pos, es, (float) (chunk_recv) / chunk_size * 100);
         free(cs);

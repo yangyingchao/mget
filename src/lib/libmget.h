@@ -33,8 +33,8 @@ extern "C" {
 #endif
 
 typedef struct _file_name {
-	char *dirn;
-	char *basen;
+	char *dirn;                         /**< Directory name . */
+	char *basen;                        /**< File base name. */
 } file_name;
 
 
