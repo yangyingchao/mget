@@ -134,6 +134,7 @@ bool dinfo_create(const char* url, const file_name* fn,
             fpath = strdup(dInfo->md->ptrs->fn);
         }
 
+        dInfo->md->hd.recent_ts = get_time_s();
         md_from_file = true;
     } else {
         if (!url) {
@@ -162,7 +163,6 @@ bool dinfo_create(const char* url, const file_name* fn,
         mh *hd = &pmd->hd;
         hash_table *ht = hash_table_create(128, free);
         mp *ptrs = ZALLOC1(mp);
-        ptrs->dirty = true;
         char* ptr = (char*) &hd->iden;
         *ptr = MAGIC_NUMBER;
         ptr++;
@@ -170,7 +170,7 @@ bool dinfo_create(const char* url, const file_name* fn,
 
         hd->version = GET_VERSION();
         hd->package_size = 0;
-        hd->last_time = get_time_s();
+        hd->recent_ts = get_time_s();
         hd->acc_time = 0;
         hd->status = RS_INIT;
         hd->nr_user = opt->max_connections;

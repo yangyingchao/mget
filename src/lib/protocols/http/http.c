@@ -171,7 +171,7 @@ int http_read_sock(connection* conn, void* priv)
                rsp->bq->w - rsp->bq->r);
         if (length) {
             memcpy(addr, rsp->bq->r, length);
-            param->md->hd.current_size+=length;
+            param->md->hd.finished_size+=length;
             dp->cur_pos += length;
         }
         param->header_finished = true;
@@ -190,7 +190,7 @@ int http_read_sock(connection* conn, void* priv)
 
     if (rd > 0) {
         dp->cur_pos += rd;
-        param->md->hd.current_size+=rd;
+        param->md->hd.finished_size+=rd;
         if (param->cb) {
             (*(param->cb)) (param->md, param->user_data);
         }
@@ -259,7 +259,7 @@ mget_err process_http_request(dinfo *info, dp_callback cb,
         .user_data = user_data,
     };
 
-    PDEBUG ("Proxy enabled: %d, host: %s\n", opts->proxy.enabled, opts->proxy.server);
+    PDEBUG ("Proxy enabled: %d, host: %s\n", opts->proxy_enabled, opts->proxy.server);
     PDEBUG ("host: %p\n", info->ui->host);
     PDEBUG ("host: %s, uri_host: %s, uri: %s\n",
             info->ui->host, context.uri_host, context.uri);
@@ -384,11 +384,11 @@ restart:
         }
     }
 
-    md->hd.acc_time += get_time_s() - md->hd.last_time;
+    md->hd.acc_time += get_time_s() - md->hd.recent_ts;
 
 ret:
     PDEBUG ("md: %p, size: %d - %d, nr: %d -- %d\n", md, md->hd.package_size,
-            md->hd.current_size, md->hd.nr_user, md->hd.nr_effective );
+            md->hd.finished_size, md->hd.nr_user, md->hd.nr_effective );
 
     if (md->hd.package_size)
         metadata_display(md);
@@ -819,7 +819,7 @@ static mget_err receive_chunked_data(hcontext* context)
             return ME_RES_ERR;
         }
         bq->r += chunk_size + 2; // plus \r\n
-        context->info->md->hd.current_size += chunk_size;
+        context->info->md->hd.finished_size += chunk_size;
         CALLBACK(context);
     }
 
@@ -848,7 +848,7 @@ retry:
         PDEBUG ("pending: %d\n", pending);
         int rd = conn->co.read(conn, (char*)bq->w, PAGE, NULL);
         length = rd;
-        context->info->md->hd.current_size += length;
+        context->info->md->hd.finished_size += length;
         CALLBACK(context);
         if (rd > 0) {
             bq->w += rd;
@@ -880,7 +880,7 @@ retry:
     bq_reset(bq);
     int rd = conn->co.read(conn, (char*)bq->w, PAGE, NULL);
     length = rd;
-    context->info->md->hd.current_size += length;
+    context->info->md->hd.finished_size += length;
     CALLBACK(context);
     PDEBUG ("md: %p, nr: %d--%d\n", context->info->md,
             context->info->md->hd.nr_user,    context->info->md->hd.nr_effective);
@@ -1079,7 +1079,11 @@ static url_info* add_proxy(url_info* ui, const struct mget_proxy* proxy)
 static bool setup_proxy(hcontext* context)
 {
     bool ret = true;
-    if (HAS_PROXY(&context->opts->proxy) && !context->proxy_ready) {
+    if ((context->opts)->proxy_enabled) {
+        
+    }
+
+    if (HAS_PROXY(context->opts) && !context->proxy_ready) {
         url_info* ui = context->info->ui;
         const struct mget_proxy* proxy = &context->opts->proxy;
 
@@ -1104,7 +1108,7 @@ static bool setup_proxy(hcontext* context)
 
 static connection* get_proxied_connection(hcontext* context, bool async)
 {
-    if (!HAS_PROXY(&context->opts->proxy))
+    if (!HAS_PROXY(context->opts))
         return connection_get(context->info->ui, async);
 
     url_info*   ui   = context->info->ui;

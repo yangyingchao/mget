@@ -692,7 +692,7 @@ mget_err process_ftp_request(dinfo* info,
         }
     }
 
-    md->hd.acc_time += get_time_s() - md->hd.last_time;
+    md->hd.acc_time += get_time_s() - md->hd.recent_ts;
 
     maxfd++;
 

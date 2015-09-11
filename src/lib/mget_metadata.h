@@ -30,13 +30,10 @@ extern "C" {
 #include "mget_types.h"
 
 typedef struct _data_chunk {
-    struct dc_status {
-        uint8 reserved[4];
-    } status;
     uint64 start_pos;
     uint64 end_pos;
     uint64 cur_pos;
-} data_chunk;
+} __attribute__((aligned (32))) data_chunk;
 
 #define is_chunk_finished(p)       (p->cur_pos >= p->end_pos)
 
@@ -50,26 +47,23 @@ typedef enum _request_status {
 } request_status;
 
 typedef struct metadata_head {
-    uint32 iden;        // \0xFC"TMD"                                -- 04
-    uint32 version;     // Major, Minor, Patch, NULL                 -- 08
-    uint64 package_size;    // size of package;                      -- 16
-    uint64 chunk_size;  // size of single chunk                      -- 24
-    uint64 last_time;   // last time used.                           -- 32
-    uint32 acc_time;    // accumulated time in this downloading.     -- 36
-
-    uint8 status;       // status.                                       -- 37
-    uint8 nr_user;      // number of chunks set by user.                 -- 38
-    uint8 nr_effective; // number of chunks that are effective.          -- 39
-    uint8 acon;     // active connections.                           -- 40
-
-    uint16 ebl;     // length of extra body: url_len+mime_len+others -- 42
-    uint8 update_name;  // flag to indicate file name should be updated. -- 43
-    // Filename may be returned from server in http
-    // header.
-
-    uint64 current_size;
-    uint8 reserved[13]; // reserved ...                                  -- 64
-} mh;           // up to 64 bytes
+    uint32 iden;          // \0xFC"TMD"                                     /*  0  4 */
+    uint32 version;       // Major, Minor, Patch, NULL                      /*  4  4 */
+    uint64 package_size;  // size of package;                               /*  8  8 */
+    uint64 chunk_size;    // size of single chunk                           /* 16  8 */
+    uint64 finished_size; // current finished size                          /* 24  8 */
+    uint32 recent_ts;     // last time started.                             /* 32  4 */
+    uint32 acc_time;      // accumulated time in this downloading.          /* 36  4 */
+    uint8 status;         // status.                                        /* 40  1 */
+    uint8 nr_user;        // number of chunks set by user.                  /* 41  1 */
+    uint8 nr_effective;   // number of chunks that are effective.           /* 42  1 */
+    uint8 acon;           // active connections.                            /* 43  1 */
+    uint16 ebl;           // length of extra body: url_len+mime_len+others  /* 44  2 */
+    uint8 update_name;    // flag to indicate file name should be updated.  /* 46  1 */
+    uint8 reserved[17];   // reserved ...                                   /* 47 17 */
+	/* --- cacheline 1 boundary (64 bytes) --- */
+	/* size: 64, cachelines: 1, members: 14 */
+} mh;                     // up to 64 bytes
 
 typedef struct _hash_table hash_table;
 
@@ -77,17 +71,16 @@ typedef struct _hash_table hash_table;
 // ***/              |               |               |               |
 // **|0 1 2 3 4 5 6 7|0 1 2 3 4 5 6 7|0 1 2 3 4 5 6 7|0 1 2 3 4 5 6 7|
 // **+-------------------------------+-------------------------------+
-// **|               DATA_CHUNK  START                               |
+// **|                       DATA_CHUNK  START                       |
 // **+---------------------------------------------------------------+
-// **|               ..................           .                  |
+// **|                       ..................                      |
 // **+---------------------------------------------------------------+
-// **|               DATA_CHUNK  END                                 |
-// **+-------------------------------+-------------------------------+
-// **|            URL  FN  MIME   OTHERS   .....                     |
-// **+-------------------------------+-------------------------------+
+// **|                       DATA_CHUNK  END                         |
+// **+---------------------------------------------------------------+
+// **|                       SH_TABLE_BUFFER                         |
+// **+---------------------------------------------------------------+
 
 typedef struct _metadata_ptrs {
-    bool        dirty;
     data_chunk *body;                   // pointer to data_chunk
     char       *ht_buffer;              // points to buffer of serialized hash_tables.
     hash_table *ht;                     // points to hash table.

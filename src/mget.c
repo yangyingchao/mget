@@ -75,7 +75,7 @@ void show_progress(metadata *md, void *user_data) {
             ts = get_time_ms();
             rts = ts;
             if (!last_recv) {
-                last_recv = md->hd.current_size;
+                last_recv = md->hd.finished_size;
             }
             progress_report(p, idx, false, 0, 0, 0);
         } else if ((get_time_ms() - ts) > interval) {
@@ -84,15 +84,15 @@ void show_progress(metadata *md, void *user_data) {
         }
     } else {
         uint64 total = md->hd.package_size;
-        uint64 recv = md->hd.current_size;
-        uint64 diff_size = md->hd.current_size - last_recv;
+        uint64 recv = md->hd.finished_size;
+        uint64 diff_size = md->hd.finished_size - last_recv;
         uint32 c_time = get_time_ms();
         uint64 bps = (uint64)((double)(diff_size) * 1000 / (c_time - rts)) + 1;
 
         progress_report(p, idx, true, (double)recv / total * 100, bps,
                         total > 0 ? (total - recv) / bps : 0);
         idx = 0;
-        last_recv = md->hd.current_size;
+        last_recv = md->hd.finished_size;
         rts = c_time;
     }
 }
@@ -238,10 +238,10 @@ int main(int argc, char *argv[]) {
                     p_port = p+1;
                 }
 
+                opts.proxy_enabled   = true;
                 opts.proxy.server    = proxy;
                 opts.proxy.port      = (p_port == NULL) ? 80 : atoi(p_port);
                 opts.proxy.encrypted = false;
-                opts.proxy.enabled   = true;
                 break;
             }
             default: {
