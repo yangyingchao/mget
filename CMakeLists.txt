@@ -7,6 +7,10 @@ option (DEBUG
   "Debug or release.."
   OFF)
 
+option (STATIC
+  "Build static mget."
+  OFF)
+
 # uninstall target
 configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/cmake_uninstall.cmake.in"

@@ -33,7 +33,11 @@ list(APPEND SOURCES ${PROTOCOLS})
 add_custom_target(scan_protocols
   COMMAND python protocol_scanner.py)
 
-add_library(mget SHARED ${SOURCES} ${SSL_SOURCES})
+if (STATIC)
+  add_library(mget STATIC ${SOURCES} ${SSL_SOURCES})
+else ()
+  add_library(mget SHARED ${SOURCES} ${SSL_SOURCES})
+endif (STATIC)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 add_dependencies(mget scan_protocols)
@@ -47,10 +51,16 @@ endif(APPLE)
 
 target_link_libraries(mget ${LIBS})
 
-install(
-  TARGETS mget
-  LIBRARY
-  DESTINATION "lib")
+if(STATIC)
+  message(STATUS "library skipped.")
+else(STATIC)
+  install(
+    TARGETS mget
+    LIBRARY
+    DESTINATION "lib")
+endif()
+
+
 
 file(GLOB PUB_HEADERS "*mget*.h")
 install(

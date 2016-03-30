@@ -1092,8 +1092,9 @@ void connection_make_secure(connection* conn)
             conn, &pconn->rco, pconn->rco.write, pconn->rco.read);
 #else
     fprintf(stderr,
-            "FATAL: HTTPS requires GnuTLS, which is not installed....\n");
-    abort();
+            "FATAL: HTTPS requires either GnuTLS or OpenSSL, "
+            "which is not installed....\n");
+    exit(1);
 #endif
 }
 
