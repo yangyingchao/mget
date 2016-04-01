@@ -29,6 +29,7 @@
 #include "../../mget_utils.h"
 #include <errno.h>
 #include <unistd.h>
+#include <strings.h>
 
 #define DEFAULT_HTTP_CONNECTIONS 5
 #define PAGE                     4096
@@ -44,7 +45,7 @@ typedef enum _http_transfer_type {
 typedef struct http_request_context hcontext;
 // @todo: move this param into src/lib/protocol when more protocols are added.
 typedef struct _connection_operation_param {
-    void          *addr;                //base addr;
+    char          *addr;                //base addr;
     data_chunk    *dp;
     url_info      *ui;
     bool           header_finished;
@@ -95,11 +96,20 @@ static const http_request*
 http_request_create(const char*, const char*, const char*, bool, uint64, uint64);
 static void http_request_destroy(const http_request* req);
 
+typedef enum _connection_type {
+    CT_Keep,
+    CT_Close,
+} connection_type;
+
 typedef struct _http_response {
-    int           stat;
+    int             stat;
+    size_t          content_length;
+    connection_type type;
+
+    // some raw data
     const http_request* req;
-    byte_queue*   bq;
-    hash_table*   ht;
+    byte_queue*         bq;
+    hash_table*         ht;
 } http_response;
 
 static void http_response_destroy(const http_response* rsp);
@@ -113,7 +123,7 @@ static void http_response_destroy(const http_response* rsp);
     } while (0)
 
 
-static int parse_respnse(byte_queue*, hash_table**);
+static int parse_response(byte_queue*, hash_table**);
 static uint64 get_remote_file_size(url_info*, const http_response**, hcontext*);
 static char* get_suggested_name(const char*);
 static mget_err process_request_single_form(hcontext*);
@@ -148,6 +158,12 @@ int http_read_sock(connection* conn, void* priv)
         switch (stat) {
             case 206:
             case 200:{
+                size_t required = param->dp->end_pos - param->dp->cur_pos;
+                if (rsp->content_length != required) {
+                    mlog(ALWAYS, "\nSize does not match, required: %zu, got: %zu\n",
+                         required, rsp->content_length);
+                    return COF_ABORT;
+                }
                 break;
             }
             case 301:
@@ -180,6 +196,7 @@ int http_read_sock(connection* conn, void* priv)
         else if (dp->cur_pos == dp->end_pos)
             mlog(ALWAYS, "Wrong data: dp: %p : %llX -- %llX\n",
                  dp, dp->cur_pos, dp->end_pos);
+
         http_response_destroy(rsp);
     }
 
@@ -474,7 +491,7 @@ static const http_request* http_request_create(const char* method,
     return req;
 }
 
-static int parse_respnse(byte_queue* bq, hash_table** ht)
+static int parse_response(byte_queue* bq, hash_table** ht)
 {
     if (!ht || !bq || !bq->r) {
         return -1;
@@ -582,9 +599,19 @@ const http_response* get_response(connection* conn, const http_request* req)
     mlog(QUIET,
          "\n---response begin---\n%s\n---response end---\n", buf);
 
-    rsp->stat = parse_respnse(rsp->bq, &rsp->ht);
+    rsp->stat = parse_response(rsp->bq, &rsp->ht);
     PDEBUG("stat: %d, description: %s\n",
            rsp->stat, (char *) hash_table_entry_get(rsp->ht, "status"));
+
+    const char* val = hash_table_entry_get(rsp->ht, "connection");
+    if (val && !strcasecmp(val, "close")) {
+        rsp->type = CT_Close;
+    }
+
+    val = hash_table_entry_get(rsp->ht, "content-length");
+    if (val) {
+        rsp->content_length = atol(val);
+    }
 
     goto out;
 
@@ -606,7 +633,7 @@ uint64 get_remote_file_size(url_info* ui,
 
     PDEBUG("enter, uri_host: %s, uri: %s\n", context->uri_host, context->uri);
 
-    const http_request* req   = http_request_create("GET",
+    const http_request* req   = http_request_create("HEAD",
                                                     context->uri_host,
                                                     context->uri, true, 0, 1);
     *rsp = get_response(context->conn, req);

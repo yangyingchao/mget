@@ -211,7 +211,7 @@ void *hash_table_entry_get(hash_table * table, const char *key)
 {
     TableEntry *entry = NULL;
     uint32 index = table->hashFunctor(key);
-    int i;
+    uint i;
 
     for (i = index; i < table->capacity; ++i) {
         entry = &table->entries[i];
