@@ -159,7 +159,7 @@ int http_read_sock(connection* conn, void* priv)
             case 206:
             case 200:{
                 size_t required = param->dp->end_pos - param->dp->cur_pos;
-                if (rsp->content_length != required) {
+                if (rsp->content_length < required) {
                     mlog(ALWAYS, "\nSize does not match, required: %zu, got: %zu\n",
                          required, rsp->content_length);
                     return COF_ABORT;
@@ -360,8 +360,6 @@ start:;
     metadata_display(md);
 
 restart:
-    dinfo_sync(info);
-
     if (!context.bq)
         context.bq = bq_init(PAGE);
 
@@ -1056,7 +1054,6 @@ mget_err process_request_multi_form(hcontext* ctx)
     PDEBUG("ret = %d\n", ret);
 
     connection_group_destroy(sg);
-    dinfo_sync(info);
 
     dp = md->ptrs->body;
     bool finished = true;

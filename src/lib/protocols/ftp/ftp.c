@@ -592,8 +592,6 @@ mget_err process_ftp_request(dinfo* info,
 
     metadata_display(md);
 
-    dinfo_sync(info);
-
     if (md->hd.status == RS_FINISHED) {
         goto ret;
     }
@@ -666,8 +664,6 @@ mget_err process_ftp_request(dinfo* info,
     PDEBUG("Performing...\n");
     int ret = connection_perform(group);
     PDEBUG("ret = %d\n", ret);
-
-    dinfo_sync(info);
 
     dp = md->ptrs->body;
     bool finished = true;
