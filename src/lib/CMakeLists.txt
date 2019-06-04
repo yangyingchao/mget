@@ -24,16 +24,16 @@ if (APPLE)
   set(USE_FCNTL 1)
 endif (APPLE)
 
-configure_file(mget_config.h.in mget_config.h)
+configure_file(mget_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/mget_config.h)
 
 file(GLOB SOURCES "*.c")
 file(GLOB_RECURSE PROTOCOLS "protocols/*.c")
 list(APPEND SOURCES ${PROTOCOLS})
 
 add_custom_target(scan_protocols
-  COMMAND python protocol_scanner.py)
+  COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/protocol_scanner.py)
 
-add_library(mget SHARED ${SOURCES} ${SSL_SOURCES})
+add_library(mget STATIC ${SOURCES} ${SSL_SOURCES})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 add_dependencies(mget scan_protocols)

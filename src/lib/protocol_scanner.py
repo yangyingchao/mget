@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import os
+import sys
 import glob
 
 PREFIX='''#ifndef _GENERATED_H_
@@ -37,7 +38,7 @@ hash_table* collect_handlers()
 
 if __name__ == '__main__':
     print("Scanning protocol handlers...\n")
-
+    os.chdir(os.path.dirname(sys.argv[0]))
     fd = open('protocols.h', 'w')
     defs  = []
     stats = []
